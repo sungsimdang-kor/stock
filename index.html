@@ -185,15 +185,29 @@
 </div>
 
 <script>
+    // =========================================================
     // 1. 상태 변수 및 초기화 설정
+    // =========================================================
     const users = ['김태호', '이용우', '이형주'];
     let exKRW = 1350; 
+    
+    // 주요 주식 종목 사전 (이름 즉시 로딩용)
     const tMap = {
-        'AAPL':'Apple','MSFT':'Microsoft','TSLA':'Tesla','NVDA':'NVIDIA',
-        'GOOGL':'Alphabet','AMZN':'Amazon','META':'Meta',
-        '005930':'삼성전자','000660':'SK하이닉스','373220':'LG에너지솔루션',
-        '035420':'NAVER','035720':'카카오'
+        'AAPL':'Apple', 'MSFT':'Microsoft', 'TSLA':'Tesla', 'NVDA':'NVIDIA',
+        'GOOGL':'Alphabet', 'AMZN':'Amazon', 'META':'Meta', 'BRK-B':'Berkshire Hathaway',
+        'TSM':'TSMC', 'AVGO':'Broadcom', 'LLY':'Eli Lilly', 'JPM':'JPMorgan',
+        'V':'Visa', 'UNH':'UnitedHealth', 'XOM':'Exxon Mobil', 'WMT':'Walmart',
+        'JNJ':'Johnson & Johnson', 'MA':'Mastercard', 'PG':'Procter & Gamble',
+        'AMD':'AMD', 'NFLX':'Netflix', 'QCOM':'Qualcomm', 'INTC':'Intel',
+        'SPY':'SPY ETF', 'QQQ':'QQQ ETF', 'VOO':'VOO ETF', 'SCHD':'SCHD ETF',
+        '005930':'삼성전자', '000660':'SK하이닉스', '373220':'LG에너지솔루션',
+        '207940':'삼성바이오로직스', '005380':'현대차', '000270':'기아',
+        '068270':'셀트리온', '005490':'POSCO홀딩스', '035420':'NAVER',
+        '035720':'카카오', '003670':'포스코퓨처엠', '051910':'LG화학',
+        '012330':'현대모비스', '105560':'KB금융', '028260':'삼성물산',
+        '055550':'신한지주', '032830':'삼성생명', '033780':'KT&G'
     };
+
     const mSym = {
         'KRW=X': '원달러환율', '^IXIC': '나스닥', '^GSPC': 'S&P 500', 
         '^KS11': 'KOSPI', '^KQ11': '코스닥', '^VIX': 'VIX', 'CL=F': 'WTI 유가'
@@ -202,7 +216,9 @@
     const state = { trades: {}, charts: {} };
     users.forEach(u => state.trades[u] = []);
 
+    // =========================================================
     // 2. Firebase 설정
+    // =========================================================
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
         authDomain: "howooju.firebaseapp.com",
@@ -223,7 +239,9 @@
     } catch (e) { console.error("Firebase 초기화 에러:", e); }
 
 
+    // =========================================================
     // 3. 로딩 및 모달 유틸리티
+    // =========================================================
     function toggleLd(show, txt = "처리 중...") {
         const loader = document.getElementById('loader');
         const loaderTxt = document.getElementById('loader-txt');
@@ -264,7 +282,9 @@
     });
 
 
+    // =========================================================
     // 4. 화면 초기 렌더링 및 탭 전환
+    // =========================================================
     function initUI() {
         const con = document.getElementById('pages-container');
         if (!con) return;
@@ -337,9 +357,11 @@
     }
 
 
+    // =========================================================
     // 5. 페이지 완전 로드 후 백그라운드 데이터 호출
+    // =========================================================
     window.onload = () => {
-        initUI(); // DOM 생성 완벽 보장
+        initUI(); 
         
         toggleLd(true, "매매 데이터 로딩 중...");
         const loadTimer = setTimeout(() => { toggleLd(false); }, 3000);
@@ -381,7 +403,9 @@
     };
 
 
+    // =========================================================
     // 6. 데이터 입출력 (매매 추가/수정/삭제)
+    // =========================================================
     async function saveTr(u) {
         if (!db) return alert("데이터베이스에 연결되지 않았습니다.");
         
@@ -453,7 +477,9 @@
     }
 
 
-    // 7. 실시간 시세 및 API 호출 함수들
+    // =========================================================
+    // 7. 실시간 시세 및 API 호출 함수들 (티커 입력 개선 반영)
+    // =========================================================
     async function fetchExchangeRate() {
         try {
             const res = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
@@ -565,17 +591,41 @@
         if (!tk) { nmIn.value = ''; return; }
 
         tkIn.value = tk;
-        nmIn.placeholder = "검색 중..."; nmIn.value = "";
 
-        const info = await getStk(tk);
-        nmIn.value = info.name;
-        crSel.value = info.curr;
-        if (info.price > 0 && !prIn.value) prIn.value = info.price;
-        nmIn.placeholder = "자동 입력";
+        // 1. 0.001초 즉시 처리 로직 (비동기 최적화)
+        const isKorean = /^\d{6}$/.test(tk);
+        const instantName = tMap[tk] || (cache[tk] ? cache[tk].name : "");
+        
+        crSel.value = isKorean ? 'KRW' : 'USD';
+        
+        if (instantName) {
+            nmIn.value = instantName;
+        } else {
+            nmIn.value = "";
+            nmIn.placeholder = "API 검색 중...";
+        }
+
+        // 2. 백그라운드 현재가 처리
+        getStk(tk).then(info => {
+            if (!nmIn.value) {
+                if (info.name && info.name !== tk) {
+                    nmIn.value = info.name;
+                } else {
+                    nmIn.placeholder = "직접 입력";
+                }
+            }
+            if (info.price > 0 && !prIn.value) {
+                prIn.value = info.price;
+            }
+        }).catch(() => {
+            if (!nmIn.value) nmIn.placeholder = "직접 입력";
+        });
     }
 
 
+    // =========================================================
     // 8. 전면 화면 계산 및 렌더링
+    // =========================================================
     function updateAll() {
         let stats = [], hlds = [];
 
