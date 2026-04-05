@@ -226,7 +226,6 @@
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
         authDomain: "howooju.firebaseapp.com",
-        // ⚠️ 주의: 반드시 실제 DB 주소로 교체하세요!
         databaseURL: "https://howooju-default-rtdb.asia-southeast1.firebasedatabase.app",
         projectId: "howooju",
         storageBucket: "howooju.firebasestorage.app",
@@ -297,7 +296,6 @@
         con.innerHTML = '';
         
         users.forEach(u => {
-            // 레이아웃 수정: grid-2 제거하고 card를 100% 너비로 순차 배치
             const html = `
                 <div id="u-${u}" class="tab-content">
                     <div class="card">
@@ -476,7 +474,6 @@
         } catch(e) { console.warn("환율 API 지연"); }
     }
 
-    // 통신 속도 극대화를 위해 일괄 조회(Batch Fetch) 1순위 적용
     async function fetchIndices() {
         const q = Object.keys(mSym).join(',');
         try {
@@ -508,7 +505,6 @@
 
         let isUpdated = false;
         
-        // 1순위: 속도가 빠른 일괄 조회 (Batch Fetch)
         const q = Array.from(activeTickers).map(t => /^\d{6}$/.test(t) ? t+'.KS' : t).join(',');
         try {
             const targetUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${q}`;
@@ -534,8 +530,6 @@
                 });
             }
         } catch(e) {
-            // 2순위: 일괄 조회가 막혔을 경우 개별 조회로 우회
-            console.warn("일괄 갱신 우회 작동 중...");
             const promises = Array.from(activeTickers).map(async tk => {
                 const oldPrice = cache[tk] ? cache[tk].price : 0;
                 const info = await getStk(tk, true); 
