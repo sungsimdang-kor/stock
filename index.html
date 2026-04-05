@@ -21,32 +21,24 @@
             -webkit-overflow-scrolling: touch;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 15px;
-            padding-bottom: 60px;
-            box-sizing: border-box;
-        }
+        /* ── 로그인 화면 ── */
+        #login-screen { position: fixed; inset: 0; background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 100000; }
+        .login-box { background: var(--card); padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; width: 100%; max-width: 320px; box-sizing: border-box; }
+        .login-box h2 { margin: 0 0 25px; color: var(--pri); font-size: 22px; }
+        .login-box input { width: 100%; padding: 14px; border: 1px solid var(--brd); border-radius: 6px; margin-bottom: 20px; font-size: 16px; box-sizing: border-box; text-align: center; letter-spacing: 2px; }
+        .login-box button { width: 100%; padding: 14px; background: var(--pri); color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .login-box button:hover { background: #000; }
+        #main-app { display: none; } /* 초기 숨김 */
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 15px; padding-bottom: 60px; box-sizing: border-box; }
 
         .top-info-bar { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 10px; gap: 15px; flex-wrap: wrap; }
         .exchange-info { font-size: 12px; color: #666; font-weight: bold; }
         .refresh-btn { background: #e0e0e0; border: none; padding: 6px 12px; border-radius: 20px; font-size: 11px; cursor: pointer; font-weight: bold; color: #333; transition: 0.2s; }
         .refresh-btn:hover { background: #ccc; }
 
-        .tabs {
-            display: flex;
-            border-bottom: 2px solid var(--brd);
-            margin-bottom: 20px;
-            overflow-x: auto;
-            overflow-y: hidden;
-            white-space: nowrap;
-            -webkit-overflow-scrolling: touch;
-            touch-action: pan-x;
-            scrollbar-width: none;
-        }
+        .tabs { display: flex; border-bottom: 2px solid var(--brd); margin-bottom: 20px; overflow-x: auto; overflow-y: hidden; white-space: nowrap; -webkit-overflow-scrolling: touch; touch-action: pan-x; scrollbar-width: none; }
         .tabs::-webkit-scrollbar { display: none; }
-
         .tab-btn { background: none; border: none; padding: 12px 20px; font-size: 16px; cursor: pointer; color: #666; font-weight: bold; flex-shrink: 0; }
         .tab-btn.active { color: var(--pri); border-bottom: 3px solid var(--pri); margin-bottom: -2px; }
         .tab-content { display: none; }
@@ -54,9 +46,9 @@
 
         .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .card h3 { margin-top: 0; border-bottom: 1px solid var(--brd); padding-bottom: 10px; font-size: 18px; }
-        
         .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--brd); padding-bottom: 10px; margin-bottom: 15px; }
         .card-header h3 { border: none; padding: 0; margin: 0; }
+        
         .realized-badge { background: #fff3cd; color: #856404; padding: 6px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; border: 1px solid #ffeeba; }
 
         .idx-wrap { background: #1a1a1a; padding: 25px; border-radius: 12px; margin-bottom: 20px; color: white; }
@@ -95,17 +87,19 @@
         .f-grp input, .f-grp select { padding: 8px; border: 1px solid var(--brd); border-radius: 4px; font-size: 14px; box-sizing: border-box; }
         input[disabled], select[disabled] { background-color: #eaecf0; cursor: not-allowed; color: #555; font-weight: bold; border: 1px solid #ccc; }
 
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 15px; align-items: center; flex-wrap: wrap; background: #f9fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--brd); }
+        .filter-bar input, .filter-bar select { padding: 8px; border: 1px solid var(--brd); border-radius: 4px; font-size: 13px; box-sizing: border-box; }
+        .filter-label { font-size: 13px; font-weight: bold; color: #555; margin-right: 5px; }
+
         .btn-grp { display: flex; gap: 8px; }
         button { cursor: pointer; font-weight: bold; transition: 0.2s; border: none; border-radius: 6px; }
         .p-btn { flex: 1; padding: 10px; background: var(--pri); color: white; }
         .c-btn { flex: 1; padding: 10px; background: #6c757d; color: white; display: none; }
-
         .a-btn { padding: 6px 10px; font-size: 12px; margin-left: 4px; color: white; border-radius: 4px; }
         .edit-btn { background: #f1c40f; color: #333; }
         .del-btn  { background: #e74c3c; }
 
         .chart { height: 300px; width: 100%; max-width: 500px; margin: 0 auto; }
-
         .profit { color: var(--profit); font-weight: bold; }
         .loss   { color: var(--loss);   font-weight: bold; }
 
@@ -141,68 +135,94 @@
 </head>
 <body>
 
-<div id="loader"><div class="spin"></div><div id="loader-txt">처리 중...</div></div>
-
-<div id="del-modal">
-    <div class="del-modal-box">
-        <div class="icon">🗑️</div>
-        <h4>매매 기록 삭제</h4>
-        <p>해당 기록을 영구적으로 삭제합니다.<br>이 작업은 되돌릴 수 없습니다.</p>
-        <div class="del-modal-btns">
-            <button id="del-cancel-btn" onclick="closeDelModal()">취소</button>
-            <button id="del-confirm-btn">삭제</button>
-        </div>
+<div id="login-screen">
+    <div class="login-box">
+        <h2>대시보드 로그인</h2>
+        <input type="password" id="pwd-input" placeholder="비밀번호 입력" onkeypress="if(event.key==='Enter') checkPwd()">
+        <button onclick="checkPwd()">입장하기</button>
     </div>
 </div>
 
-<div class="container">
-    <div class="top-info-bar">
-        <div class="exchange-info" id="last-update-display">마지막 갱신: -</div>
-        <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
-        <button class="refresh-btn" onclick="syncMarketData(true)">🔄 시세 갱신</button>
-    </div>
+<div id="main-app">
+    <div id="loader"><div class="spin"></div><div id="loader-txt">처리 중...</div></div>
 
-    <div class="tabs" id="tab-menu">
-        <button class="tab-btn active" onclick="switchTab('dashboard', this)">통합 뷰</button>
-        <button class="tab-btn" onclick="switchTab('u-김태호', this)">김태호</button>
-        <button class="tab-btn" onclick="switchTab('u-이용우', this)">이용우</button>
-        <button class="tab-btn" onclick="switchTab('u-이형주', this)">이형주</button>
-    </div>
-
-    <div id="dashboard" class="tab-content active">
-        <div class="idx-wrap">
-            <h3>글로벌 마켓 실시간 지표</h3>
-            <div class="idx-grid" id="market-indices">
-                <div class="idx-loading">지표 불러오는 중...</div>
-            </div>
-        </div>
-        <div class="metrics">
-            <div class="m-box gold"><h4>오늘의 수익 왕</h4><p id="dash-top">-</p></div>
-            <div class="m-box red"><h4>최대 수익 주식</h4><p id="dash-best" class="profit">-</p></div>
-            <div class="m-box blue"><h4>최대 손해 주식</h4><p id="dash-worst" class="loss">-</p></div>
-        </div>
-        <div class="card">
-            <h3>인원별 오버뷰 (원화 환산)</h3>
-            <div class="tbl-wrap">
-                <table>
-                    <thead><tr><th>이름</th><th>투자 원금</th><th>현재 평가액</th><th>미실현 수익</th><th>실현 수익</th><th>총 수익률</th></tr></thead>
-                    <tbody id="dash-body"></tbody>
-                </table>
+    <div id="del-modal">
+        <div class="del-modal-box">
+            <div class="icon">🗑️</div>
+            <h4>매매 기록 삭제</h4>
+            <p>해당 기록을 영구적으로 삭제합니다.<br>이 작업은 되돌릴 수 없습니다.</p>
+            <div class="del-modal-btns">
+                <button id="del-cancel-btn" onclick="closeDelModal()">취소</button>
+                <button id="del-confirm-btn">삭제</button>
             </div>
         </div>
     </div>
-    
-    <div id="pages-container"></div>
+
+    <div class="container">
+        <div class="top-info-bar">
+            <div class="exchange-info" id="last-update-display">마지막 갱신: -</div>
+            <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
+            <button class="refresh-btn" onclick="manualRefreshPrices()">🔄 시세 갱신</button>
+        </div>
+
+        <div class="tabs" id="tab-menu">
+            <button class="tab-btn active" onclick="switchTab('dashboard', this)">통합 뷰</button>
+            <button class="tab-btn" onclick="switchTab('u-김태호', this)">김태호</button>
+            <button class="tab-btn" onclick="switchTab('u-이용우', this)">이용우</button>
+            <button class="tab-btn" onclick="switchTab('u-이형주', this)">이형주</button>
+        </div>
+
+        <div id="dashboard" class="tab-content active">
+            <div class="idx-wrap">
+                <h3>글로벌 마켓 실시간 지표</h3>
+                <div class="idx-grid" id="market-indices">
+                    <div class="idx-loading">지표 불러오는 중...</div>
+                </div>
+            </div>
+            <div class="metrics">
+                <div class="m-box gold"><h4>오늘의 수익 왕</h4><p id="dash-top">-</p></div>
+                <div class="m-box red"><h4>최대 수익 주식</h4><p id="dash-best" class="profit">-</p></div>
+                <div class="m-box blue"><h4>최대 손해 주식</h4><p id="dash-worst" class="loss">-</p></div>
+            </div>
+            <div class="card">
+                <h3>인원별 오버뷰 (원화 환산)</h3>
+                <div class="tbl-wrap">
+                    <table>
+                        <thead><tr><th>이름</th><th>투자 원금</th><th>현재 평가액</th><th>미실현 수익</th><th>실현 수익</th><th>총 수익률</th></tr></thead>
+                        <tbody id="dash-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div id="pages-container"></div>
+    </div>
 </div>
 
 <script>
+    // --- 로그인 기능 ---
+    function checkPwd() {
+        const pwd = document.getElementById('pwd-input').value;
+        if (pwd === 'richguys') {
+            sessionStorage.setItem('isLogged', 'true');
+            startApp();
+        } else {
+            alert('비밀번호가 올바르지 않습니다.');
+        }
+    }
+
+    window.onload = () => {
+        if (sessionStorage.getItem('isLogged') === 'true') {
+            startApp();
+        }
+    };
+
+    // --- 메인 로직 시작 ---
     const users = ['김태호', '이용우', '이형주'];
     let exKRW = 1350; 
     let previousPrices = {}; 
-    
-    // 정렬 상태 객체 (각 유저별 포트폴리오 정렬 기준 저장)
     const sortStates = {};
-    users.forEach(u => sortStates[u] = { key: 'vKw', asc: false }); // 기본: 평가액 내림차순
+    users.forEach(u => sortStates[u] = { key: 'vKw', asc: false }); 
 
     const tMap = {
         'AAPL':'Apple', 'MSFT':'Microsoft', 'TSLA':'Tesla', 'NVDA':'NVIDIA',
@@ -231,8 +251,7 @@
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
         authDomain: "howooju.firebaseapp.com",
-        // ⚠️ 본인의 실제 데이터베이스 URL로 꼭 교체하세요!! ⚠️
-        databaseURL: "https://howooju-default-rtdb.asia-southeast1.firebasedatabase.app",
+        databaseURL: "https://howooju-default-rtdb.asia-southeast1.firebasedatabase.app/",
         projectId: "howooju",
         storageBucket: "howooju.firebasestorage.app",
         messagingSenderId: "252732591437",
@@ -241,12 +260,59 @@
     };
 
     let db = null;
-    try {
-        if (typeof firebase !== 'undefined') {
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.database();
+
+    function startApp() {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('main-app').style.display = 'block';
+
+        try {
+            if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.database();
+            } else if (firebase.apps.length) {
+                db = firebase.database();
+            }
+        } catch (e) { console.error("Firebase 초기화 에러:", e); }
+
+        initUI(); 
+        toggleLd(true, "DB 연동 및 데이터 가져오는 중...");
+        
+        if (db) {
+            db.ref('trades').on('value', (snapshot) => {
+                const data = snapshot.val() || {};
+                users.forEach(u => state.trades[u] = []);
+                
+                Object.keys(data).forEach(key => {
+                    const t = data[key];
+                    t.id = key;
+                    if(state.trades[t.user]) state.trades[t.user].push(t);
+                });
+                updateAll();
+            });
+
+            db.ref('marketData').on('value', (snapshot) => {
+                const data = snapshot.val();
+                toggleLd(false);
+                if(data) {
+                    exKRW = data.exKRW || 1350;
+                    Object.assign(cache, data.cache || {});
+                    
+                    if (data.lastUpdated) {
+                        const d = new Date(data.lastUpdated);
+                        document.getElementById('last-update-display').innerText = `마지막 갱신: ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+                    }
+                    document.getElementById('exchange-rate-display').innerText = `적용 환율: 1 USD = ${exKRW.toLocaleString(undefined, {maximumFractionDigits: 2})} KRW`;
+                    
+                    renderIdx();
+                    updateAll();
+                } else {
+                    syncMarketData(true);
+                }
+            });
         }
-    } catch (e) { console.error("Firebase 초기화 에러:", e); }
+
+        setInterval(() => syncMarketData(false), 15 * 60 * 1000);
+    }
 
     function toggleLd(show, txt = "처리 중...") {
         const loader = document.getElementById('loader');
@@ -277,18 +343,16 @@
         return sortStates[u].asc ? '▲' : '▼';
     }
 
-    // 포트폴리오 정렬 트리거 함수
     function sortPort(u, key) {
         if (sortStates[u].key === key) {
             sortStates[u].asc = !sortStates[u].asc;
         } else {
             sortStates[u].key = key;
-            sortStates[u].asc = (key === 'fn') ? true : false; // 문자열(이름)은 기본 오름차순, 숫자는 기본 내림차순
+            sortStates[u].asc = (key === 'fn') ? true : false; 
         }
         updateAll();
     }
 
-    // 화면 순서 변경: 1.포트폴리오 -> 2.차트 -> 3.매매입력 -> 4.매매일지
     function initUI() {
         const con = document.getElementById('pages-container');
         if (!con) return;
@@ -302,8 +366,7 @@
                         <h3>현재 포트폴리오 (실시간 연동)</h3>
                         <div class="tbl-wrap">
                             <table>
-                                <thead id="thead-${u}">
-                                    </thead>
+                                <thead id="thead-${u}"></thead>
                                 <tbody id="port-${u}"></tbody>
                             </table>
                         </div>
@@ -337,6 +400,18 @@
 
                     <div class="card">
                         <h3>매매 일지</h3>
+                        <div class="filter-bar">
+                            <span class="filter-label">필터:</span>
+                            <input type="date" id="f-dt-s-${u}" onchange="updateAll()">
+                            <span>~</span>
+                            <input type="date" id="f-dt-e-${u}" onchange="updateAll()">
+                            <input type="text" id="f-txt-${u}" placeholder="종목/티커 검색" oninput="updateAll()">
+                            <select id="f-ty-${u}" onchange="updateAll()">
+                                <option value="all">유형 전체</option>
+                                <option value="buy">매수</option>
+                                <option value="sell">매도</option>
+                            </select>
+                        </div>
                         <div class="tbl-wrap">
                             <table>
                                 <thead><tr><th>날짜</th><th>종목</th><th>유형</th><th>가격</th><th>수량</th><th>관리</th></tr></thead>
@@ -361,67 +436,18 @@
         if (btn) btn.classList.add('active');
     }
 
-    window.onload = () => {
-        initUI(); 
-        toggleLd(true, "DB 연동 및 데이터 가져오는 중...");
-        
-        if (db) {
-            // 1. 매매 기록 로딩
-            db.ref('trades').on('value', (snapshot) => {
-                const data = snapshot.val() || {};
-                users.forEach(u => state.trades[u] = []);
-                
-                Object.keys(data).forEach(key => {
-                    const t = data[key];
-                    t.id = key;
-                    if(state.trades[t.user]) state.trades[t.user].push(t);
-                });
-                updateAll();
-            });
-
-            // 2. 시장 데이터 (시세 및 환율 캐시) 로딩
-            db.ref('marketData').on('value', (snapshot) => {
-                const data = snapshot.val();
-                toggleLd(false);
-                if(data) {
-                    exKRW = data.exKRW || 1350;
-                    Object.assign(cache, data.cache || {});
-                    
-                    if (data.lastUpdated) {
-                        const d = new Date(data.lastUpdated);
-                        document.getElementById('last-update-display').innerText = `마지막 갱신: ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
-                    }
-                    document.getElementById('exchange-rate-display').innerText = `적용 환율: 1 USD = ${exKRW.toLocaleString(undefined, {maximumFractionDigits: 2})} KRW`;
-                    
-                    renderIdx();
-                    updateAll();
-                } else {
-                    // 데이터가 아예 없는 초기 상태면 한 번 동기화
-                    syncMarketData(true);
-                }
-            });
-        }
-
-        // 15분(15 * 60 * 1000)마다 백그라운드 갱신 및 DB 저장
-        setInterval(() => syncMarketData(false), 15 * 60 * 1000);
-    };
-
-    // Firebase에 실시간 API 데이터를 갱신하여 저장하는 핵심 함수 (15분 타이머 & 시세갱신 버튼용)
     async function syncMarketData(isManual = false) {
         if (!db) return alert("데이터베이스 연결 오류");
         if (isManual) toggleLd(true, "최신 시세 갱신 후 DB에 저장 중...");
         
         try {
-            // 1. 환율 업데이트
             const resEx = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
             const dataEx = await resEx.json();
             if (dataEx?.usd?.krw) exKRW = dataEx.usd.krw;
 
-            // 2. 종목 및 지표 취합
-            let activeTickers = new Set(Object.keys(mSym)); // 지표 포함
+            let activeTickers = new Set(Object.keys(mSym)); 
             users.forEach(u => state.trades[u].forEach(t => activeTickers.add(t.ticker)));
             
-            // 3. 야후 파이낸스 일괄 통신
             const q = Array.from(activeTickers).map(t => /^\d{6}$/.test(t) ? t+'.KS' : t).join(',');
             const targetUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${q}&_=${Date.now()}`;
             const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
@@ -448,7 +474,6 @@
                 });
             }
 
-            // 4. DB에 한 번에 덮어쓰기 (다른 접속자도 이 캐시를 즉시 보게 됨)
             await db.ref('marketData').set({
                 lastUpdated: Date.now(),
                 exKRW: exKRW,
@@ -461,6 +486,10 @@
         }
         
         if (isManual) toggleLd(false);
+    }
+
+    async function manualRefreshPrices() {
+        await syncMarketData(true);
     }
 
     async function saveTr(u) {
@@ -558,7 +587,6 @@
             nmIn.placeholder = "API 검색 중...";
         }
 
-        // 입력 폼에만 쓰기 위한 개별 API 호출 (DB 저장 안함)
         let qTk = isKorean ? tk+'.KS' : tk;
         try {
             const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${qTk}?interval=1d&_=${Date.now()}`;
@@ -585,7 +613,6 @@
             let port = {}, real = 0, tInv = 0, tVal = 0, cLbl = [], cDat = [];
             let portArray = [];
 
-            // 1. 매매 기록 합산 계산
             state.trades[u].sort((a,b) => new Date(a.date)-new Date(b.date)).forEach(t => {
                 if (!port[t.ticker]) port[t.ticker] = { n: t.name, q: 0, c: 0, cr: t.currency };
                 let p = port[t.ticker];
@@ -605,7 +632,6 @@
                 rpSpan.className = real > 0 ? 'profit' : (real < 0 ? 'loss' : '');
             }
 
-            // 2. 포트폴리오 데이터 객체를 배열로 변환
             for (const [tk, p] of Object.entries(port)) {
                 if (p.q <= 0) continue;
                 const info  = cache[tk] || { price: 0, name: p.n };
@@ -620,34 +646,22 @@
                 tVal += vKw;
 
                 const ret  = isLoaded && iKw > 0 ? ((vKw - iKw)/iKw)*100 : 0;
-                const profitAmt = vKw - iKw; // 평가 수익금 (원화)
+                const profitAmt = vKw - iKw; 
 
                 portArray.push({
-                    tk: tk,
-                    fn: info.name || p.n,
-                    q: p.q,
-                    c: p.c,
-                    curPr: curPr,
-                    vKw: vKw,
-                    ret: ret,
-                    profitAmt: profitAmt,
-                    isLoaded: isLoaded,
-                    sym: p.cr === 'USD' ? '$' : '₩'
+                    tk: tk, fn: info.name || p.n, q: p.q, c: p.c, curPr: curPr,
+                    vKw: vKw, ret: ret, profitAmt: profitAmt, isLoaded: isLoaded, sym: p.cr === 'USD' ? '$' : '₩'
                 });
             }
 
-            // 3. 유저별 정렬 설정에 따라 배열 정렬
             const s = sortStates[u];
             portArray.sort((a, b) => {
                 let valA = a[s.key];
                 let valB = b[s.key];
-                if (typeof valA === 'string') {
-                    return s.asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-                }
+                if (typeof valA === 'string') return s.asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
                 return s.asc ? valA - valB : valB - valA;
             });
 
-            // 4. 테이블 헤더 갱신 (화살표 포함)
             const theadEl = document.getElementById(`thead-${u}`);
             if (theadEl) {
                 theadEl.innerHTML = `<tr>
@@ -660,7 +674,6 @@
                 </tr>`;
             }
 
-            // 5. 정렬된 배열을 HTML 렌더링
             let ptHtml = '';
             portArray.forEach(item => {
                 const cls  = item.isLoaded ? (item.ret > 0 ? 'profit' : (item.ret < 0 ? 'loss' : '')) : '';
@@ -668,7 +681,6 @@
                 const displayCurPr = item.isLoaded ? `${item.sym}${item.curPr.toLocaleString(undefined,{maximumFractionDigits:2})}` : `<span style="color:#aaa;font-size:12px;">불러오는중...</span>`;
                 const displayRet = item.isLoaded ? `${sign}${item.ret.toFixed(2)}%` : `<span style="color:#aaa;">-</span>`;
                 
-                // 수익금 표시 로직 (+, - 기호와 컬러)
                 const pSign = item.profitAmt > 0 ? '+' : '';
                 const pCls = item.profitAmt > 0 ? 'profit' : (item.profitAmt < 0 ? 'loss' : '');
                 const profitStr = item.isLoaded ? `<span class="${pCls}">(${pSign}₩${Math.abs(item.profitAmt).toLocaleString('ko-KR',{maximumFractionDigits:0})})</span>` : '';
@@ -688,16 +700,28 @@
                     <td class="${cls}">${displayRet}</td>
                 </tr>`;
 
-                cLbl.push(item.fn); 
-                cDat.push(item.vKw); 
-                hlds.push({ u, n: item.fn, r: item.ret, loaded: item.isLoaded });
+                cLbl.push(item.fn); cDat.push(item.vKw); hlds.push({ u, n: item.fn, r: item.ret, loaded: item.isLoaded });
             });
 
             const portTbody = document.getElementById(`port-${u}`);
             if(portTbody) portTbody.innerHTML = ptHtml || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">종목 없음</td></tr>';
 
-            // 매매 일지 처리
-            const logArr = [...state.trades[u]].sort((a,b) => new Date(b.date)-new Date(a.date));
+            // 매매 일지 필터 처리 및 렌더링
+            let logArr = [...state.trades[u]].sort((a,b) => new Date(b.date)-new Date(a.date));
+            
+            const fDtS = document.getElementById(`f-dt-s-${u}`) ? document.getElementById(`f-dt-s-${u}`).value : '';
+            const fDtE = document.getElementById(`f-dt-e-${u}`) ? document.getElementById(`f-dt-e-${u}`).value : '';
+            const fTxt = document.getElementById(`f-txt-${u}`) ? document.getElementById(`f-txt-${u}`).value.toLowerCase() : '';
+            const fTy = document.getElementById(`f-ty-${u}`) ? document.getElementById(`f-ty-${u}`).value : 'all';
+
+            logArr = logArr.filter(t => {
+                if (fDtS && t.date < fDtS) return false;
+                if (fDtE && t.date > fDtE) return false;
+                if (fTy !== 'all' && t.type !== fTy) return false;
+                if (fTxt && !t.name.toLowerCase().includes(fTxt) && !t.ticker.toLowerCase().includes(fTxt)) return false;
+                return true;
+            });
+
             const logTbody = document.getElementById(`log-${u}`);
             if(logTbody) {
                 logTbody.innerHTML = logArr.map(t => {
@@ -718,7 +742,6 @@
                 }).join('') || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">내역 없음</td></tr>';
             }
 
-            // 차트 렌더링
             const ctxEl = document.getElementById(`ch-${u}`);
             if(ctxEl && typeof Chart !== 'undefined') {
                 if (state.charts[u]) state.charts[u].destroy();
@@ -734,7 +757,6 @@
             stats.push({ u, i: tInv, v: tVal, ur, r: real, rp });
         }
 
-        // 통합 대시보드 갱신
         const dashBody = document.getElementById('dash-body');
         if(dashBody) {
             dashBody.innerHTML = stats.map(s => {
@@ -769,7 +791,7 @@
             if(dashWorst) dashWorst.innerText = '-';
         }
         
-        previousPrices = {}; // 애니메이션 용 이전 가격 플러시
+        previousPrices = {}; 
     }
 </script>
 </body>
