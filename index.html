@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>호우주 스터디 대시보드 🐜</title>
+    <title>주식 스터디 대시보드</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -151,9 +151,9 @@
 
     <div class="container">
         <div class="top-info-bar">
-            <div class="exchange-info" id="last-update-display">마지막 갱신: -</div>
+            <div class="exchange-info" id="last-update-display">서버 데이터 대기 중...</div>
             <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
-            <button class="refresh-btn" onclick="alert('데이터 갱신은 구글 서버에서 15분마다 안전하게 자동 처리되며 화면에 즉시 반영됩니다.')">🔄 시세 자동 갱신됨</button>
+            <button class="refresh-btn" onclick="manualRefreshPrices()">🔄 시세 갱신</button>
         </div>
 
         <div class="tabs" id="tab-menu">
@@ -167,7 +167,7 @@
             <div class="idx-wrap">
                 <h3>글로벌 마켓 실시간 지표</h3>
                 <div class="idx-grid" id="market-indices">
-                    <div class="idx-loading">지표 불러오는 중...</div>
+                    <div class="idx-loading">지표 대기 중...</div>
                 </div>
             </div>
             <div class="metrics">
@@ -191,7 +191,6 @@
 </div>
 
 <script>
-    // --- 로그인 확인 ---
     function checkPwd() {
         const pwd = document.getElementById('pwd-input').value;
         if (pwd === 'richguys') {
@@ -208,7 +207,6 @@
         }
     };
 
-    // --- 글로벌 변수 ---
     const users = ['김태호', '이용우', '이형주'];
     let exKRW = 1350; 
     let previousPrices = {}; 
@@ -234,7 +232,7 @@
         return key.replace(/[.#$\[\]]/g, '_');
     }
 
-    // ⚠️ 이곳의 databaseURL을 본인 주소로 교체하세요! ⚠️
+    // ⚠️ 아시아 리전 URL 반영 완료 ⚠️
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
         authDomain: "howooju.firebaseapp.com",
@@ -277,10 +275,10 @@
                 updateAll();
             });
 
-            // 2. 서버(GAS)가 수집한 시장 데이터 수신
+            // 2. 서버(GAS)가 수집한 시장 데이터 오직 '수신'만 수행 (자동으로 안 가져옴)
             db.ref('marketData').on('value', (snapshot) => {
                 const data = snapshot.val();
-                if(data) {
+                if(data && data.cache) {
                     exKRW = data.exKRW || 1350;
                     Object.assign(cache, data.cache || {});
                     
@@ -292,6 +290,8 @@
                     
                     renderIdx();
                     updateAll();
+                } else {
+                    document.getElementById('last-update-display').innerText = "서버 데이터 생성 대기 중...";
                 }
             });
         }
@@ -412,6 +412,48 @@
         if (btn) btn.classList.add('active');
     }
 
+    // 갱신 버튼 클릭 시 강제로 한 번 프론트엔드에서 수집 후 Firebase에 덮어쓰기
+    async function manualRefreshPrices() {
+        if (!db) return alert("데이터베이스 연결 오류");
+        toggleLd(true, "최신 시세 조회 및 DB 갱신 중...");
+        
+        try {
+            let newExKRW = exKRW;
+            try {
+                const resEx = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
+                const dataEx = await resEx.json();
+                if (dataEx?.usd?.krw) newExKRW = dataEx.usd.krw;
+            } catch(e) {}
+
+            let activeTickers = new Set(Object.keys(mSym)); 
+            users.forEach(u => state.trades[u].forEach(t => activeTickers.add(t.ticker)));
+            
+            let newCache = {};
+            const promises = Array.from(activeTickers).map(async tk => {
+                const info = await getStk(tk, true); 
+                const fbKey = safeKey(tk);
+                if (info && info.price > 0) {
+                    newCache[fbKey] = info;
+                } else if (cache[fbKey]) {
+                    newCache[fbKey] = cache[fbKey]; // 통신 실패 시 기존 값 유지
+                }
+            });
+            
+            await Promise.all(promises);
+
+            await db.ref('marketData').set({
+                lastUpdated: Date.now(),
+                exKRW: newExKRW,
+                cache: newCache
+            });
+
+        } catch(e) {
+            alert("시세 갱신 실패: " + e.message);
+        }
+        
+        toggleLd(false);
+    }
+
     async function saveTr(u) {
         if (!db) return alert("데이터베이스에 연결되지 않았습니다.");
         
@@ -434,7 +476,8 @@
             if (eid) await db.ref(`trades/${eid}`).update(data);
             else await db.ref('trades').push(data);
             cancelEd(u);
-        } catch(e) { alert("저장 실패"); }
+            manualRefreshPrices(); // 종목 추가 후 수동 시세 1회 연동
+        } catch(e) { alert("저장 실패: " + e.message); }
         toggleLd(false);
     }
 
@@ -472,7 +515,7 @@
             const fbKey = safeKey(sym);
             const info = cache[fbKey];
             let priceStr = '-';
-            let changeHtml = '<span class="pct" style="color:#888">로딩중...</span>';
+            let changeHtml = '<span class="pct" style="color:#888">데이터 없음</span>';
 
             if (info && info.price > 0) {
                 priceStr = info.price.toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -486,7 +529,28 @@
         grid.innerHTML = html;
     }
 
-    // 폼 입력 시에만 작동하는 실시간 검색 (저장과 무관)
+    // 폼 입력 시에만 호출됨
+    async function getStk(tk, force = false) {
+        if (!tk) return null;
+        let qTk = mSym[tk] ? tk : (/^\d{6}$/.test(tk) ? tk+'.KS' : tk);
+        
+        try {
+            const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${qTk}?interval=1d&_=${Date.now()}`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+            const res  = await fetch(proxyUrl);
+            const data = await res.json();
+            const meta = data.chart.result[0].meta;
+            
+            const price = meta.regularMarketPrice || 0;
+            const prev  = meta.chartPreviousClose || price;
+            const change = prev > 0 ? ((price - prev) / prev) * 100 : 0;
+            
+            return { price, change, name: meta.shortName||meta.longName||tMap[tk]||tk, curr: meta.currency==='KRW'?'KRW':'USD' };
+        } catch(e) {
+            return null;
+        }
+    }
+
     async function handleTk(u) {
         const tkIn = document.getElementById(`tk-${u}`);
         const nmIn = document.getElementById(`nm-${u}`);
@@ -510,17 +574,14 @@
             nmIn.placeholder = "API 검색 중...";
         }
 
-        let qTk = isKorean ? tk+'.KS' : tk;
-        try {
-            const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${qTk}?interval=1d&_=${Date.now()}`;
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-            const res  = await fetch(proxyUrl);
-            const data = await res.json();
-            const meta = data.chart.result[0].meta;
-            
-            if (!nmIn.value) nmIn.value = meta.shortName || meta.longName || tk;
-            if (meta.regularMarketPrice > 0 && !prIn.value) prIn.value = meta.regularMarketPrice;
-        } catch(e) {
+        const info = await getStk(tk);
+        if (info) {
+            if (!nmIn.value) {
+                if (info.name && info.name !== tk) nmIn.value = info.name;
+                else nmIn.placeholder = "직접 입력";
+            }
+            if (info.price > 0 && !prIn.value) prIn.value = info.price;
+        } else {
             if (!nmIn.value) nmIn.placeholder = "직접 입력";
         }
     }
@@ -598,7 +659,7 @@
             portArray.forEach(item => {
                 const cls  = item.isLoaded ? (item.ret > 0 ? 'profit' : (item.ret < 0 ? 'loss' : '')) : '';
                 const sign = item.isLoaded && item.ret > 0 ? '+' : '';
-                const displayCurPr = item.isLoaded ? `${item.sym}${item.curPr.toLocaleString(undefined,{maximumFractionDigits:2})}` : `<span style="color:#aaa;font-size:12px;">불러오는중...</span>`;
+                const displayCurPr = item.isLoaded ? `${item.sym}${item.curPr.toLocaleString(undefined,{maximumFractionDigits:2})}` : `<span style="color:#aaa;font-size:12px;">데이터 없음</span>`;
                 const displayRet = item.isLoaded ? `${sign}${item.ret.toFixed(2)}%` : `<span style="color:#aaa;">-</span>`;
                 
                 const pSign = item.profitAmt > 0 ? '+' : '';
