@@ -80,7 +80,8 @@
         .tbl-wrap { width: 100%; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
         table { width: 100%; border-collapse: collapse; min-width: 700px; }
         th, td { padding: 12px 10px; border-bottom: 1px solid var(--brd); text-align: right; font-size: 14px; white-space: nowrap; }
-        th { background: #f9fafc; color: #555; font-size: 13px; }
+        th { background: #f9fafc; color: #555; font-size: 13px; cursor: pointer; user-select: none; transition: background 0.2s; }
+        th:hover { background: #eef2f5; }
         th:first-child, td:first-child { text-align: left; }
         
         .price-up { animation: flash-up 1s ease-out; }
@@ -158,7 +159,7 @@
     <div class="top-info-bar">
         <div class="exchange-info" id="last-update-display">마지막 갱신: -</div>
         <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
-        <button class="refresh-btn" onclick="manualRefreshPrices()">🔄 시세 갱신</button>
+        <button class="refresh-btn" onclick="syncMarketData(true)">🔄 시세 갱신</button>
     </div>
 
     <div class="tabs" id="tab-menu">
@@ -199,6 +200,10 @@
     let exKRW = 1350; 
     let previousPrices = {}; 
     
+    // 정렬 상태 객체 (각 유저별 포트폴리오 정렬 기준 저장)
+    const sortStates = {};
+    users.forEach(u => sortStates[u] = { key: 'vKw', asc: false }); // 기본: 평가액 내림차순
+
     const tMap = {
         'AAPL':'Apple', 'MSFT':'Microsoft', 'TSLA':'Tesla', 'NVDA':'NVIDIA',
         'GOOGL':'Alphabet', 'AMZN':'Amazon', 'META':'Meta', 'BRK-B':'Berkshire Hathaway',
@@ -226,6 +231,7 @@
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
         authDomain: "howooju.firebaseapp.com",
+        // ⚠️ 본인의 실제 데이터베이스 URL로 꼭 교체하세요!! ⚠️
         databaseURL: "https://howooju-default-rtdb.asia-southeast1.firebasedatabase.app",
         projectId: "howooju",
         storageBucket: "howooju.firebasestorage.app",
@@ -249,15 +255,6 @@
         if(loader) loader.style.display = show ? 'flex' : 'none';
     }
 
-    function setLastUpdatedTime() {
-        const now = new Date();
-        const hh = String(now.getHours()).padStart(2, '0');
-        const mm = String(now.getMinutes()).padStart(2, '0');
-        const ss = String(now.getSeconds()).padStart(2, '0');
-        const dEl = document.getElementById('last-update-display');
-        if (dEl) dEl.innerText = `마지막 갱신: ${hh}:${mm}:${ss}`;
-    }
-
     let pendingDelete = null;
     function openDelModal(u, id) { pendingDelete = { u, id }; document.getElementById('del-modal').classList.add('open'); }
     function closeDelModal() { pendingDelete = null; document.getElementById('del-modal').classList.remove('open'); }
@@ -267,29 +264,31 @@
         const { id } = pendingDelete;
         closeDelModal();
         toggleLd(true, "삭제 중...");
-        
-        let isSuccess = false;
-        const fallbackTimer = setTimeout(() => {
-            if (!isSuccess) { toggleLd(false); alert("삭제 응답이 없습니다."); }
-        }, 3000);
-
-        try { 
-            await db.ref(`trades/${id}`).remove(); 
-            isSuccess = true;
-            clearTimeout(fallbackTimer);
-            toggleLd(false);
-        } catch(e) { 
-            isSuccess = true;
-            clearTimeout(fallbackTimer);
-            toggleLd(false);
-            alert("삭제 실패: " + e.message); 
-        }
+        try { await db.ref(`trades/${id}`).remove(); } catch(e) { alert("삭제 실패: " + e.message); }
+        toggleLd(false);
     });
 
     document.getElementById('del-modal').addEventListener('click', function(e) {
         if (e.target === this) closeDelModal();
     });
 
+    function getSortArrow(u, key) {
+        if (sortStates[u].key !== key) return '↕';
+        return sortStates[u].asc ? '▲' : '▼';
+    }
+
+    // 포트폴리오 정렬 트리거 함수
+    function sortPort(u, key) {
+        if (sortStates[u].key === key) {
+            sortStates[u].asc = !sortStates[u].asc;
+        } else {
+            sortStates[u].key = key;
+            sortStates[u].asc = (key === 'fn') ? true : false; // 문자열(이름)은 기본 오름차순, 숫자는 기본 내림차순
+        }
+        updateAll();
+    }
+
+    // 화면 순서 변경: 1.포트폴리오 -> 2.차트 -> 3.매매입력 -> 4.매매일지
     function initUI() {
         const con = document.getElementById('pages-container');
         if (!con) return;
@@ -298,6 +297,23 @@
         users.forEach(u => {
             const html = `
                 <div id="u-${u}" class="tab-content">
+                    
+                    <div class="card">
+                        <h3>현재 포트폴리오 (실시간 연동)</h3>
+                        <div class="tbl-wrap">
+                            <table>
+                                <thead id="thead-${u}">
+                                    </thead>
+                                <tbody id="port-${u}"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <h3>비중 차트</h3>
+                        <div class="chart"><canvas id="ch-${u}"></canvas></div>
+                    </div>
+
                     <div class="card">
                         <div class="card-header">
                             <h3>매매 입력/수정</h3>
@@ -328,21 +344,6 @@
                             </table>
                         </div>
                     </div>
-
-                    <div class="card">
-                        <h3>현재 포트폴리오 (실시간 연동)</h3>
-                        <div class="tbl-wrap">
-                            <table>
-                                <thead><tr><th>종목</th><th>수량</th><th>평단가</th><th>현재가</th><th>평가액</th><th>수익률</th></tr></thead>
-                                <tbody id="port-${u}"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                    
-                    <div class="card">
-                        <h3>비중 차트</h3>
-                        <div class="chart"><canvas id="ch-${u}"></canvas></div>
-                    </div>
                 </div>`;
             con.insertAdjacentHTML('beforeend', html);
             
@@ -362,34 +363,105 @@
 
     window.onload = () => {
         initUI(); 
+        toggleLd(true, "DB 연동 및 데이터 가져오는 중...");
         
-        fetchExchangeRate();
-        fetchIndices().then(() => renderIdx());
-
         if (db) {
-            db.ref('trades').on('value', async (snapshot) => {
-                try {
-                    const data = snapshot.val() || {};
-                    users.forEach(u => state.trades[u] = []);
-                    
-                    Object.keys(data).forEach(key => {
-                        const t = data[key];
-                        t.id = key;
-                        if(state.trades[t.user]) state.trades[t.user].push(t);
-                    });
+            // 1. 매매 기록 로딩
+            db.ref('trades').on('value', (snapshot) => {
+                const data = snapshot.val() || {};
+                users.forEach(u => state.trades[u] = []);
+                
+                Object.keys(data).forEach(key => {
+                    const t = data[key];
+                    t.id = key;
+                    if(state.trades[t.user]) state.trades[t.user].push(t);
+                });
+                updateAll();
+            });
 
-                    updateAll(); 
-                    await autoRefreshPrices();
-                } catch (err) {
-                    console.error("데이터 렌더링 에러:", err);
+            // 2. 시장 데이터 (시세 및 환율 캐시) 로딩
+            db.ref('marketData').on('value', (snapshot) => {
+                const data = snapshot.val();
+                toggleLd(false);
+                if(data) {
+                    exKRW = data.exKRW || 1350;
+                    Object.assign(cache, data.cache || {});
+                    
+                    if (data.lastUpdated) {
+                        const d = new Date(data.lastUpdated);
+                        document.getElementById('last-update-display').innerText = `마지막 갱신: ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+                    }
+                    document.getElementById('exchange-rate-display').innerText = `적용 환율: 1 USD = ${exKRW.toLocaleString(undefined, {maximumFractionDigits: 2})} KRW`;
+                    
+                    renderIdx();
+                    updateAll();
+                } else {
+                    // 데이터가 아예 없는 초기 상태면 한 번 동기화
+                    syncMarketData(true);
                 }
-            }, (error) => {
-                console.error("Firebase 읽기 에러:", error);
             });
         }
 
-        setInterval(autoRefreshPrices, 30000);
+        // 15분(15 * 60 * 1000)마다 백그라운드 갱신 및 DB 저장
+        setInterval(() => syncMarketData(false), 15 * 60 * 1000);
     };
+
+    // Firebase에 실시간 API 데이터를 갱신하여 저장하는 핵심 함수 (15분 타이머 & 시세갱신 버튼용)
+    async function syncMarketData(isManual = false) {
+        if (!db) return alert("데이터베이스 연결 오류");
+        if (isManual) toggleLd(true, "최신 시세 갱신 후 DB에 저장 중...");
+        
+        try {
+            // 1. 환율 업데이트
+            const resEx = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
+            const dataEx = await resEx.json();
+            if (dataEx?.usd?.krw) exKRW = dataEx.usd.krw;
+
+            // 2. 종목 및 지표 취합
+            let activeTickers = new Set(Object.keys(mSym)); // 지표 포함
+            users.forEach(u => state.trades[u].forEach(t => activeTickers.add(t.ticker)));
+            
+            // 3. 야후 파이낸스 일괄 통신
+            const q = Array.from(activeTickers).map(t => /^\d{6}$/.test(t) ? t+'.KS' : t).join(',');
+            const targetUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${q}&_=${Date.now()}`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+            
+            const res = await fetch(proxyUrl);
+            const data = await res.json();
+            
+            if (data.quoteResponse && data.quoteResponse.result) {
+                data.quoteResponse.result.forEach(item => {
+                    const tk = item.symbol.replace('.KS', '');
+                    const oldPrice = cache[tk] ? cache[tk].price : 0;
+                    const newPrice = item.regularMarketPrice || oldPrice;
+                    
+                    if (newPrice > 0 && newPrice !== oldPrice) {
+                        previousPrices[tk] = oldPrice; 
+                    }
+
+                    cache[tk] = {
+                        price: newPrice,
+                        change: item.regularMarketChangePercent || 0,
+                        name: item.shortName || item.longName || tMap[tk] || mSym[tk] || tk,
+                        curr: item.currency === 'KRW' ? 'KRW' : 'USD'
+                    };
+                });
+            }
+
+            // 4. DB에 한 번에 덮어쓰기 (다른 접속자도 이 캐시를 즉시 보게 됨)
+            await db.ref('marketData').set({
+                lastUpdated: Date.now(),
+                exKRW: exKRW,
+                cache: cache
+            });
+
+        } catch(e) {
+            console.error("API 갱신 실패:", e);
+            if(isManual) alert("시세 갱신 중 네트워크 지연이 발생했습니다.");
+        }
+        
+        if (isManual) toggleLd(false);
+    }
 
     async function saveTr(u) {
         if (!db) return alert("데이터베이스에 연결되지 않았습니다.");
@@ -409,29 +481,12 @@
         if (!data.ticker || isNaN(data.price) || isNaN(data.qty)) return alert("입력값을 확인해 주세요.");
 
         toggleLd(true, "저장 중...");
-        
-        let isSuccess = false;
-        const fallbackTimer = setTimeout(() => {
-            if (!isSuccess) {
-                toggleLd(false);
-                alert("저장 응답이 없습니다. 네트워크 또는 DB 주소를 확인하세요.");
-            }
-        }, 3000);
-
         try {
             if (eid) await db.ref(`trades/${eid}`).update(data);
             else await db.ref('trades').push(data);
-            
-            isSuccess = true;
-            clearTimeout(fallbackTimer);
             cancelEd(u);
-            toggleLd(false);
-        } catch(e) { 
-            isSuccess = true;
-            clearTimeout(fallbackTimer);
-            toggleLd(false);
-            alert("저장 실패: " + e.message); 
-        }
+        } catch(e) { alert("저장 실패: " + e.message); }
+        toggleLd(false);
     }
 
     function editTr(u, id) {
@@ -461,99 +516,6 @@
         document.getElementById(`cbtn-${u}`).style.display = "none";
     }
 
-    async function fetchExchangeRate() {
-        try {
-            const res = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
-            const data = await res.json();
-            if (data?.usd?.krw) {
-                exKRW = data.usd.krw;
-                const dEl = document.getElementById('exchange-rate-display');
-                if(dEl) dEl.innerText = `적용 환율: 1 USD = ${exKRW.toLocaleString(undefined, {maximumFractionDigits: 2})} KRW`;
-                updateAll(); 
-            }
-        } catch(e) { console.warn("환율 API 지연"); }
-    }
-
-    async function fetchIndices() {
-        const q = Object.keys(mSym).join(',');
-        try {
-            const targetUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${q}`;
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-            const res = await fetch(proxyUrl);
-            const data = await res.json();
-            
-            if (data.quoteResponse && data.quoteResponse.result) {
-                data.quoteResponse.result.forEach(item => {
-                    cache[item.symbol] = {
-                        price:  item.regularMarketPrice || 0,
-                        change: item.regularMarketChangePercent || 0,
-                        name:   mSym[item.symbol] || item.shortName,
-                        curr:   item.currency === 'KRW' ? 'KRW' : 'USD'
-                    };
-                });
-            }
-        } catch(e) { console.warn("지표 일괄 갱신 지연"); }
-    }
-
-    async function autoRefreshPrices() {
-        let activeTickers = new Set();
-        users.forEach(u => state.trades[u].forEach(t => activeTickers.add(t.ticker)));
-        if (activeTickers.size === 0) {
-            setLastUpdatedTime();
-            return;
-        }
-
-        let isUpdated = false;
-        
-        const q = Array.from(activeTickers).map(t => /^\d{6}$/.test(t) ? t+'.KS' : t).join(',');
-        try {
-            const targetUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${q}`;
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-            const res = await fetch(proxyUrl);
-            const data = await res.json();
-            
-            if (data.quoteResponse && data.quoteResponse.result) {
-                data.quoteResponse.result.forEach(item => {
-                    const tk = item.symbol.replace('.KS', '');
-                    const oldPrice = cache[tk] ? cache[tk].price : 0;
-                    const newPrice = item.regularMarketPrice || oldPrice;
-                    
-                    if (!cache[tk]) cache[tk] = {};
-                    if (newPrice > 0 && newPrice !== oldPrice) {
-                        previousPrices[tk] = oldPrice; 
-                        cache[tk].price = newPrice;
-                        cache[tk].change = item.regularMarketChangePercent || 0;
-                        cache[tk].name = item.shortName || item.longName || tMap[tk] || tk;
-                        cache[tk].curr = item.currency === 'KRW' ? 'KRW' : 'USD';
-                        isUpdated = true;
-                    }
-                });
-            }
-        } catch(e) {
-            const promises = Array.from(activeTickers).map(async tk => {
-                const oldPrice = cache[tk] ? cache[tk].price : 0;
-                const info = await getStk(tk, true); 
-                if (info && info.price > 0 && info.price !== oldPrice) {
-                    previousPrices[tk] = oldPrice; 
-                    isUpdated = true;
-                }
-            });
-            await Promise.all(promises);
-        }
-        
-        if (isUpdated) updateAll();
-        setLastUpdatedTime();
-    }
-
-    async function manualRefreshPrices() {
-        toggleLd(true, "최신 시세 갱신 중...");
-        await fetchExchangeRate();
-        await fetchIndices();
-        await autoRefreshPrices();
-        renderIdx();
-        toggleLd(false);
-    }
-
     function renderIdx() {
         const grid = document.getElementById('market-indices');
         if(!grid) return;
@@ -572,30 +534,6 @@
             return `<div class="idx-item"><div class="val">${priceStr} ${changeHtml}</div><div class="key">${lbl}</div></div>`;
         }).join('');
         grid.innerHTML = html;
-    }
-
-    async function getStk(tk, force = false) {
-        if (!tk) return null;
-        if (!force && cache[tk] && cache[tk].price > 0) return cache[tk];
-        
-        let qTk = /^\d{6}$/.test(tk) ? tk+'.KS' : tk;
-        try {
-            const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${qTk}?interval=1d&_=${Date.now()}`;
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-            const res  = await fetch(proxyUrl);
-            const data = await res.json();
-            const meta = data.chart.result[0].meta;
-            
-            const price = meta.regularMarketPrice || 0;
-            const prev  = meta.chartPreviousClose || price;
-            const change = prev > 0 ? ((price - prev) / prev) * 100 : 0;
-            
-            const info = { price, change, name: meta.shortName||meta.longName||tMap[tk]||tk, curr: meta.currency==='KRW'?'KRW':'USD' };
-            cache[tk] = info;
-            return info;
-        } catch(e) {
-            return cache[tk] || { price:0, change:0, name:tMap[tk]||tk, curr:/^\d{6}$/.test(tk)?'KRW':'USD' };
-        }
     }
 
     async function handleTk(u) {
@@ -620,15 +558,24 @@
             nmIn.placeholder = "API 검색 중...";
         }
 
-        getStk(tk).then(info => {
+        // 입력 폼에만 쓰기 위한 개별 API 호출 (DB 저장 안함)
+        let qTk = isKorean ? tk+'.KS' : tk;
+        try {
+            const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${qTk}?interval=1d&_=${Date.now()}`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+            const res  = await fetch(proxyUrl);
+            const data = await res.json();
+            const meta = data.chart.result[0].meta;
+            
             if (!nmIn.value) {
-                if (info.name && info.name !== tk) nmIn.value = info.name;
-                else nmIn.placeholder = "직접 입력";
+                nmIn.value = meta.shortName || meta.longName || tk;
             }
-            if (info.price > 0 && !prIn.value) prIn.value = info.price;
-        }).catch(() => {
+            if (meta.regularMarketPrice > 0 && !prIn.value) {
+                prIn.value = meta.regularMarketPrice;
+            }
+        } catch(e) {
             if (!nmIn.value) nmIn.placeholder = "직접 입력";
-        });
+        }
     }
 
     function updateAll() {
@@ -636,7 +583,9 @@
 
         for (const u of users) {
             let port = {}, real = 0, tInv = 0, tVal = 0, cLbl = [], cDat = [];
+            let portArray = [];
 
+            // 1. 매매 기록 합산 계산
             state.trades[u].sort((a,b) => new Date(a.date)-new Date(b.date)).forEach(t => {
                 if (!port[t.ticker]) port[t.ticker] = { n: t.name, q: 0, c: 0, cr: t.currency };
                 let p = port[t.ticker];
@@ -656,14 +605,13 @@
                 rpSpan.className = real > 0 ? 'profit' : (real < 0 ? 'loss' : '');
             }
 
-            let ptHtml = '';
+            // 2. 포트폴리오 데이터 객체를 배열로 변환
             for (const [tk, p] of Object.entries(port)) {
                 if (p.q <= 0) continue;
                 const info  = cache[tk] || { price: 0, name: p.n };
                 const xr    = p.cr === 'USD' ? exKRW : 1;
 
                 const iKw = p.q * p.c * xr;
-                
                 const isLoaded = info.price > 0;
                 const curPr = isLoaded ? info.price : p.c; 
                 const vKw = isLoaded ? (p.q * curPr * xr) : iKw;
@@ -672,34 +620,83 @@
                 tVal += vKw;
 
                 const ret  = isLoaded && iKw > 0 ? ((vKw - iKw)/iKw)*100 : 0;
-                const sym  = p.cr === 'USD' ? '$' : '₩';
-                const cls  = isLoaded ? (ret > 0 ? 'profit' : (ret < 0 ? 'loss' : '')) : '';
-                const sign = isLoaded && ret > 0 ? '+' : '';
-                const fn   = info.name || p.n;
+                const profitAmt = vKw - iKw; // 평가 수익금 (원화)
 
-                const displayCurPr = isLoaded ? `${sym}${curPr.toLocaleString(undefined,{maximumFractionDigits:2})}` : `<span style="color:#aaa;font-size:12px;">불러오는중...</span>`;
-                const displayRet = isLoaded ? `${sign}${ret.toFixed(2)}%` : `<span style="color:#aaa;">-</span>`;
+                portArray.push({
+                    tk: tk,
+                    fn: info.name || p.n,
+                    q: p.q,
+                    c: p.c,
+                    curPr: curPr,
+                    vKw: vKw,
+                    ret: ret,
+                    profitAmt: profitAmt,
+                    isLoaded: isLoaded,
+                    sym: p.cr === 'USD' ? '$' : '₩'
+                });
+            }
+
+            // 3. 유저별 정렬 설정에 따라 배열 정렬
+            const s = sortStates[u];
+            portArray.sort((a, b) => {
+                let valA = a[s.key];
+                let valB = b[s.key];
+                if (typeof valA === 'string') {
+                    return s.asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                }
+                return s.asc ? valA - valB : valB - valA;
+            });
+
+            // 4. 테이블 헤더 갱신 (화살표 포함)
+            const theadEl = document.getElementById(`thead-${u}`);
+            if (theadEl) {
+                theadEl.innerHTML = `<tr>
+                    <th onclick="sortPort('${u}', 'fn')">종목 ${getSortArrow(u, 'fn')}</th>
+                    <th onclick="sortPort('${u}', 'q')">수량 ${getSortArrow(u, 'q')}</th>
+                    <th onclick="sortPort('${u}', 'c')">평단가 ${getSortArrow(u, 'c')}</th>
+                    <th onclick="sortPort('${u}', 'curPr')">현재가 ${getSortArrow(u, 'curPr')}</th>
+                    <th onclick="sortPort('${u}', 'vKw')">평가액 (수익금) ${getSortArrow(u, 'vKw')}</th>
+                    <th onclick="sortPort('${u}', 'ret')">수익률 ${getSortArrow(u, 'ret')}</th>
+                </tr>`;
+            }
+
+            // 5. 정렬된 배열을 HTML 렌더링
+            let ptHtml = '';
+            portArray.forEach(item => {
+                const cls  = item.isLoaded ? (item.ret > 0 ? 'profit' : (item.ret < 0 ? 'loss' : '')) : '';
+                const sign = item.isLoaded && item.ret > 0 ? '+' : '';
+                const displayCurPr = item.isLoaded ? `${item.sym}${item.curPr.toLocaleString(undefined,{maximumFractionDigits:2})}` : `<span style="color:#aaa;font-size:12px;">불러오는중...</span>`;
+                const displayRet = item.isLoaded ? `${sign}${item.ret.toFixed(2)}%` : `<span style="color:#aaa;">-</span>`;
+                
+                // 수익금 표시 로직 (+, - 기호와 컬러)
+                const pSign = item.profitAmt > 0 ? '+' : '';
+                const pCls = item.profitAmt > 0 ? 'profit' : (item.profitAmt < 0 ? 'loss' : '');
+                const profitStr = item.isLoaded ? `<span class="${pCls}">(${pSign}₩${Math.abs(item.profitAmt).toLocaleString('ko-KR',{maximumFractionDigits:0})})</span>` : '';
 
                 let flashClass = '';
-                if (isLoaded && previousPrices[tk]) {
-                    if (curPr > previousPrices[tk]) flashClass = 'price-up';
-                    else if (curPr < previousPrices[tk]) flashClass = 'price-down';
+                if (item.isLoaded && previousPrices[item.tk]) {
+                    if (item.curPr > previousPrices[item.tk]) flashClass = 'price-up';
+                    else if (item.curPr < previousPrices[item.tk]) flashClass = 'price-down';
                 }
 
                 ptHtml += `<tr class="${flashClass}">
-                    <td>${fn}<br><small style="color:#888">${tk}</small></td>
-                    <td>${p.q.toLocaleString(undefined,{maximumFractionDigits:4})}</td>
-                    <td>${sym}${p.c.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
+                    <td>${item.fn}<br><small style="color:#888">${item.tk}</small></td>
+                    <td>${item.q.toLocaleString(undefined,{maximumFractionDigits:4})}</td>
+                    <td>${item.sym}${item.c.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
                     <td>${displayCurPr}</td>
-                    <td>₩${vKw.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
+                    <td>₩${item.vKw.toLocaleString('ko-KR',{maximumFractionDigits:0})} <br><small>${profitStr}</small></td>
                     <td class="${cls}">${displayRet}</td>
                 </tr>`;
-                cLbl.push(fn); cDat.push(vKw); hlds.push({ u, n: fn, r: ret, loaded: isLoaded });
-            }
+
+                cLbl.push(item.fn); 
+                cDat.push(item.vKw); 
+                hlds.push({ u, n: item.fn, r: item.ret, loaded: item.isLoaded });
+            });
 
             const portTbody = document.getElementById(`port-${u}`);
             if(portTbody) portTbody.innerHTML = ptHtml || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">종목 없음</td></tr>';
 
+            // 매매 일지 처리
             const logArr = [...state.trades[u]].sort((a,b) => new Date(b.date)-new Date(a.date));
             const logTbody = document.getElementById(`log-${u}`);
             if(logTbody) {
@@ -721,6 +718,7 @@
                 }).join('') || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">내역 없음</td></tr>';
             }
 
+            // 차트 렌더링
             const ctxEl = document.getElementById(`ch-${u}`);
             if(ctxEl && typeof Chart !== 'undefined') {
                 if (state.charts[u]) state.charts[u].destroy();
@@ -736,6 +734,7 @@
             stats.push({ u, i: tInv, v: tVal, ur, r: real, rp });
         }
 
+        // 통합 대시보드 갱신
         const dashBody = document.getElementById('dash-body');
         if(dashBody) {
             dashBody.innerHTML = stats.map(s => {
@@ -770,7 +769,7 @@
             if(dashWorst) dashWorst.innerText = '-';
         }
         
-        previousPrices = {};
+        previousPrices = {}; // 애니메이션 용 이전 가격 플러시
     }
 </script>
 </body>
