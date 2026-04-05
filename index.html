@@ -3,652 +3,489 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>주식 스터디 대시보드</title>
+    <title>주식 스터디 포트폴리오 대시보드</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
-        :root { --bg: #f4f6f8; --card: #ffffff; --pri: #333333; --brd: #e0e0e0; --profit: #ff4d4f; --loss: #1890ff; }
-
-        /* ── 모바일 스크롤 핵심 수정 ── */
-        html {
-            height: 100%;
+        :root {
+            --primary-color: #333;
+            --bg-color: #f4f7f6;
+            --box-bg: #fff;
+            --profit-color: #e22926;
+            --loss-color: #2679ed;
+            --border-color: #e0e0e0;
         }
-        body {
-            font-family: -apple-system, sans-serif;
-            background: var(--bg);
-            margin: 0; padding: 0; color: #333;
-            height: 100%;
-            /* 모바일에서 세로 스크롤 명시 허용 */
-            overflow-y: auto;
-            overflow-x: hidden;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 15px;
-            padding-bottom: 60px;
-            /* 컨테이너 자체는 높이를 강제하지 않음 */
-            box-sizing: border-box;
-        }
-
-        /* 탭바: 가로만 스크롤, 세로 터치는 body에 넘김 */
-        .tabs {
-            display: flex;
-            border-bottom: 2px solid var(--brd);
-            margin-bottom: 20px;
-            overflow-x: auto;
-            overflow-y: hidden;
-            white-space: nowrap;
-            -webkit-overflow-scrolling: touch;
-            touch-action: pan-x;
-            scrollbar-width: none;
-        }
-        .tabs::-webkit-scrollbar { display: none; }
-
-        .tab-btn { background: none; border: none; padding: 12px 20px; font-size: 16px; cursor: pointer; color: #666; font-weight: bold; flex-shrink: 0; }
-        .tab-btn.active { color: var(--pri); border-bottom: 3px solid var(--pri); margin-bottom: -2px; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-
-        .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        .card h3 { margin-top: 0; border-bottom: 1px solid var(--brd); padding-bottom: 10px; font-size: 18px; }
-
-        .idx-wrap { background: #1a1a1a; padding: 25px; border-radius: 12px; margin-bottom: 20px; color: white; }
-        .idx-wrap h3 { border-color: #333; color: #eee; text-align: center; font-size: 15px; margin-bottom: 20px; font-weight: bold; }
-        .idx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; }
-        .idx-item { text-align: center; padding: 10px; border-right: 1px solid #333; display: flex; flex-direction: column; justify-content: center; }
-        .idx-item:last-child { border-right: none; }
-        .idx-item .val { font-size: 20px; font-weight: 800; margin-bottom: 4px; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #fff; }
-        .idx-item .pct { font-size: 13px; font-weight: bold; }
-        .idx-item .key { font-size: 13px; color: #b0b0b0; font-weight: 500; }
-        /* 지표 로딩 애니메이션 */
-        .idx-loading { color: #aaa; font-size: 14px; text-align: center; padding: 20px 0; }
-
-        .metrics { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
-        .m-box { flex: 1; min-width: 200px; background: var(--card); padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 5px solid #ccc; }
-        .m-box.gold { border-left-color: #ffd700; }
-        .m-box.red  { border-left-color: var(--profit); }
-        .m-box.blue { border-left-color: var(--loss); }
-        .m-box h4 { margin: 0 0 10px 0; font-size: 13px; color: #666; }
-        .m-box p { margin: 0; font-size: 22px; font-weight: bold; }
-
-        /* 테이블 래퍼: 가로만 스크롤 */
-        .tbl-wrap {
-            width: 100%;
-            overflow-x: auto;
-            overflow-y: hidden;
-            -webkit-overflow-scrolling: touch;
-            touch-action: pan-x;
-        }
-        table { width: 100%; border-collapse: collapse; min-width: 700px; }
-        th, td { padding: 12px 10px; border-bottom: 1px solid var(--brd); text-align: right; font-size: 14px; white-space: nowrap; }
-        th { background: #f9fafc; color: #555; font-size: 13px; }
-        th:first-child, td:first-child { text-align: left; }
-
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; align-items: end; }
-        .f-grp { display: flex; flex-direction: column; font-size: 12px; }
-        .f-grp label { margin-bottom: 4px; color: #555; }
-        .f-grp input, .f-grp select { padding: 8px; border: 1px solid var(--brd); border-radius: 4px; font-size: 14px; box-sizing: border-box; }
-        input[disabled] { background-color: #eaecf0; cursor: not-allowed; color: #555; font-weight: bold; border: 1px solid #ccc; }
-
-        .btn-grp { display: flex; gap: 8px; }
-        button { cursor: pointer; font-weight: bold; transition: 0.2s; border: none; border-radius: 6px; }
-        .p-btn { flex: 1; padding: 10px; background: var(--pri); color: white; }
-        .c-btn { flex: 1; padding: 10px; background: #6c757d; color: white; display: none; }
-
-        .a-btn { padding: 6px 10px; font-size: 12px; margin-left: 4px; color: white; border-radius: 4px; }
-        .edit-btn { background: #f1c40f; color: #333; }
-        .del-btn  { background: #e74c3c; }
-
-        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
-        .chart { height: 250px; width: 100%; margin: 0 auto; }
-
-        .profit { color: var(--profit); font-weight: bold; }
-        .loss   { color: var(--loss);   font-weight: bold; }
-
-        /* 로더 */
-        #loader { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; justify-content: center; align-items: center; font-weight: bold; flex-direction: column; gap: 15px; }
-        .spin { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--pri); border-radius: 50%; animation: sp 1s linear infinite; }
-        @keyframes sp { 100% { transform: rotate(360deg); } }
-
-        /* ── 커스텀 삭제 확인 모달 ── */
-        #del-modal {
-            display: none;
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 10000;
-            justify-content: center;
-            align-items: center;
-        }
-        #del-modal.open { display: flex; }
-        .del-modal-box {
-            background: white;
-            border-radius: 16px;
-            padding: 30px 24px 20px;
-            max-width: 320px;
-            width: 90%;
-            text-align: center;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-        .del-modal-box .icon { font-size: 40px; margin-bottom: 12px; }
-        .del-modal-box h4 { margin: 0 0 8px; font-size: 17px; }
-        .del-modal-box p  { margin: 0 0 24px; font-size: 14px; color: #666; }
-        .del-modal-btns { display: flex; gap: 10px; }
-        .del-modal-btns button { flex: 1; padding: 12px; border-radius: 8px; font-size: 15px; }
-        #del-confirm-btn { background: #e74c3c; color: white; }
-        #del-cancel-btn  { background: #f0f0f0; color: #333; }
-
-        /* 모바일 반응형 */
-        @media (max-width: 600px) {
-            .container { padding: 10px; }
-            .card { padding: 14px; }
-            .idx-grid { grid-template-columns: repeat(2, 1fr); }
-            .idx-item { border-right: none; border-bottom: 1px solid #333; }
-            .idx-item:nth-child(odd) { border-right: 1px solid #333; }
-            .idx-item:last-child { border-bottom: none; }
-            .m-box { min-width: 100%; }
-            .form-grid { grid-template-columns: 1fr 1fr; }
-            .btn-grp { grid-column: span 2; }
-            .grid-2 { grid-template-columns: 1fr; }
-            .idx-item .val { font-size: 16px; }
-            th, td { padding: 9px 7px; font-size: 13px; }
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', -apple-system, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--primary-color); padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; }
+        .tab-btn { padding: 10px 20px; border: none; background: #eaeaea; cursor: pointer; border-radius: 5px 5px 0 0; font-size: 16px; font-weight: bold; transition: 0.3s; }
+        .tab-btn.active { background: var(--primary-color); color: #fff; }
+        .view { display: none; }
+        .view.active { display: block; }
+        .card { background: var(--box-bg); padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .form-group { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .form-group input, .form-group select, .form-group button { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 4px; }
+        .form-group button { background: var(--primary-color); color: #fff; cursor: pointer; border: none; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; text-align: center; }
+        th, td { padding: 12px; border-bottom: 1px solid var(--border-color); font-size: 0.95rem; }
+        th { background: #f9f9f9; font-weight: 600; }
+        .profit { color: var(--profit-color); font-weight: bold; }
+        .loss { color: var(--loss-color); font-weight: bold; }
+        .neutral { color: var(--primary-color); }
+        h2 { margin-bottom: 15px; font-size: 1.2rem; }
+        .stat-box { text-align: center; padding: 20px; background: #fafafa; border-radius: 8px; border: 1px solid var(--border-color); }
+        .stat-box h3 { font-size: 0.9rem; color: #666; margin-bottom: 5px; }
+        .stat-box .value { font-size: 1.5rem; font-weight: bold; }
+        .realized-profit-header { display: flex; justify-content: space-between; align-items: center; }
+        .realized-badge { background: #fff3cd; color: #856404; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 1.1rem; border: 1px solid #ffeeba; }
+        .chart-container { position: relative; height: 300px; width: 100%; }
+        .exchange-info { font-size: 0.85rem; color: #666; text-align: right; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
-<!-- 로더 -->
-<div id="loader"><div class="spin"></div><div id="loader-txt">데이터 동기화 중...</div></div>
-
-<!-- ── 삭제 확인 커스텀 모달 ── -->
-<div id="del-modal">
-    <div class="del-modal-box">
-        <div class="icon">🗑️</div>
-        <h4>매매 기록 삭제</h4>
-        <p>해당 기록을 영구적으로 삭제합니다.<br>이 작업은 되돌릴 수 없습니다.</p>
-        <div class="del-modal-btns">
-            <button id="del-cancel-btn" onclick="closeDelModal()">취소</button>
-            <button id="del-confirm-btn">삭제</button>
-        </div>
-    </div>
-</div>
-
 <div class="container">
-    <div class="tabs" id="tab-menu">
-        <button class="tab-btn active" onclick="switchTab('dashboard', this)">통합 뷰</button>
-        <button class="tab-btn" onclick="switchTab('user-김태호', this)">김태호</button>
-        <button class="tab-btn" onclick="switchTab('user-이용우', this)">이용우</button>
-        <button class="tab-btn" onclick="switchTab('user-이형주', this)">이형주</button>
+    <div class="exchange-info" id="exchange-rate-display">실시간 환율 로딩 중...</div>
+
+    <div class="tabs" id="tabs">
+        <button class="tab-btn active" data-target="dashboard">통합 뷰</button>
+        <button class="tab-btn" data-target="person" data-name="김태호">김태호</button>
+        <button class="tab-btn" data-target="person" data-name="이용우">이용우</button>
+        <button class="tab-btn" data-target="person" data-name="이형주">이형주</button>
     </div>
 
-    <div id="dashboard" class="tab-content active">
-        <div class="idx-wrap">
-            <h3>글로벌 마켓 실시간 지표</h3>
-            <div class="idx-grid" id="market-indices">
-                <div class="idx-loading">지표 불러오는 중...</div>
+    <div id="dashboard" class="view active">
+        <div class="grid-3 card">
+            <div class="stat-box">
+                <h3>👑 오늘의 수익 왕 (총 수익률)</h3>
+                <div class="value" id="dash-king">-</div>
+            </div>
+            <div class="stat-box">
+                <h3>🚀 최대 수익 주식</h3>
+                <div class="value profit" id="dash-best-stock">-</div>
+            </div>
+            <div class="stat-box">
+                <h3>📉 최대 손해 주식</h3>
+                <div class="value loss" id="dash-worst-stock">-</div>
             </div>
         </div>
-        <div class="metrics">
-            <div class="m-box gold"><h4>오늘의 수익 왕</h4><p id="dash-top">-</p></div>
-            <div class="m-box red"><h4>최대 수익 주식</h4><p id="dash-best" class="profit">-</p></div>
-            <div class="m-box blue"><h4>최대 손해 주식</h4><p id="dash-worst" class="loss">-</p></div>
+
+        <div class="card" style="overflow-x: auto;">
+            <h2>인원별 오버뷰 (원화 환산 기준)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>이름</th>
+                        <th>총 투자 원금</th>
+                        <th>총 평가액</th>
+                        <th>총 평가 수익금</th>
+                        <th>총 확정 수익금</th>
+                        <th>합산 총 수익금</th>
+                        <th>총 수익률</th>
+                    </tr>
+                </thead>
+                <tbody id="dash-overview-tbody"></tbody>
+            </table>
         </div>
+    </div>
+
+    <div id="person" class="view">
+        <div class="card realized-profit-header">
+            <h2 id="person-title">개인 페이지</h2>
+            <div class="realized-badge">누적 확정 수익금: <span id="person-realized-profit">0</span>원</div>
+        </div>
+
         <div class="card">
-            <h3>인원별 오버뷰 (원화 환산)</h3>
-            <div class="tbl-wrap">
+            <h2>매매 입력</h2>
+            <form id="trade-form" class="form-group">
+                <input type="date" id="t-date" required>
+                <input type="text" id="t-ticker" placeholder="종목코드(티커)" required style="width: 120px;">
+                <input type="text" id="t-name" placeholder="종목명" required style="width: 150px;">
+                <select id="t-type">
+                    <option value="buy">매수</option>
+                    <option value="sell">매도</option>
+                </select>
+                <select id="t-currency">
+                    <option value="KRW">원화 (KRW)</option>
+                    <option value="USD">달러 (USD)</option>
+                </select>
+                <input type="number" id="t-price" placeholder="단가" step="any" required style="width: 120px;">
+                <input type="number" id="t-qty" placeholder="수량" step="any" required style="width: 100px;">
+                <button type="submit" id="submit-btn">추가</button>
+            </form>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <h2>포트폴리오 비중 (원화 가치 기준)</h2>
+                <div class="chart-container">
+                    <canvas id="portfolioChart"></canvas>
+                </div>
+            </div>
+            <div class="card" style="overflow-x: auto;">
+                <h2>현재 포트폴리오</h2>
                 <table>
-                    <thead><tr><th>이름</th><th>투자 원금</th><th>현재 평가액</th><th>미실현 수익</th><th>실현 수익</th><th>총 수익률</th></tr></thead>
-                    <tbody id="dash-body"></tbody>
+                    <thead>
+                        <tr>
+                            <th>종목명</th>
+                            <th>수량</th>
+                            <th>평단가</th>
+                            <th>현재가</th>
+                            <th>평가액</th>
+                            <th>수익률</th>
+                        </tr>
+                    </thead>
+                    <tbody id="portfolio-tbody"></tbody>
                 </table>
             </div>
         </div>
+
+        <div class="card" style="overflow-x: auto;">
+            <h2>매매 일지</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>날짜</th>
+                        <th>종목명(티커)</th>
+                        <th>유형</th>
+                        <th>통화</th>
+                        <th>단가</th>
+                        <th>수량</th>
+                        <th>총액</th>
+                    </tr>
+                </thead>
+                <tbody id="trade-history-tbody"></tbody>
+            </table>
+        </div>
     </div>
-    <div id="pages-container"></div>
 </div>
 
 <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbws0zNCaNdxg-OcjUk5Hi2vQ6anfSmbgjOEryJuDmp8tsDnz1HG0oyG4WOYVwJbjiZu/exec';
-    const users = ['김태호', '이용우', '이형주'];
-    let exKRW = 1350;
+const firebaseConfig = {
+    apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
+    authDomain: "howooju.firebaseapp.com",
+    databaseURL: "https://howooju-default-rtdb.firebaseio.com",
+    projectId: "howooju",
+    storageBucket: "howooju.firebasestorage.app",
+    messagingSenderId: "252732591437",
+    appId: "1:252732591437:web:961c790c34b8269cb7bb04",
+    measurementId: "G-3GEWPQ2G00"
+};
 
-    const tMap = {
-        'AAPL':'Apple','MSFT':'Microsoft','TSLA':'Tesla','NVDA':'NVIDIA',
-        'GOOGL':'Alphabet','AMZN':'Amazon','META':'Meta',
-        '005930':'삼성전자','000660':'SK하이닉스','373220':'LG에너지솔루션',
-        '035420':'NAVER','035720':'카카오'
-    };
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-    // 야후 심볼 → 한글 레이블
-    const mSym = {
-        'KRW=X': '원달러환율',
-        '^IXIC':  '나스닥',
-        '^GSPC':  'S&P 500',
-        '^KS11':  'KOSPI',
-        '^KQ11':  '코스닥',
-        '^VIX':   'VIX',
-        'CL=F':   'WTI 유가'
-    };
+const state = {
+    users: {
+        '김태호': { trades: [] },
+        '이용우': { trades: [] },
+        '이형주': { trades: [] }
+    },
+    currentPrices: {},
+    exchangeRateKRW: 1350, 
+    activeTab: 'dashboard',
+    activePerson: ''
+};
 
-    const cache = {};
-    const state = { trades: {}, charts: {} };
-    users.forEach(u => state.trades[u] = []);
+let chartInstance = null;
 
-    // ── 삭제 모달 상태 ──────────────────────────────────────────────────────────
-    let pendingDelete = null; // { u, id }
+const tickerDictionary = {
+    "AAPL": "애플", "TSLA": "테슬라", "MSFT": "마이크로소프트", "GOOGL": "구글", 
+    "AMZN": "아마존", "NVDA": "엔비디아", "META": "메타", "SPY": "SPY ETF", "QQQ": "QQQ ETF",
+    "005930": "삼성전자", "000660": "SK하이닉스", "373220": "LG에너지솔루션", 
+    "207940": "삼성바이오로직스", "005380": "현대차", "035420": "NAVER", "035720": "카카오"
+};
 
-    function openDelModal(u, id) {
-        pendingDelete = { u, id };
-        document.getElementById('del-modal').classList.add('open');
-    }
-    function closeDelModal() {
-        pendingDelete = null;
-        document.getElementById('del-modal').classList.remove('open');
-    }
-    document.getElementById('del-confirm-btn').addEventListener('click', async function() {
-        if (!pendingDelete) return;
-        const { u, id } = pendingDelete;
-        closeDelModal();
-        toggleLd(true, "삭제 중...");
-        try {
-            await postReq({ action: 'delete', id: String(id) });
-            await fetchAll();
-        } catch(e) {
-            alert("삭제 실패: " + e.message);
+async function fetchExchangeRate() {
+    try {
+        const response = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
+        const data = await response.json();
+        if(data && data.usd && data.usd.krw) {
+            state.exchangeRateKRW = data.usd.krw;
+            document.getElementById('exchange-rate-display').textContent = `적용 환율: 1 USD = ${state.exchangeRateKRW.toLocaleString(undefined, {maximumFractionDigits: 2})} KRW`;
         }
-        toggleLd(false);
-    });
-    // 모달 바깥 클릭 시 닫기
-    document.getElementById('del-modal').addEventListener('click', function(e) {
-        if (e.target === this) closeDelModal();
-    });
-    // ────────────────────────────────────────────────────────────────────────────
-
-    window.onload = async () => {
-        createPages();
-        toggleLd(true, "데이터 불러오는 중...");
-        await fetchAll();
-        toggleLd(false);
-    };
-
-    function toggleLd(show, txt = "처리 중...") {
-        document.getElementById('loader-txt').innerText = txt;
-        document.getElementById('loader').style.display = show ? 'flex' : 'none';
+    } catch (error) {
+        document.getElementById('exchange-rate-display').textContent = `적용 환율: 1 USD = ${state.exchangeRateKRW} KRW (기본값)`;
     }
+}
 
-    async function postReq(payload) {
-        return fetch(API_URL, {
-            method: 'POST',
-            redirect: 'follow',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify(payload)
+async function fetchCurrentPrice(ticker, currency, avgPrice) {
+    if (state.currentPrices[ticker]) return state.currentPrices[ticker];
+    const variation = (Math.random() * 0.3) - 0.1; 
+    const mockPrice = avgPrice * (1 + variation);
+    state.currentPrices[ticker] = mockPrice;
+    return mockPrice;
+}
+
+function calculatePortfolio(userName) {
+    const trades = state.users[userName].trades.sort((a, b) => new Date(a.date) - new Date(b.date));
+    let holdings = {};
+    let realizedProfitKRW = 0;
+
+    trades.forEach(t => {
+        if (!holdings[t.ticker]) holdings[t.ticker] = { name: t.name, qty: 0, avgPrice: 0, currency: t.currency };
+        let h = holdings[t.ticker];
+
+        if (t.type === 'buy') {
+            const totalCost = (h.qty * h.avgPrice) + (t.qty * t.price);
+            h.qty += t.qty;
+            h.avgPrice = totalCost / h.qty;
+        } else if (t.type === 'sell') {
+            let profit = (t.price - h.avgPrice) * t.qty;
+            if (t.currency === 'USD') profit *= state.exchangeRateKRW; 
+            realizedProfitKRW += profit;
+            h.qty -= t.qty;
+        }
+    });
+
+    for (let ticker in holdings) {
+        if (holdings[ticker].qty <= 0) delete holdings[ticker];
+    }
+    return { holdings, realizedProfitKRW };
+}
+
+async function getPortfolioWithPrices(userName) {
+    const { holdings, realizedProfitKRW } = calculatePortfolio(userName);
+    let totalPrincipalKRW = 0;
+    let totalCurrentValueKRW = 0;
+    const items = [];
+
+    for (let ticker in holdings) {
+        const h = holdings[ticker];
+        const currentPrice = await fetchCurrentPrice(ticker, h.currency, h.avgPrice);
+        
+        const principal = h.qty * h.avgPrice;
+        const currentValue = h.qty * currentPrice;
+        const returnRate = ((currentPrice - h.avgPrice) / h.avgPrice) * 100;
+        
+        let principalInKRW = principal;
+        let currentValueInKRW = currentValue;
+
+        if (h.currency === 'USD') {
+            principalInKRW *= state.exchangeRateKRW;
+            currentValueInKRW *= state.exchangeRateKRW;
+        }
+
+        totalPrincipalKRW += principalInKRW;
+        totalCurrentValueKRW += currentValueInKRW;
+
+        items.push({ 
+            ticker, name: h.name, qty: h.qty, 
+            avgPrice: h.avgPrice, currentPrice, currentValue, 
+            returnRate, currency: h.currency,
+            currentValueKRW: currentValueInKRW 
         });
     }
 
-    async function fetchAll() {
-        try {
-            const res = await fetch(API_URL);
-            const data = await res.json();
+    return { items, realizedProfitKRW, totalPrincipalKRW, totalCurrentValueKRW };
+}
 
-            // ── 수정 1: App Script가 서버사이드에서 가져온 지표 데이터 사용 ──
-            if (data.indices) {
-                Object.entries(data.indices).forEach(([sym, info]) => {
-                    cache[sym] = {
-                        price:  info.price,
-                        change: info.change,
-                        name:   mSym[sym] || info.name,
-                        curr:   info.currency === 'KRW' ? 'KRW' : 'USD'
-                    };
+const formatMoney = (num, currency) => {
+    const isUSD = currency === 'USD';
+    const symbol = isUSD ? '$' : '₩';
+    return symbol + num.toLocaleString(undefined, {
+        minimumFractionDigits: isUSD ? 2 : 0, 
+        maximumFractionDigits: isUSD ? 2 : 0
+    });
+};
+const formatPercent = (num) => num.toFixed(2) + '%';
+const getColorClass = (num) => num > 0 ? 'profit' : (num < 0 ? 'loss' : 'neutral');
+
+async function renderPersonView() {
+    const userName = state.activePerson;
+    document.getElementById('person-title').textContent = `${userName}의 포트폴리오`;
+    const portData = await getPortfolioWithPrices(userName);
+    
+    const profitEl = document.getElementById('person-realized-profit');
+    profitEl.textContent = Math.round(portData.realizedProfitKRW).toLocaleString();
+    profitEl.className = getColorClass(portData.realizedProfitKRW);
+
+    const pTbody = document.getElementById('portfolio-tbody');
+    pTbody.innerHTML = '';
+    const chartLabels = [];
+    const chartData = [];
+
+    portData.items.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${item.name}</td>
+            <td>${item.qty.toLocaleString()}</td>
+            <td>${formatMoney(item.avgPrice, item.currency)}</td>
+            <td>${formatMoney(item.currentPrice, item.currency)}</td>
+            <td>${formatMoney(item.currentValue, item.currency)}</td>
+            <td class="${getColorClass(item.returnRate)}">${formatPercent(item.returnRate)}</td>
+        `;
+        pTbody.appendChild(tr);
+        chartLabels.push(item.name);
+        chartData.push(item.currentValueKRW); 
+    });
+
+    if (portData.items.length === 0) pTbody.innerHTML = `<tr><td colspan="6">보유 중인 주식이 없습니다.</td></tr>`;
+
+    const tTbody = document.getElementById('trade-history-tbody');
+    tTbody.innerHTML = '';
+    const sortedTrades = [...state.users[userName].trades].sort((a, b) => new Date(b.date) - new Date(a.date));
+    sortedTrades.forEach(t => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${t.date}</td>
+            <td>${t.name}(${t.ticker})</td>
+            <td class="${t.type==='buy'?'profit':'loss'}">${t.type === 'buy' ? '매수' : '매도'}</td>
+            <td>${t.currency}</td>
+            <td>${formatMoney(t.price, t.currency)}</td>
+            <td>${t.qty.toLocaleString()}</td>
+            <td>${formatMoney(t.price * t.qty, t.currency)}</td>
+        `;
+        tTbody.appendChild(tr);
+    });
+
+    renderChart(chartLabels, chartData);
+}
+
+function renderChart(labels, data) {
+    const ctx = document.getElementById('portfolioChart').getContext('2d');
+    if (chartInstance) chartInstance.destroy();
+    
+    chartInstance = new Chart(ctx, {
+        type: 'pie',
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'] }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+    });
+}
+
+async function renderDashboard() {
+    const tbody = document.getElementById('dash-overview-tbody');
+    tbody.innerHTML = '';
+
+    let userStats = [];
+    let allStocks = [];
+
+    for (let user of Object.keys(state.users)) {
+        const portData = await getPortfolioWithPrices(user);
+        
+        const totalReturnRate = portData.totalPrincipalKRW > 0 
+            ? ((portData.totalCurrentValueKRW - portData.totalPrincipalKRW) / portData.totalPrincipalKRW) * 100 
+            : 0;
+        const unrealizedProfitKRW = portData.totalCurrentValueKRW - portData.totalPrincipalKRW;
+        const totalProfitKRW = unrealizedProfitKRW + portData.realizedProfitKRW;
+
+        userStats.push({ 
+            name: user, principal: portData.totalPrincipalKRW, value: portData.totalCurrentValueKRW, 
+            unrealized: unrealizedProfitKRW, realized: portData.realizedProfitKRW, totalProfit: totalProfitKRW, returnRate: totalReturnRate 
+        });
+
+        portData.items.forEach(item => { allStocks.push({ name: item.name, ticker: item.ticker, returnRate: item.returnRate, owner: user }); });
+    }
+
+    userStats.forEach(stat => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${stat.name}</strong></td>
+            <td>${formatMoney(stat.principal, 'KRW')}</td>
+            <td>${formatMoney(stat.value, 'KRW')}</td>
+            <td class="${getColorClass(stat.unrealized)}">${formatMoney(stat.unrealized, 'KRW')}</td>
+            <td class="${getColorClass(stat.realized)}">${formatMoney(stat.realized, 'KRW')}</td>
+            <td class="${getColorClass(stat.totalProfit)}"><strong>${formatMoney(stat.totalProfit, 'KRW')}</strong></td>
+            <td class="${getColorClass(stat.returnRate)}"><strong>${formatPercent(stat.returnRate)}</strong></td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    if (userStats.length > 0 && userStats.some(s => s.principal > 0)) {
+        const king = userStats.reduce((prev, current) => (prev.returnRate > current.returnRate) ? prev : current);
+        document.getElementById('dash-king').innerHTML = `<span class="${getColorClass(king.returnRate)}">${king.name} (${formatPercent(king.returnRate)})</span>`;
+    } else { document.getElementById('dash-king').textContent = '-'; }
+
+    if (allStocks.length > 0) {
+        const best = allStocks.reduce((prev, current) => (prev.returnRate > current.returnRate) ? prev : current);
+        const worst = allStocks.reduce((prev, current) => (prev.returnRate < current.returnRate) ? prev : current);
+        document.getElementById('dash-best-stock').innerHTML = `${best.name} <br><span style="font-size:1rem">(${formatPercent(best.returnRate)})</span>`;
+        document.getElementById('dash-worst-stock').innerHTML = `${worst.name} <br><span style="font-size:1rem">(${formatPercent(worst.returnRate)})</span>`;
+    } else {
+        document.getElementById('dash-best-stock').textContent = '-';
+        document.getElementById('dash-worst-stock').textContent = '-';
+    }
+}
+
+document.getElementById('tabs').addEventListener('click', (e) => {
+    if (e.target.classList.contains('tab-btn')) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        e.target.classList.add('active');
+
+        const targetView = e.target.getAttribute('data-target');
+        document.querySelectorAll('.view').forEach(view => view.classList.remove('active'));
+        document.getElementById(targetView).classList.add('active');
+
+        if (targetView === 'person') {
+            state.activePerson = e.target.getAttribute('data-name');
+            renderPersonView();
+        } else {
+            renderDashboard();
+        }
+    }
+});
+
+document.getElementById('t-ticker').addEventListener('input', (e) => {
+    const ticker = e.target.value.toUpperCase();
+    if (tickerDictionary[ticker]) {
+        document.getElementById('t-name').value = tickerDictionary[ticker];
+        document.getElementById('t-currency').value = /^[A-Z]+$/.test(ticker) ? 'USD' : 'KRW';
+    }
+});
+
+document.getElementById('trade-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const trade = {
+        user: state.activePerson,
+        date: document.getElementById('t-date').value,
+        ticker: document.getElementById('t-ticker').value.toUpperCase(),
+        name: document.getElementById('t-name').value,
+        type: document.getElementById('t-type').value,
+        currency: document.getElementById('t-currency').value,
+        price: parseFloat(document.getElementById('t-price').value),
+        qty: parseFloat(document.getElementById('t-qty').value)
+    };
+
+    db.ref('trades').push(trade);
+    
+    e.target.reset();
+    document.getElementById('t-date').valueAsDate = new Date();
+});
+
+db.ref('trades').on('value', async (snapshot) => {
+    const data = snapshot.val();
+    
+    state.users = { '김태호': { trades: [] }, '이용우': { trades: [] }, '이형주': { trades: [] } };
+    
+    if (data) {
+        Object.values(data).forEach(row => {
+            if(state.users[row.user]) {
+                state.users[row.user].trades.push({
+                    date: row.date, ticker: row.ticker, name: row.name,
+                    type: row.type, currency: row.currency, price: row.price, qty: row.qty
                 });
             }
-
-            if (data.trades) {
-                users.forEach(u => state.trades[u] = data.trades.filter(t => t.user === u));
-            }
-        } catch(e) {
-            console.error("스프레드시트 데이터 연동 실패:", e);
-        }
-
-        // 환율 업데이트
-        if (cache['KRW=X'] && cache['KRW=X'].price > 0) exKRW = cache['KRW=X'].price;
-
-        // 종목 현재가 캐시 보충 (App Script가 안 가져온 종목만)
-        let missingTickers = new Set();
-        users.forEach(u => state.trades[u].forEach(t => {
-            if (!cache[t.ticker] || cache[t.ticker].price <= 0) missingTickers.add(t.ticker);
-        }));
-
-        if (missingTickers.size > 0) {
-            const q = Array.from(missingTickers).map(t => /^\d{6}$/.test(t) ? t+'.KS' : t).join(',');
-            try {
-                const url = encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${q}`);
-                const yRes = await fetch(`https://api.allorigins.win/get?url=${url}`);
-                const yData = await yRes.json();
-                const parsed = JSON.parse(yData.contents);
-                if (parsed.quoteResponse && parsed.quoteResponse.result) {
-                    parsed.quoteResponse.result.forEach(item => {
-                        const tk = item.symbol.replace('.KS', '');
-                        cache[tk] = {
-                            price:  item.regularMarketPrice || 0,
-                            change: item.regularMarketChangePercent || 0,
-                            name:   item.shortName || item.longName || tMap[tk] || tk,
-                            curr:   item.currency === 'KRW' ? 'KRW' : 'USD'
-                        };
-                    });
-                }
-            } catch(e) {
-                console.warn("보조 야후 API 조회 실패:", e);
-            }
-        }
-
-        renderIdx();
-        updateAll();
-    }
-
-    function renderIdx() {
-        const grid = document.getElementById('market-indices');
-        const html = Object.entries(mSym).map(([sym, lbl]) => {
-            const info = cache[sym];
-            let priceStr = '-';
-            let changeHtml = '<span class="pct" style="color:#888">(-)</span>';
-
-            if (info && info.price > 0) {
-                priceStr = info.price.toLocaleString(undefined, { maximumFractionDigits: 2 });
-                const pct = info.change;
-                const cls  = pct > 0 ? 'profit' : (pct < 0 ? 'loss' : '');
-                const sign = pct > 0 ? '+' : '';
-                changeHtml = `<span class="pct ${cls}">(${sign}${pct.toFixed(2)}%)</span>`;
-            }
-
-            return `<div class="idx-item">
-                        <div class="val">${priceStr} ${changeHtml}</div>
-                        <div class="key">${lbl}</div>
-                    </div>`;
-        }).join('');
-
-        grid.innerHTML = html;
-    }
-
-    async function getStk(tk) {
-        if (!tk) return null;
-        if (cache[tk] && cache[tk].price > 0) return cache[tk];
-
-        let qTk = /^\d{6}$/.test(tk) ? tk+'.KS' : tk;
-        try {
-            const url = encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${qTk}`);
-            const res  = await fetch(`https://api.allorigins.win/get?url=${url}`);
-            const data = await res.json();
-            const meta = JSON.parse(data.contents).chart.result[0].meta;
-
-            const price = meta.regularMarketPrice || 0;
-            const prev  = meta.chartPreviousClose || price;
-            const change = prev > 0 ? ((price - prev) / prev) * 100 : 0;
-
-            const info = { price, change, name: meta.shortName||meta.longName||tMap[tk]||tk, curr: meta.currency==='KRW'?'KRW':'USD' };
-            cache[tk] = info;
-            return info;
-        } catch(e) {
-            return { price:0, change:0, name:tMap[tk]||tk, curr:/^\d{6}$/.test(tk)?'KRW':'USD' };
-        }
-    }
-
-    async function handleTk(u) {
-        const tkIn = document.getElementById(`tk-${u}`);
-        const nmIn = document.getElementById(`nm-${u}`);
-        const prIn = document.getElementById(`pr-${u}`);
-        const crSel = document.getElementById(`cr-${u}`);
-
-        const tk = tkIn.value.trim().toUpperCase();
-        if (!tk) { nmIn.value = ''; return; }
-
-        tkIn.value = tk;
-        nmIn.placeholder = "검색 중..."; nmIn.value = "";
-
-        const info = await getStk(tk);
-
-        nmIn.value = info.name;
-        crSel.value = info.curr;
-        if (info.price > 0 && !prIn.value) prIn.value = info.price;
-        nmIn.placeholder = "자동 입력";
-    }
-
-    function createPages() {
-        const con = document.getElementById('pages-container');
-        users.forEach(u => {
-            con.innerHTML += `
-                <div id="u-${u}" class="tab-content">
-                    <div class="card">
-                        <h3>매매 입력/수정</h3>
-                        <div class="form-grid">
-                            <input type="hidden" id="eid-${u}">
-                            <div class="f-grp"><label>날짜</label><input type="date" id="dt-${u}"></div>
-                            <div class="f-grp"><label>티커 (입력 후 바깥 클릭)</label><input type="text" id="tk-${u}" onchange="handleTk('${u}')" placeholder="AAPL, 005930"></div>
-                            <div class="f-grp"><label>종목명 (자동)</label><input type="text" id="nm-${u}" disabled placeholder="자동 입력"></div>
-                            <div class="f-grp"><label>유형</label><select id="ty-${u}"><option value="buy">매수</option><option value="sell">매도</option></select></div>
-                            <div class="f-grp"><label>통화 (자동)</label><select id="cr-${u}" disabled><option value="USD">USD</option><option value="KRW">KRW</option></select></div>
-                            <div class="f-grp"><label>가격</label><input type="number" step="0.01" id="pr-${u}"></div>
-                            <div class="f-grp"><label>수량</label><input type="number" step="0.0001" id="qt-${u}"></div>
-                            <div class="f-grp btn-grp" style="grid-column: span 1;">
-                                <button class="p-btn" id="btn-${u}" onclick="saveTr('${u}')">저장</button>
-                                <button class="c-btn" id="cbtn-${u}" onclick="cancelEd('${u}')">취소</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card">
-                        <h3>매매 일지</h3>
-                        <div class="tbl-wrap">
-                            <table>
-                                <thead><tr><th>날짜</th><th>종목</th><th>유형</th><th>가격</th><th>수량</th><th>관리</th></tr></thead>
-                                <tbody id="log-${u}"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="grid-2">
-                        <div class="card">
-                            <h3>현재 포트폴리오 (실시간 연동)</h3>
-                            <div class="tbl-wrap">
-                                <table>
-                                    <thead><tr><th>종목</th><th>수량</th><th>평단가</th><th>현재가</th><th>평가액</th><th>수익률</th></tr></thead>
-                                    <tbody id="port-${u}"></tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div class="card">
-                            <h3>비중 차트</h3>
-                            <div class="chart"><canvas id="ch-${u}"></canvas></div>
-                        </div>
-                    </div>
-                </div>`;
-            document.getElementById(`dt-${u}`).value = new Date().toISOString().substring(0, 10);
         });
     }
 
-    async function saveTr(u) {
-        const eid = document.getElementById(`eid-${u}`).value;
-        const tk  = document.getElementById(`tk-${u}`).value.toUpperCase();
-        const data = {
-            action:   eid ? 'edit' : 'add',
-            id:       eid ? String(eid) : String(Date.now()),
-            user:     u,
-            date:     document.getElementById(`dt-${u}`).value,
-            ticker:   tk,
-            name:     document.getElementById(`nm-${u}`).value || tk,
-            type:     document.getElementById(`ty-${u}`).value,
-            currency: document.getElementById(`cr-${u}`).value,
-            price:    parseFloat(document.getElementById(`pr-${u}`).value),
-            qty:      parseFloat(document.getElementById(`qt-${u}`).value)
-        };
-        if (!data.ticker || isNaN(data.price) || isNaN(data.qty)) return alert("입력값을 확인해 주세요.");
-
-        toggleLd(true, "스프레드시트에 기록 중...");
-        try {
-            await postReq(data);
-            await fetchAll();
-            cancelEd(u);
-        } catch(e) {
-            alert("저장 실패: " + e.message);
-        }
-        toggleLd(false);
+    if (state.activeTab === 'person') {
+        await renderPersonView();
+    } else {
+        await renderDashboard();
     }
+});
 
-    function editTr(u, id) {
-        const tr = state.trades[u].find(t => String(t.id) === String(id));
-        if (!tr) return;
-        document.getElementById(`eid-${u}`).value  = tr.id;
-        document.getElementById(`dt-${u}`).value   = tr.date;
-        document.getElementById(`tk-${u}`).value   = tr.ticker;
-        document.getElementById(`nm-${u}`).value   = tr.name;
-        document.getElementById(`ty-${u}`).value   = tr.type;
-        document.getElementById(`cr-${u}`).value   = tr.currency;
-        document.getElementById(`pr-${u}`).value   = tr.price;
-        document.getElementById(`qt-${u}`).value   = tr.qty;
-        document.getElementById(`btn-${u}`).innerText = "수정 완료";
-        document.getElementById(`cbtn-${u}`).style.display = "block";
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+async function init() {
+    document.getElementById('t-date').valueAsDate = new Date();
+    await fetchExchangeRate();
+}
 
-    function cancelEd(u) {
-        document.getElementById(`eid-${u}`).value = "";
-        ['tk','nm','pr','qt'].forEach(id => document.getElementById(`${id}-${u}`).value = '');
-        document.getElementById(`dt-${u}`).value = new Date().toISOString().substring(0, 10);
-        document.getElementById(`btn-${u}`).innerText = "저장";
-        document.getElementById(`cbtn-${u}`).style.display = "none";
-    }
-
-    // ── 수정 2: confirm() 대신 커스텀 모달 호출 ─────────────────────────────
-    function delTr(u, id) {
-        openDelModal(u, id);
-    }
-    // ────────────────────────────────────────────────────────────────────────────
-
-    function updateAll() {
-        let stats = [], hlds = [];
-
-        for (const u of users) {
-            let port = {}, real = 0, tInv = 0, tVal = 0, cLbl = [], cDat = [];
-
-            state.trades[u].sort((a,b) => new Date(a.date)-new Date(b.date)).forEach(t => {
-                if (!port[t.ticker]) port[t.ticker] = { n: t.name, q: 0, c: 0, cr: t.currency };
-                let p = port[t.ticker];
-                if (t.type === 'buy') {
-                    p.c = (p.q*p.c + t.qty*t.price) / (p.q + t.qty);
-                    p.q += t.qty;
-                } else {
-                    real += (t.price - p.c) * t.qty * (t.currency==='USD' ? exKRW : 1);
-                    p.q  -= t.qty;
-                }
-            });
-
-            let ptHtml = '';
-            for (const [tk, p] of Object.entries(port)) {
-                if (p.q <= 0) continue;
-                const info  = cache[tk] || { price: p.c, name: p.n };
-                const curPr = info.price > 0 ? info.price : p.c;
-                const xr    = p.cr === 'USD' ? exKRW : 1;
-
-                const iKw = p.q * p.c * xr;
-                const vKw = p.q * curPr * xr;
-                tInv += iKw; tVal += vKw;
-
-                const ret  = iKw > 0 ? ((vKw - iKw)/iKw)*100 : 0;
-                const sym  = p.cr === 'USD' ? '$' : '₩';
-                const cls  = ret > 0 ? 'profit' : (ret < 0 ? 'loss' : '');
-                const sign = ret > 0 ? '+' : '';
-                const fn   = info.name || p.n;
-
-                ptHtml += `<tr>
-                    <td>${fn}<br><small style="color:#888">${tk}</small></td>
-                    <td>${p.q.toLocaleString(undefined,{maximumFractionDigits:4})}</td>
-                    <td>${sym}${p.c.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
-                    <td>${sym}${curPr.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
-                    <td>₩${vKw.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
-                    <td class="${cls}">${sign}${ret.toFixed(2)}%</td>
-                </tr>`;
-                cLbl.push(fn); cDat.push(vKw); hlds.push({ u, n: fn, r: ret });
-            }
-
-            document.getElementById(`port-${u}`).innerHTML =
-                ptHtml || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">종목 없음</td></tr>';
-
-            // 매매 일지 렌더링
-            const logArr = [...state.trades[u]].sort((a,b) => new Date(b.date)-new Date(a.date));
-            document.getElementById(`log-${u}`).innerHTML = logArr.map(t => {
-                const sym      = t.currency === 'USD' ? '$' : '₩';
-                const typeCls  = t.type === 'buy' ? 'loss' : 'profit';
-                const typeName = t.type === 'buy' ? '매수' : '매도';
-                // data-* 속성으로 ID 전달 → onclick 인라인 문자열 이스케이프 문제 방지
-                return `<tr>
-                    <td>${t.date}</td>
-                    <td>${t.name}</td>
-                    <td class="${typeCls}">${typeName}</td>
-                    <td>${sym}${t.price.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
-                    <td>${t.qty}</td>
-                    <td>
-                        <button class="a-btn edit-btn" data-u="${u}" data-id="${t.id}" onclick="editTr(this.dataset.u, this.dataset.id)">수정</button>
-                        <button class="a-btn del-btn"  data-u="${u}" data-id="${t.id}" onclick="delTr(this.dataset.u, this.dataset.id)">삭제</button>
-                    </td>
-                </tr>`;
-            }).join('') || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">내역 없음</td></tr>';
-
-            if (state.charts[u]) state.charts[u].destroy();
-            state.charts[u] = new Chart(document.getElementById(`ch-${u}`).getContext('2d'), {
-                type: 'doughnut',
-                data: {
-                    labels: cLbl,
-                    datasets: [{
-                        data: cDat,
-                        backgroundColor: ['#4e79a7','#f28e2c','#e15759','#76b7b2','#59a14f','#edc949'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'right', labels: { boxWidth: 12 } } }
-                }
-            });
-
-            const ur = tVal - tInv;
-            const rp = tInv > 0 ? (ur/tInv)*100 : 0;
-            stats.push({ u, i: tInv, v: tVal, ur, r: real, rp });
-        }
-
-        document.getElementById('dash-body').innerHTML = stats.map(s => {
-            const urCls = s.ur > 0 ? 'profit' : (s.ur < 0 ? 'loss' : '');
-            const rCls  = s.r  > 0 ? 'profit' : (s.r  < 0 ? 'loss' : '');
-            const rpCls = s.rp > 0 ? 'profit' : (s.rp < 0 ? 'loss' : '');
-            return `<tr>
-                <td><strong>${s.u}</strong></td>
-                <td>₩${s.i.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
-                <td>₩${s.v.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
-                <td class="${urCls}">₩${s.ur.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
-                <td class="${rCls}">₩${s.r.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
-                <td class="${rpCls}">${s.rp>0?'+':''}${s.rp.toFixed(2)}%</td>
-            </tr>`;
-        }).join('');
-
-        const win = [...stats].sort((a,b) => b.rp - a.rp)[0];
-        document.getElementById('dash-top').innerText =
-            win && win.i > 0 ? `${win.u} (${win.rp>0?'+':''}${win.rp.toFixed(2)}%)` : '-';
-
-        if (hlds.length > 0) {
-            const b = hlds.reduce((p,c) => p.r > c.r ? p : c);
-            const w = hlds.reduce((p,c) => p.r < c.r ? p : c);
-            document.getElementById('dash-best').innerText  = `${b.n} (+${b.r.toFixed(2)}%)`;
-            document.getElementById('dash-worst').innerText = `${w.n} (${w.r.toFixed(2)}%)`;
-        } else {
-            document.getElementById('dash-best').innerText  = '-';
-            document.getElementById('dash-worst').innerText = '-';
-        }
-    }
-
-    function switchTab(id, btn) {
-        document.querySelectorAll('.tab-content, .tab-btn').forEach(el => el.classList.remove('active'));
-        const target = id === 'dashboard' ? 'dashboard' : `u-${id.split('-')[1]}`;
-        document.getElementById(target).classList.add('active');
-        btn.classList.add('active');
-    }
+init();
 </script>
+
 </body>
 </html>
