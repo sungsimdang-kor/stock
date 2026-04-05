@@ -198,7 +198,7 @@
 <script>
     const users = ['김태호', '이용우', '이형주'];
     let exKRW = 1350; 
-    let previousPrices = {}; // 애니메이션 효과를 위한 이전 가격 저장소
+    let previousPrices = {}; 
     
     const tMap = {
         'AAPL':'Apple', 'MSFT':'Microsoft', 'TSLA':'Tesla', 'NVDA':'NVIDIA',
@@ -227,7 +227,7 @@
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
         authDomain: "howooju.firebaseapp.com",
-        /* 발급받은 실제 데이터베이스 URL을 입력하세요 */
+        // 👇 반드시 본인의 실제 데이터베이스 URL로 수정하세요! (현재는 임시 기본값입니다)
         databaseURL: "https://howooju-default-rtdb.asia-southeast1.firebasedatabase.app/",
         projectId: "howooju",
         storageBucket: "howooju.firebasestorage.app",
@@ -395,7 +395,6 @@
             toggleLd(false);
         }
 
-        // 30초마다 활성 종목의 실시간 시세 자동 갱신
         setInterval(autoRefreshPrices, 30000);
     };
 
@@ -469,7 +468,7 @@
         document.getElementById(`cbtn-${u}`).style.display = "none";
     }
 
-    // --- API 데이터 조회 최적화 ---
+    // --- 시세 갱신 핵심 로직 변경 (v8/chart 개별 호출 방식) ---
     async function fetchExchangeRate() {
         try {
             const res = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
@@ -484,55 +483,41 @@
     }
 
     async function fetchIndices() {
-        const symbols = Object.keys(mSym).join(',');
-        try {
-            const url = encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}&_=${Date.now()}`);
-            const yRes = await fetch(`https://api.allorigins.win/get?url=${url}`);
-            const yData = await yRes.json();
-            const parsed = JSON.parse(yData.contents);
-            if (parsed.quoteResponse?.result) {
-                parsed.quoteResponse.result.forEach(item => {
-                    cache[item.symbol] = {
-                        price:  item.regularMarketPrice || 0,
-                        change: item.regularMarketChangePercent || 0,
-                        name:   mSym[item.symbol] || item.shortName,
-                        curr:   item.currency === 'KRW' ? 'KRW' : 'USD'
-                    };
-                });
-            }
-        } catch(e) { console.warn("지표 API 지연"); }
+        const promises = Object.keys(mSym).map(async sym => {
+            try {
+                const url = encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&_=${Date.now()}`);
+                const yRes = await fetch(`https://api.allorigins.win/get?url=${url}`);
+                const yData = await yRes.json();
+                const meta = JSON.parse(yData.contents).chart.result[0].meta;
+                
+                const price = meta.regularMarketPrice || 0;
+                const prev  = meta.chartPreviousClose || price;
+                const change = prev > 0 ? ((price - prev) / prev) * 100 : 0;
+
+                cache[sym] = { price, change, name: mSym[sym], curr: 'USD' };
+            } catch(e) {}
+        });
+        await Promise.all(promises);
     }
 
-    // 보유 중인 모든 종목의 실시간 가격 갱신 (자동/수동)
+    // 차단이 심한 기존 방식을 버리고 getStk를 병렬 호출하도록 수정
     async function autoRefreshPrices() {
         let activeTickers = new Set();
         users.forEach(u => state.trades[u].forEach(t => activeTickers.add(t.ticker)));
         if (activeTickers.size === 0) return;
 
-        const q = Array.from(activeTickers).map(t => /^\d{6}$/.test(t) ? t+'.KS' : t).join(',');
-        try {
-            const url = encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${q}&_=${Date.now()}`);
-            const yRes = await fetch(`https://api.allorigins.win/get?url=${url}`);
-            const yData = await yRes.json();
-            const parsed = JSON.parse(yData.contents);
-            
-            if (parsed.quoteResponse?.result) {
-                let isUpdated = false;
-                parsed.quoteResponse.result.forEach(item => {
-                    const tk = item.symbol.replace('.KS', '');
-                    if (!cache[tk]) cache[tk] = {};
-                    
-                    const newPrice = item.regularMarketPrice || cache[tk].price || 0;
-                    if (cache[tk].price !== newPrice) {
-                        previousPrices[tk] = cache[tk].price; // 변동 효과를 위해 이전 가격 저장
-                        cache[tk].price = newPrice;
-                        cache[tk].change = item.regularMarketChangePercent || cache[tk].change || 0;
-                        isUpdated = true;
-                    }
-                });
-                if (isUpdated) updateAll();
+        let isUpdated = false;
+        const promises = Array.from(activeTickers).map(async tk => {
+            const oldPrice = cache[tk] ? cache[tk].price : 0;
+            const info = await getStk(tk, true); // 강제로 가격 새로 가져오기
+            if (info && info.price > 0 && info.price !== oldPrice) {
+                previousPrices[tk] = oldPrice; 
+                isUpdated = true;
             }
-        } catch(e) { console.warn("시세 갱신 지연"); }
+        });
+        
+        await Promise.all(promises);
+        if (isUpdated) updateAll();
     }
 
     async function manualRefreshPrices() {
@@ -545,7 +530,15 @@
     }
 
     async function fetchMissingPrices() {
-        await autoRefreshPrices(); // 초기 누락분 조회도 동일한 갱신 로직 사용
+        let missingTickers = new Set();
+        users.forEach(u => state.trades[u].forEach(t => {
+            if (!cache[t.ticker] || cache[t.ticker].price <= 0) missingTickers.add(t.ticker);
+        }));
+
+        if (missingTickers.size > 0) {
+            const promises = Array.from(missingTickers).map(tk => getStk(tk, true));
+            await Promise.all(promises);
+        }
     }
 
     function renderIdx() {
@@ -568,23 +561,29 @@
         grid.innerHTML = html;
     }
 
-    async function getStk(tk) {
+    // force 매개변수를 추가하여 필요시 캐시를 무시하고 갱신 가능하게 함
+    async function getStk(tk, force = false) {
         if (!tk) return null;
-        if (cache[tk] && cache[tk].price > 0) return cache[tk];
+        if (!force && cache[tk] && cache[tk].price > 0) return cache[tk];
+        
         let qTk = /^\d{6}$/.test(tk) ? tk+'.KS' : tk;
         try {
-            const url = encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${qTk}?_=${Date.now()}`);
+            // 시간값을 추가해 브라우저와 프록시 서버의 캐싱을 원천 방지
+            const url = encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${qTk}?interval=1d&_=${Date.now()}`);
             const res  = await fetch(`https://api.allorigins.win/get?url=${url}`);
             const data = await res.json();
             const meta = JSON.parse(data.contents).chart.result[0].meta;
+            
             const price = meta.regularMarketPrice || 0;
             const prev  = meta.chartPreviousClose || price;
             const change = prev > 0 ? ((price - prev) / prev) * 100 : 0;
+            
             const info = { price, change, name: meta.shortName||meta.longName||tMap[tk]||tk, curr: meta.currency==='KRW'?'KRW':'USD' };
             cache[tk] = info;
             return info;
         } catch(e) {
-            return { price:0, change:0, name:tMap[tk]||tk, curr:/^\d{6}$/.test(tk)?'KRW':'USD' };
+            // 실패 시 기존 데이터 또는 평단가를 쓰기 위한 초기값 리턴
+            return cache[tk] || { price:0, change:0, name:tMap[tk]||tk, curr:/^\d{6}$/.test(tk)?'KRW':'USD' };
         }
     }
 
@@ -621,7 +620,6 @@
         });
     }
 
-    // 화면 갱신 메인 함수
     function updateAll() {
         let stats = [], hlds = [];
 
@@ -651,7 +649,7 @@
             for (const [tk, p] of Object.entries(port)) {
                 if (p.q <= 0) continue;
                 const info  = cache[tk] || { price: p.c, name: p.n };
-                const curPr = info.price > 0 ? info.price : p.c;
+                const curPr = info.price > 0 ? info.price : p.c; // 현재가가 0이면 평단가 표시 방어
                 const xr    = p.cr === 'USD' ? exKRW : 1;
 
                 const iKw = p.q * p.c * xr;
@@ -664,7 +662,6 @@
                 const sign = ret > 0 ? '+' : '';
                 const fn   = info.name || p.n;
 
-                // 시세 변동 애니메이션 클래스 판별
                 let flashClass = '';
                 if (previousPrices[tk]) {
                     if (curPr > previousPrices[tk]) flashClass = 'price-up';
@@ -754,7 +751,6 @@
             if(dashWorst) dashWorst.innerText = '-';
         }
         
-        // 시세 변동 기록 초기화 (애니메이션 1회용)
         previousPrices = {};
     }
 </script>
