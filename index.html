@@ -103,8 +103,7 @@
         .edit-btn { background: #f1c40f; color: #333; }
         .del-btn  { background: #e74c3c; }
 
-        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
-        .chart { height: 250px; width: 100%; margin: 0 auto; }
+        .chart { height: 300px; width: 100%; max-width: 500px; margin: 0 auto; }
 
         .profit { color: var(--profit); font-weight: bold; }
         .loss   { color: var(--loss);   font-weight: bold; }
@@ -134,7 +133,6 @@
             .m-box { min-width: 100%; }
             .form-grid { grid-template-columns: 1fr 1fr; }
             .btn-grp { grid-column: span 2; }
-            .grid-2 { grid-template-columns: 1fr; }
             .idx-item .val { font-size: 16px; }
             th, td { padding: 9px 7px; font-size: 13px; }
         }
@@ -228,7 +226,7 @@
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
         authDomain: "howooju.firebaseapp.com",
-        // ⚠️ 주의: 사용하시는 실제 파이어베이스 DB URL 주소로 반드시 변경하세요.
+        // ⚠️ 주의: 반드시 실제 DB 주소로 교체하세요!
         databaseURL: "https://howooju-default-rtdb.asia-southeast1.firebasedatabase.app",
         projectId: "howooju",
         storageBucket: "howooju.firebasestorage.app",
@@ -299,6 +297,7 @@
         con.innerHTML = '';
         
         users.forEach(u => {
+            // 레이아웃 수정: grid-2 제거하고 card를 100% 너비로 순차 배치
             const html = `
                 <div id="u-${u}" class="tab-content">
                     <div class="card">
@@ -332,20 +331,19 @@
                         </div>
                     </div>
 
-                    <div class="grid-2">
-                        <div class="card">
-                            <h3>현재 포트폴리오 (실시간 연동)</h3>
-                            <div class="tbl-wrap">
-                                <table>
-                                    <thead><tr><th>종목</th><th>수량</th><th>평단가</th><th>현재가</th><th>평가액</th><th>수익률</th></tr></thead>
-                                    <tbody id="port-${u}"></tbody>
-                                </table>
-                            </div>
+                    <div class="card">
+                        <h3>현재 포트폴리오 (실시간 연동)</h3>
+                        <div class="tbl-wrap">
+                            <table>
+                                <thead><tr><th>종목</th><th>수량</th><th>평단가</th><th>현재가</th><th>평가액</th><th>수익률</th></tr></thead>
+                                <tbody id="port-${u}"></tbody>
+                            </table>
                         </div>
-                        <div class="card">
-                            <h3>비중 차트</h3>
-                            <div class="chart"><canvas id="ch-${u}"></canvas></div>
-                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <h3>비중 차트</h3>
+                        <div class="chart"><canvas id="ch-${u}"></canvas></div>
                     </div>
                 </div>`;
             con.insertAdjacentHTML('beforeend', html);
@@ -478,23 +476,26 @@
         } catch(e) { console.warn("환율 API 지연"); }
     }
 
+    // 통신 속도 극대화를 위해 일괄 조회(Batch Fetch) 1순위 적용
     async function fetchIndices() {
-        const promises = Object.keys(mSym).map(async sym => {
-            try {
-                const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&_=${Date.now()}`;
-                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-                const res = await fetch(proxyUrl);
-                const data = await res.json();
-                const meta = data.chart.result[0].meta;
-                
-                const price = meta.regularMarketPrice || 0;
-                const prev  = meta.chartPreviousClose || price;
-                const change = prev > 0 ? ((price - prev) / prev) * 100 : 0;
-
-                cache[sym] = { price, change, name: mSym[sym], curr: 'USD' };
-            } catch(e) {}
-        });
-        await Promise.all(promises);
+        const q = Object.keys(mSym).join(',');
+        try {
+            const targetUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${q}`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+            const res = await fetch(proxyUrl);
+            const data = await res.json();
+            
+            if (data.quoteResponse && data.quoteResponse.result) {
+                data.quoteResponse.result.forEach(item => {
+                    cache[item.symbol] = {
+                        price:  item.regularMarketPrice || 0,
+                        change: item.regularMarketChangePercent || 0,
+                        name:   mSym[item.symbol] || item.shortName,
+                        curr:   item.currency === 'KRW' ? 'KRW' : 'USD'
+                    };
+                });
+            }
+        } catch(e) { console.warn("지표 일괄 갱신 지연"); }
     }
 
     async function autoRefreshPrices() {
@@ -506,22 +507,52 @@
         }
 
         let isUpdated = false;
-        const promises = Array.from(activeTickers).map(async tk => {
-            const oldPrice = cache[tk] ? cache[tk].price : 0;
-            const info = await getStk(tk, true); 
-            if (info && info.price > 0 && info.price !== oldPrice) {
-                previousPrices[tk] = oldPrice; 
-                isUpdated = true;
-            }
-        });
         
-        await Promise.all(promises);
+        // 1순위: 속도가 빠른 일괄 조회 (Batch Fetch)
+        const q = Array.from(activeTickers).map(t => /^\d{6}$/.test(t) ? t+'.KS' : t).join(',');
+        try {
+            const targetUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${q}`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+            const res = await fetch(proxyUrl);
+            const data = await res.json();
+            
+            if (data.quoteResponse && data.quoteResponse.result) {
+                data.quoteResponse.result.forEach(item => {
+                    const tk = item.symbol.replace('.KS', '');
+                    const oldPrice = cache[tk] ? cache[tk].price : 0;
+                    const newPrice = item.regularMarketPrice || oldPrice;
+                    
+                    if (!cache[tk]) cache[tk] = {};
+                    if (newPrice > 0 && newPrice !== oldPrice) {
+                        previousPrices[tk] = oldPrice; 
+                        cache[tk].price = newPrice;
+                        cache[tk].change = item.regularMarketChangePercent || 0;
+                        cache[tk].name = item.shortName || item.longName || tMap[tk] || tk;
+                        cache[tk].curr = item.currency === 'KRW' ? 'KRW' : 'USD';
+                        isUpdated = true;
+                    }
+                });
+            }
+        } catch(e) {
+            // 2순위: 일괄 조회가 막혔을 경우 개별 조회로 우회
+            console.warn("일괄 갱신 우회 작동 중...");
+            const promises = Array.from(activeTickers).map(async tk => {
+                const oldPrice = cache[tk] ? cache[tk].price : 0;
+                const info = await getStk(tk, true); 
+                if (info && info.price > 0 && info.price !== oldPrice) {
+                    previousPrices[tk] = oldPrice; 
+                    isUpdated = true;
+                }
+            });
+            await Promise.all(promises);
+        }
+        
         if (isUpdated) updateAll();
         setLastUpdatedTime();
     }
 
     async function manualRefreshPrices() {
-        toggleLd(true, "최신 시세 동기화 중...");
+        toggleLd(true, "최신 시세 갱신 중...");
         await fetchExchangeRate();
         await fetchIndices();
         await autoRefreshPrices();
