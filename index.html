@@ -10,6 +10,7 @@
     <style>
         :root { --bg: #f4f6f8; --card: #ffffff; --pri: #333333; --brd: #e0e0e0; --profit: #ff4d4f; --loss: #1890ff; }
 
+        /* ── 모바일 스크롤 핵심 수정 ── */
         html { height: 100%; }
         body {
             font-family: -apple-system, sans-serif;
@@ -29,8 +30,9 @@
             box-sizing: border-box;
         }
 
-        .exchange-info { text-align: right; font-size: 13px; color: #666; margin-bottom: 10px; font-weight: bold; }
+        .exchange-info { text-align: right; font-size: 12px; color: #666; margin-bottom: 10px; font-weight: bold; }
 
+        /* 탭바: 가로만 스크롤, 세로 터치는 body에 넘김 */
         .tabs {
             display: flex;
             border-bottom: 2px solid var(--brd);
@@ -51,7 +53,7 @@
 
         .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .card h3 { margin-top: 0; border-bottom: 1px solid var(--brd); padding-bottom: 10px; font-size: 18px; }
-
+        
         .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--brd); padding-bottom: 10px; margin-bottom: 15px; }
         .card-header h3 { border: none; padding: 0; margin: 0; }
         .realized-badge { background: #fff3cd; color: #856404; padding: 6px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; border: 1px solid #ffeeba; }
@@ -74,6 +76,7 @@
         .m-box h4 { margin: 0 0 10px 0; font-size: 13px; color: #666; }
         .m-box p { margin: 0; font-size: 22px; font-weight: bold; }
 
+        /* 테이블 래퍼: 가로만 스크롤 */
         .tbl-wrap { width: 100%; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
         table { width: 100%; border-collapse: collapse; min-width: 700px; }
         th, td { padding: 12px 10px; border-bottom: 1px solid var(--brd); text-align: right; font-size: 14px; white-space: nowrap; }
@@ -101,10 +104,12 @@
         .profit { color: var(--profit); font-weight: bold; }
         .loss   { color: var(--loss);   font-weight: bold; }
 
+        /* 로더 */
         #loader { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; justify-content: center; align-items: center; font-weight: bold; flex-direction: column; gap: 15px; }
         .spin { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--pri); border-radius: 50%; animation: sp 1s linear infinite; }
         @keyframes sp { 100% { transform: rotate(360deg); } }
 
+        /* ── 커스텀 삭제 확인 모달 ── */
         #del-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center; }
         #del-modal.open { display: flex; }
         .del-modal-box { background: white; border-radius: 16px; padding: 30px 24px 20px; max-width: 320px; width: 90%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
@@ -116,6 +121,7 @@
         #del-confirm-btn { background: #e74c3c; color: white; }
         #del-cancel-btn  { background: #f0f0f0; color: #333; }
 
+        /* 모바일 반응형 */
         @media (max-width: 600px) {
             .container { padding: 10px; }
             .card { padding: 14px; }
@@ -149,7 +155,7 @@
 </div>
 
 <div class="container">
-    <div class="exchange-info" id="exchange-rate-display">실시간 환율 로딩 중...</div>
+    <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
 
     <div class="tabs" id="tab-menu">
         <button class="tab-btn active" onclick="switchTab('dashboard', this)">통합 뷰</button>
@@ -184,6 +190,7 @@
 </div>
 
 <script>
+    // ── Firebase 설정 ──
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
         authDomain: "howooju.firebaseapp.com",
@@ -199,7 +206,7 @@
     const db = firebase.database();
 
     const users = ['김태호', '이용우', '이형주'];
-    let exKRW = 1350;
+    let exKRW = 1350; // 기본 환율
 
     const tMap = {
         'AAPL':'Apple','MSFT':'Microsoft','TSLA':'Tesla','NVDA':'NVIDIA',
@@ -222,16 +229,11 @@
     const state = { trades: {}, charts: {} };
     users.forEach(u => state.trades[u] = []);
 
+    // ── 모달 및 공통 UI 상태 제어 ──
     let pendingDelete = null;
-
-    function openDelModal(u, id) {
-        pendingDelete = { u, id };
-        document.getElementById('del-modal').classList.add('open');
-    }
-    function closeDelModal() {
-        pendingDelete = null;
-        document.getElementById('del-modal').classList.remove('open');
-    }
+    function openDelModal(u, id) { pendingDelete = { u, id }; document.getElementById('del-modal').classList.add('open'); }
+    function closeDelModal() { pendingDelete = null; document.getElementById('del-modal').classList.remove('open'); }
+    
     document.getElementById('del-confirm-btn').addEventListener('click', async function() {
         if (!pendingDelete) return;
         const { id } = pendingDelete;
@@ -239,27 +241,31 @@
         toggleLd(true, "삭제 중...");
         try {
             await db.ref(`trades/${id}`).remove();
-        } catch(e) {
-            alert("삭제 실패: " + e.message);
-        }
+        } catch(e) { alert("삭제 실패: " + e.message); }
         toggleLd(false);
     });
+
     document.getElementById('del-modal').addEventListener('click', function(e) {
         if (e.target === this) closeDelModal();
     });
 
-    window.onload = async () => {
-        createPages();
-        toggleLd(true, "데이터 동기화 중...");
-        await fetchIndices();
-        
-        if (cache['KRW=X'] && cache['KRW=X'].price > 0) {
-            exKRW = cache['KRW=X'].price;
-            document.getElementById('exchange-rate-display').innerText = `적용 환율: 1 USD = ${exKRW.toLocaleString(undefined, {maximumFractionDigits: 2})} KRW`;
-        }
-        renderIdx();
+    function toggleLd(show, txt = "처리 중...") {
+        document.getElementById('loader-txt').innerText = txt;
+        document.getElementById('loader').style.display = show ? 'flex' : 'none';
+    }
 
-        // Firebase 실시간 연동
+    // ── 비동기 데이터 로딩 핵심부 (체감 속도 최적화) ──
+    window.onload = () => {
+        createPages();
+        toggleLd(true, "매매 데이터 동기화 중...");
+
+        // 1. 환율 비동기 로딩 (결과 도착 시 화면 자동 갱신)
+        fetchExchangeRate();
+
+        // 2. 글로벌 마켓 지표 비동기 로딩
+        fetchIndices().then(() => renderIdx());
+
+        // 3. 파이어베이스 데이터 연결 (데이터 수신 즉시 로딩 해제)
         db.ref('trades').on('value', async (snapshot) => {
             const data = snapshot.val() || {};
             users.forEach(u => state.trades[u] = []);
@@ -270,15 +276,29 @@
                 if(state.trades[t.user]) state.trades[t.user].push(t);
             });
 
+            // 매매 데이터가 도착하면 즉시 화면 렌더링 (보유 수량 및 평단가 확보)
+            updateAll();
+            
+            // 💡 핵심: 무거운 시세 조회를 기다리지 않고 여기서 바로 로딩화면을 닫습니다.
+            toggleLd(false);
+
+            // 백그라운드에서 현재 시세를 조회하고, 도착하면 화면을 다시 한 번 렌더링합니다.
             await fetchMissingPrices();
             updateAll();
-            toggleLd(false);
         });
     };
 
-    function toggleLd(show, txt = "처리 중...") {
-        document.getElementById('loader-txt').innerText = txt;
-        document.getElementById('loader').style.display = show ? 'flex' : 'none';
+    // ── 외부 API 비동기 함수들 ──
+    async function fetchExchangeRate() {
+        try {
+            const res = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
+            const data = await res.json();
+            if (data?.usd?.krw) {
+                exKRW = data.usd.krw;
+                document.getElementById('exchange-rate-display').innerText = `적용 환율: 1 USD = ${exKRW.toLocaleString(undefined, {maximumFractionDigits: 2})} KRW`;
+                updateAll(); // 환율 도착 시 재계산
+            }
+        } catch(e) { console.warn("환율 API 조회 실패, 기본값 사용"); }
     }
 
     async function fetchIndices() {
@@ -288,7 +308,7 @@
             const yRes = await fetch(`https://api.allorigins.win/get?url=${url}`);
             const yData = await yRes.json();
             const parsed = JSON.parse(yData.contents);
-            if (parsed.quoteResponse && parsed.quoteResponse.result) {
+            if (parsed.quoteResponse?.result) {
                 parsed.quoteResponse.result.forEach(item => {
                     cache[item.symbol] = {
                         price:  item.regularMarketPrice || 0,
@@ -298,9 +318,7 @@
                     };
                 });
             }
-        } catch(e) {
-            console.error("지표 데이터 조회 실패:", e);
-        }
+        } catch(e) { console.warn("지표 데이터 조회 지연"); }
     }
 
     async function fetchMissingPrices() {
@@ -316,7 +334,7 @@
                 const yRes = await fetch(`https://api.allorigins.win/get?url=${url}`);
                 const yData = await yRes.json();
                 const parsed = JSON.parse(yData.contents);
-                if (parsed.quoteResponse && parsed.quoteResponse.result) {
+                if (parsed.quoteResponse?.result) {
                     parsed.quoteResponse.result.forEach(item => {
                         const tk = item.symbol.replace('.KS', '');
                         cache[tk] = {
@@ -327,18 +345,17 @@
                         };
                     });
                 }
-            } catch(e) {
-                console.warn("보조 야후 API 조회 실패:", e);
-            }
+            } catch(e) { console.warn("보조 야후 API 조회 지연"); }
         }
     }
 
+    // ── 화면 렌더링 함수들 ──
     function renderIdx() {
         const grid = document.getElementById('market-indices');
         const html = Object.entries(mSym).map(([sym, lbl]) => {
             const info = cache[sym];
             let priceStr = '-';
-            let changeHtml = '<span class="pct" style="color:#888">(-)</span>';
+            let changeHtml = '<span class="pct" style="color:#888">로딩중...</span>';
 
             if (info && info.price > 0) {
                 priceStr = info.price.toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -348,30 +365,23 @@
                 changeHtml = `<span class="pct ${cls}">(${sign}${pct.toFixed(2)}%)</span>`;
             }
 
-            return `<div class="idx-item">
-                        <div class="val">${priceStr} ${changeHtml}</div>
-                        <div class="key">${lbl}</div>
-                    </div>`;
+            return `<div class="idx-item"><div class="val">${priceStr} ${changeHtml}</div><div class="key">${lbl}</div></div>`;
         }).join('');
-
         grid.innerHTML = html;
     }
 
     async function getStk(tk) {
         if (!tk) return null;
         if (cache[tk] && cache[tk].price > 0) return cache[tk];
-
         let qTk = /^\d{6}$/.test(tk) ? tk+'.KS' : tk;
         try {
             const url = encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${qTk}`);
             const res  = await fetch(`https://api.allorigins.win/get?url=${url}`);
             const data = await res.json();
             const meta = JSON.parse(data.contents).chart.result[0].meta;
-
             const price = meta.regularMarketPrice || 0;
             const prev  = meta.chartPreviousClose || price;
             const change = prev > 0 ? ((price - prev) / prev) * 100 : 0;
-
             const info = { price, change, name: meta.shortName||meta.longName||tMap[tk]||tk, curr: meta.currency==='KRW'?'KRW':'USD' };
             cache[tk] = info;
             return info;
@@ -393,7 +403,6 @@
         nmIn.placeholder = "검색 중..."; nmIn.value = "";
 
         const info = await getStk(tk);
-
         nmIn.value = info.name;
         crSel.value = info.curr;
         if (info.price > 0 && !prIn.value) prIn.value = info.price;
@@ -408,9 +417,7 @@
                     <div class="card">
                         <div class="card-header">
                             <h3>매매 입력/수정</h3>
-                            <div class="realized-badge">
-                                누적 확정 수익금: <span id="rp-${u}">0</span>원
-                            </div>
+                            <div class="realized-badge">누적 확정 수익금: <span id="rp-${u}">0</span>원</div>
                         </div>
                         <div class="form-grid">
                             <input type="hidden" id="eid-${u}">
@@ -475,16 +482,11 @@
 
         toggleLd(true, "저장 중...");
         try {
-            if (eid) {
-                await db.ref(`trades/${eid}`).update(data);
-            } else {
-                await db.ref('trades').push(data);
-            }
+            if (eid) await db.ref(`trades/${eid}`).update(data);
+            else await db.ref('trades').push(data);
             cancelEd(u);
-        } catch(e) {
-            alert("저장 실패: " + e.message);
-            toggleLd(false);
-        }
+        } catch(e) { alert("저장 실패: " + e.message); }
+        toggleLd(false);
     }
 
     function editTr(u, id) {
@@ -509,10 +511,6 @@
         document.getElementById(`dt-${u}`).value = new Date().toISOString().substring(0, 10);
         document.getElementById(`btn-${u}`).innerText = "저장";
         document.getElementById(`cbtn-${u}`).style.display = "none";
-    }
-
-    function delTr(u, id) {
-        openDelModal(u, id);
     }
 
     function updateAll() {
@@ -565,8 +563,7 @@
                 cLbl.push(fn); cDat.push(vKw); hlds.push({ u, n: fn, r: ret });
             }
 
-            document.getElementById(`port-${u}`).innerHTML =
-                ptHtml || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">종목 없음</td></tr>';
+            document.getElementById(`port-${u}`).innerHTML = ptHtml || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">종목 없음</td></tr>';
 
             const logArr = [...state.trades[u]].sort((a,b) => new Date(b.date)-new Date(a.date));
             document.getElementById(`log-${u}`).innerHTML = logArr.map(t => {
@@ -581,7 +578,7 @@
                     <td>${t.qty}</td>
                     <td>
                         <button class="a-btn edit-btn" data-u="${u}" data-id="${t.id}" onclick="editTr(this.dataset.u, this.dataset.id)">수정</button>
-                        <button class="a-btn del-btn"  data-u="${u}" data-id="${t.id}" onclick="delTr(this.dataset.u, this.dataset.id)">삭제</button>
+                        <button class="a-btn del-btn"  data-u="${u}" data-id="${t.id}" onclick="openDelModal(this.dataset.u, this.dataset.id)">삭제</button>
                     </td>
                 </tr>`;
             }).join('') || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">내역 없음</td></tr>';
@@ -589,18 +586,8 @@
             if (state.charts[u]) state.charts[u].destroy();
             state.charts[u] = new Chart(document.getElementById(`ch-${u}`).getContext('2d'), {
                 type: 'doughnut',
-                data: {
-                    labels: cLbl,
-                    datasets: [{
-                        data: cDat,
-                        backgroundColor: ['#4e79a7','#f28e2c','#e15759','#76b7b2','#59a14f','#edc949'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'right', labels: { boxWidth: 12 } } }
-                }
+                data: { labels: cLbl, datasets: [{ data: cDat, backgroundColor: ['#4e79a7','#f28e2c','#e15759','#76b7b2','#59a14f','#edc949'], borderWidth: 0 }] },
+                options: { maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12 } } } }
             });
 
             const ur = tVal - tInv;
@@ -623,8 +610,7 @@
         }).join('');
 
         const win = [...stats].sort((a,b) => b.rp - a.rp)[0];
-        document.getElementById('dash-top').innerText =
-            win && win.i > 0 ? `${win.u} (${win.rp>0?'+':''}${win.rp.toFixed(2)}%)` : '-';
+        document.getElementById('dash-top').innerText = win && win.i > 0 ? `${win.u} (${win.rp>0?'+':''}${win.rp.toFixed(2)}%)` : '-';
 
         if (hlds.length > 0) {
             const b = hlds.reduce((p,c) => p.r > c.r ? p : c);
