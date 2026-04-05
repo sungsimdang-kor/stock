@@ -187,6 +187,7 @@
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
         authDomain: "howooju.firebaseapp.com",
+        /* ⚠️ 에러 발생 시 아래 주소를 Firebase 콘솔의 실제 URL로 변경하세요 */
         databaseURL: "https://howooju-default-rtdb.firebaseio.com",
         projectId: "howooju",
         storageBucket: "howooju.firebasestorage.app",
@@ -226,9 +227,27 @@
         const { id } = pendingDelete;
         closeDelModal();
         toggleLd(true, "삭제 중...");
-        try { await db.ref(`trades/${id}`).remove(); } 
-        catch(e) { alert("삭제 실패: " + e.message); }
-        toggleLd(false);
+        
+        // 삭제 무한 로딩 방지 타이머
+        let isSuccess = false;
+        const fallbackTimer = setTimeout(() => {
+            if (!isSuccess) {
+                toggleLd(false);
+                alert("삭제 응답이 없습니다. Firebase 설정(databaseURL)을 확인해 주세요.");
+            }
+        }, 3000);
+
+        try { 
+            await db.ref(`trades/${id}`).remove(); 
+            isSuccess = true;
+            clearTimeout(fallbackTimer);
+            toggleLd(false);
+        } catch(e) { 
+            isSuccess = true;
+            clearTimeout(fallbackTimer);
+            toggleLd(false);
+            alert("삭제 실패: " + e.message); 
+        }
     });
 
     document.getElementById('del-modal').addEventListener('click', function(e) {
@@ -244,18 +263,15 @@
         createPages();
         toggleLd(true, "매매 데이터 동기화 중...");
 
-        // 안전장치: 어떤 경우에도 5초가 지나면 로딩 화면을 강제로 제거
         const fallbackTimer = setTimeout(() => {
             toggleLd(false);
-            console.warn("로딩 지연 - 강제 해제됨");
-        }, 5000);
+        }, 4000);
 
         fetchExchangeRate();
         fetchIndices().then(() => renderIdx());
 
-        // Firebase 데이터 연동 및 에러 콜백 추가
         db.ref('trades').on('value', async (snapshot) => {
-            clearTimeout(fallbackTimer); // 데이터가 정상 수신되면 타이머 취소
+            clearTimeout(fallbackTimer); 
             try {
                 const data = snapshot.val() || {};
                 users.forEach(u => state.trades[u] = []);
@@ -276,10 +292,9 @@
                 toggleLd(false);
             }
         }, (error) => {
-            // Firebase 규칙(Rules) 오류 처리
             clearTimeout(fallbackTimer);
             toggleLd(false);
-            alert("데이터베이스 연결 실패!\nFirebase Console > Realtime Database > 규칙(Rules)에서 읽기/쓰기 권한이 true로 설정되어 있는지 확인하세요.");
+            alert("데이터베이스 연결 실패!\nFirebase 규칙(Rules) 또는 databaseURL 주소를 확인하세요.");
             console.error("Firebase 권한 에러:", error);
         });
     };
@@ -475,155 +490,7 @@
         if (!data.ticker || isNaN(data.price) || isNaN(data.qty)) return alert("입력값을 확인해 주세요.");
 
         toggleLd(true, "저장 중...");
-        try {
-            if (eid) await db.ref(`trades/${eid}`).update(data);
-            else await db.ref('trades').push(data);
-            cancelEd(u);
-        } catch(e) { alert("저장 실패: " + e.message); }
-        toggleLd(false);
-    }
-
-    function editTr(u, id) {
-        const tr = state.trades[u].find(t => String(t.id) === String(id));
-        if (!tr) return;
-        document.getElementById(`eid-${u}`).value  = tr.id;
-        document.getElementById(`dt-${u}`).value   = tr.date;
-        document.getElementById(`tk-${u}`).value   = tr.ticker;
-        document.getElementById(`nm-${u}`).value   = tr.name;
-        document.getElementById(`ty-${u}`).value   = tr.type;
-        document.getElementById(`cr-${u}`).value   = tr.currency;
-        document.getElementById(`pr-${u}`).value   = tr.price;
-        document.getElementById(`qt-${u}`).value   = tr.qty;
-        document.getElementById(`btn-${u}`).innerText = "수정 완료";
-        document.getElementById(`cbtn-${u}`).style.display = "block";
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function cancelEd(u) {
-        document.getElementById(`eid-${u}`).value = "";
-        ['tk','nm','pr','qt'].forEach(id => document.getElementById(`${id}-${u}`).value = '');
-        document.getElementById(`dt-${u}`).value = new Date().toISOString().substring(0, 10);
-        document.getElementById(`btn-${u}`).innerText = "저장";
-        document.getElementById(`cbtn-${u}`).style.display = "none";
-    }
-
-    function updateAll() {
-        let stats = [], hlds = [];
-
-        for (const u of users) {
-            let port = {}, real = 0, tInv = 0, tVal = 0, cLbl = [], cDat = [];
-
-            state.trades[u].sort((a,b) => new Date(a.date)-new Date(b.date)).forEach(t => {
-                if (!port[t.ticker]) port[t.ticker] = { n: t.name, q: 0, c: 0, cr: t.currency };
-                let p = port[t.ticker];
-                if (t.type === 'buy') {
-                    const totalQty = p.q + t.qty;
-                    p.c = totalQty > 0 ? (p.q*p.c + t.qty*t.price) / totalQty : 0;
-                    p.q += t.qty;
-                } else {
-                    real += (t.price - p.c) * t.qty * (t.currency==='USD' ? exKRW : 1);
-                    p.q  -= t.qty;
-                }
-            });
-
-            const rpSpan = document.getElementById(`rp-${u}`);
-            rpSpan.innerText = real.toLocaleString('ko-KR', {maximumFractionDigits: 0});
-            rpSpan.className = real > 0 ? 'profit' : (real < 0 ? 'loss' : '');
-
-            let ptHtml = '';
-            for (const [tk, p] of Object.entries(port)) {
-                if (p.q <= 0) continue;
-                const info  = cache[tk] || { price: p.c, name: p.n };
-                const curPr = info.price > 0 ? info.price : p.c;
-                const xr    = p.cr === 'USD' ? exKRW : 1;
-
-                const iKw = p.q * p.c * xr;
-                const vKw = p.q * curPr * xr;
-                tInv += iKw; tVal += vKw;
-
-                const ret  = iKw > 0 ? ((vKw - iKw)/iKw)*100 : 0;
-                const sym  = p.cr === 'USD' ? '$' : '₩';
-                const cls  = ret > 0 ? 'profit' : (ret < 0 ? 'loss' : '');
-                const sign = ret > 0 ? '+' : '';
-                const fn   = info.name || p.n;
-
-                ptHtml += `<tr>
-                    <td>${fn}<br><small style="color:#888">${tk}</small></td>
-                    <td>${p.q.toLocaleString(undefined,{maximumFractionDigits:4})}</td>
-                    <td>${sym}${p.c.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
-                    <td>${sym}${curPr.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
-                    <td>₩${vKw.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
-                    <td class="${cls}">${sign}${ret.toFixed(2)}%</td>
-                </tr>`;
-                cLbl.push(fn); cDat.push(vKw); hlds.push({ u, n: fn, r: ret });
-            }
-
-            document.getElementById(`port-${u}`).innerHTML = ptHtml || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">종목 없음</td></tr>';
-
-            const logArr = [...state.trades[u]].sort((a,b) => new Date(b.date)-new Date(a.date));
-            document.getElementById(`log-${u}`).innerHTML = logArr.map(t => {
-                const sym      = t.currency === 'USD' ? '$' : '₩';
-                const typeCls  = t.type === 'buy' ? 'loss' : 'profit';
-                const typeName = t.type === 'buy' ? '매수' : '매도';
-                return `<tr>
-                    <td>${t.date}</td>
-                    <td>${t.name}</td>
-                    <td class="${typeCls}">${typeName}</td>
-                    <td>${sym}${t.price.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
-                    <td>${t.qty}</td>
-                    <td>
-                        <button class="a-btn edit-btn" data-u="${u}" data-id="${t.id}" onclick="editTr(this.dataset.u, this.dataset.id)">수정</button>
-                        <button class="a-btn del-btn"  data-u="${u}" data-id="${t.id}" onclick="openDelModal(this.dataset.u, this.dataset.id)">삭제</button>
-                    </td>
-                </tr>`;
-            }).join('') || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">내역 없음</td></tr>';
-
-            if (state.charts[u]) state.charts[u].destroy();
-            state.charts[u] = new Chart(document.getElementById(`ch-${u}`).getContext('2d'), {
-                type: 'doughnut',
-                data: { labels: cLbl, datasets: [{ data: cDat, backgroundColor: ['#4e79a7','#f28e2c','#e15759','#76b7b2','#59a14f','#edc949'], borderWidth: 0 }] },
-                options: { maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12 } } } }
-            });
-
-            const ur = tVal - tInv;
-            const rp = tInv > 0 ? (ur/tInv)*100 : 0;
-            stats.push({ u, i: tInv, v: tVal, ur, r: real, rp });
-        }
-
-        document.getElementById('dash-body').innerHTML = stats.map(s => {
-            const urCls = s.ur > 0 ? 'profit' : (s.ur < 0 ? 'loss' : '');
-            const rCls  = s.r  > 0 ? 'profit' : (s.r  < 0 ? 'loss' : '');
-            const rpCls = s.rp > 0 ? 'profit' : (s.rp < 0 ? 'loss' : '');
-            return `<tr>
-                <td><strong>${s.u}</strong></td>
-                <td>₩${s.i.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
-                <td>₩${s.v.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
-                <td class="${urCls}">₩${s.ur.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
-                <td class="${rCls}">₩${s.r.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
-                <td class="${rpCls}">${s.rp>0?'+':''}${s.rp.toFixed(2)}%</td>
-            </tr>`;
-        }).join('');
-
-        const win = [...stats].sort((a,b) => b.rp - a.rp)[0];
-        document.getElementById('dash-top').innerText = win && win.i > 0 ? `${win.u} (${win.rp>0?'+':''}${win.rp.toFixed(2)}%)` : '-';
-
-        if (hlds.length > 0) {
-            const b = hlds.reduce((p,c) => p.r > c.r ? p : c);
-            const w = hlds.reduce((p,c) => p.r < c.r ? p : c);
-            document.getElementById('dash-best').innerText  = `${b.n} (+${b.r.toFixed(2)}%)`;
-            document.getElementById('dash-worst').innerText = `${w.n} (${w.r.toFixed(2)}%)`;
-        } else {
-            document.getElementById('dash-best').innerText  = '-';
-            document.getElementById('dash-worst').innerText = '-';
-        }
-    }
-
-    function switchTab(id, btn) {
-        document.querySelectorAll('.tab-content, .tab-btn').forEach(el => el.classList.remove('active'));
-        const target = id === 'dashboard' ? 'dashboard' : `u-${id.split('-')[1]}`;
-        document.getElementById(target).classList.add('active');
-        btn.classList.add('active');
-    }
-</script>
-</body>
-</html>
+        
+        // 저장 무한 로딩 방지 타이머
+        let isSuccess = false;
+        const
