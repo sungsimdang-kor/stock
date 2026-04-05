@@ -29,7 +29,10 @@
             box-sizing: border-box;
         }
 
-        .exchange-info { text-align: right; font-size: 12px; color: #666; margin-bottom: 10px; font-weight: bold; }
+        .top-info-bar { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 10px; gap: 15px; }
+        .exchange-info { font-size: 12px; color: #666; font-weight: bold; }
+        .refresh-btn { background: #e0e0e0; border: none; padding: 6px 12px; border-radius: 20px; font-size: 11px; cursor: pointer; font-weight: bold; color: #333; transition: 0.2s; }
+        .refresh-btn:hover { background: #ccc; }
 
         .tabs {
             display: flex;
@@ -79,6 +82,11 @@
         th, td { padding: 12px 10px; border-bottom: 1px solid var(--brd); text-align: right; font-size: 14px; white-space: nowrap; }
         th { background: #f9fafc; color: #555; font-size: 13px; }
         th:first-child, td:first-child { text-align: left; }
+        
+        .price-up { animation: flash-up 1s ease-out; }
+        .price-down { animation: flash-down 1s ease-out; }
+        @keyframes flash-up { 0% { background-color: rgba(255, 77, 79, 0.2); } 100% { background-color: transparent; } }
+        @keyframes flash-down { 0% { background-color: rgba(24, 144, 255, 0.2); } 100% { background-color: transparent; } }
 
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; align-items: end; }
         .f-grp { display: flex; flex-direction: column; font-size: 12px; }
@@ -149,7 +157,10 @@
 </div>
 
 <div class="container">
-    <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
+    <div class="top-info-bar">
+        <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
+        <button class="refresh-btn" onclick="manualRefreshPrices()">🔄 시세 갱신</button>
+    </div>
 
     <div class="tabs" id="tab-menu">
         <button class="tab-btn active" onclick="switchTab('dashboard', this)">통합 뷰</button>
@@ -185,13 +196,10 @@
 </div>
 
 <script>
-    // =========================================================
-    // 1. 상태 변수 및 초기화 설정
-    // =========================================================
     const users = ['김태호', '이용우', '이형주'];
     let exKRW = 1350; 
+    let previousPrices = {}; // 애니메이션 효과를 위한 이전 가격 저장소
     
-    // 주요 주식 종목 사전 (이름 즉시 로딩용)
     const tMap = {
         'AAPL':'Apple', 'MSFT':'Microsoft', 'TSLA':'Tesla', 'NVDA':'NVIDIA',
         'GOOGL':'Alphabet', 'AMZN':'Amazon', 'META':'Meta', 'BRK-B':'Berkshire Hathaway',
@@ -216,20 +224,17 @@
     const state = { trades: {}, charts: {} };
     users.forEach(u => state.trades[u] = []);
 
-    // =========================================================
-    // 2. Firebase 설정
-    // =========================================================
-const firebaseConfig = {
-    apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
-    authDomain: "howooju.firebaseapp.com",
-    // 아래 부분을 방금 복사한 URL로 덮어쓰기 하세요.
-    databaseURL: "https://howooju-default-rtdb.asia-southeast1.firebasedatabase.app/",
-    projectId: "howooju",
-    storageBucket: "howooju.firebasestorage.app",
-    messagingSenderId: "252732591437",
-    appId: "1:252732591437:web:961c790c34b8269cb7bb04",
-    measurementId: "G-3GEWPQ2G00"
-};
+    const firebaseConfig = {
+        apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
+        authDomain: "howooju.firebaseapp.com",
+        /* 발급받은 실제 데이터베이스 URL을 입력하세요 */
+        databaseURL: "https://howooju-default-rtdb.firebaseio.com",
+        projectId: "howooju",
+        storageBucket: "howooju.firebasestorage.app",
+        messagingSenderId: "252732591437",
+        appId: "1:252732591437:web:961c790c34b8269cb7bb04",
+        measurementId: "G-3GEWPQ2G00"
+    };
 
     let db = null;
     try {
@@ -239,10 +244,6 @@ const firebaseConfig = {
         }
     } catch (e) { console.error("Firebase 초기화 에러:", e); }
 
-
-    // =========================================================
-    // 3. 로딩 및 모달 유틸리티
-    // =========================================================
     function toggleLd(show, txt = "처리 중...") {
         const loader = document.getElementById('loader');
         const loaderTxt = document.getElementById('loader-txt');
@@ -282,10 +283,6 @@ const firebaseConfig = {
         if (e.target === this) closeDelModal();
     });
 
-
-    // =========================================================
-    // 4. 화면 초기 렌더링 및 탭 전환
-    // =========================================================
     function initUI() {
         const con = document.getElementById('pages-container');
         if (!con) return;
@@ -357,10 +354,6 @@ const firebaseConfig = {
         if (btn) btn.classList.add('active');
     }
 
-
-    // =========================================================
-    // 5. 페이지 완전 로드 후 백그라운드 데이터 호출
-    // =========================================================
     window.onload = () => {
         initUI(); 
         
@@ -401,12 +394,11 @@ const firebaseConfig = {
             clearTimeout(loadTimer);
             toggleLd(false);
         }
+
+        // 30초마다 활성 종목의 실시간 시세 자동 갱신
+        setInterval(autoRefreshPrices, 30000);
     };
 
-
-    // =========================================================
-    // 6. 데이터 입출력 (매매 추가/수정/삭제)
-    // =========================================================
     async function saveTr(u) {
         if (!db) return alert("데이터베이스에 연결되지 않았습니다.");
         
@@ -477,10 +469,7 @@ const firebaseConfig = {
         document.getElementById(`cbtn-${u}`).style.display = "none";
     }
 
-
-    // =========================================================
-    // 7. 실시간 시세 및 API 호출 함수들 (티커 입력 개선 반영)
-    // =========================================================
+    // --- API 데이터 조회 최적화 ---
     async function fetchExchangeRate() {
         try {
             const res = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
@@ -497,7 +486,7 @@ const firebaseConfig = {
     async function fetchIndices() {
         const symbols = Object.keys(mSym).join(',');
         try {
-            const url = encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}`);
+            const url = encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}&_=${Date.now()}`);
             const yRes = await fetch(`https://api.allorigins.win/get?url=${url}`);
             const yData = await yRes.json();
             const parsed = JSON.parse(yData.contents);
@@ -514,32 +503,49 @@ const firebaseConfig = {
         } catch(e) { console.warn("지표 API 지연"); }
     }
 
-    async function fetchMissingPrices() {
-        let missingTickers = new Set();
-        users.forEach(u => state.trades[u].forEach(t => {
-            if (!cache[t.ticker] || cache[t.ticker].price <= 0) missingTickers.add(t.ticker);
-        }));
+    // 보유 중인 모든 종목의 실시간 가격 갱신 (자동/수동)
+    async function autoRefreshPrices() {
+        let activeTickers = new Set();
+        users.forEach(u => state.trades[u].forEach(t => activeTickers.add(t.ticker)));
+        if (activeTickers.size === 0) return;
 
-        if (missingTickers.size > 0) {
-            const q = Array.from(missingTickers).map(t => /^\d{6}$/.test(t) ? t+'.KS' : t).join(',');
-            try {
-                const url = encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${q}`);
-                const yRes = await fetch(`https://api.allorigins.win/get?url=${url}`);
-                const yData = await yRes.json();
-                const parsed = JSON.parse(yData.contents);
-                if (parsed.quoteResponse?.result) {
-                    parsed.quoteResponse.result.forEach(item => {
-                        const tk = item.symbol.replace('.KS', '');
-                        cache[tk] = {
-                            price:  item.regularMarketPrice || 0,
-                            change: item.regularMarketChangePercent || 0,
-                            name:   item.shortName || item.longName || tMap[tk] || tk,
-                            curr:   item.currency === 'KRW' ? 'KRW' : 'USD'
-                        };
-                    });
-                }
-            } catch(e) { console.warn("야후 시세 API 지연"); }
-        }
+        const q = Array.from(activeTickers).map(t => /^\d{6}$/.test(t) ? t+'.KS' : t).join(',');
+        try {
+            const url = encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${q}&_=${Date.now()}`);
+            const yRes = await fetch(`https://api.allorigins.win/get?url=${url}`);
+            const yData = await yRes.json();
+            const parsed = JSON.parse(yData.contents);
+            
+            if (parsed.quoteResponse?.result) {
+                let isUpdated = false;
+                parsed.quoteResponse.result.forEach(item => {
+                    const tk = item.symbol.replace('.KS', '');
+                    if (!cache[tk]) cache[tk] = {};
+                    
+                    const newPrice = item.regularMarketPrice || cache[tk].price || 0;
+                    if (cache[tk].price !== newPrice) {
+                        previousPrices[tk] = cache[tk].price; // 변동 효과를 위해 이전 가격 저장
+                        cache[tk].price = newPrice;
+                        cache[tk].change = item.regularMarketChangePercent || cache[tk].change || 0;
+                        isUpdated = true;
+                    }
+                });
+                if (isUpdated) updateAll();
+            }
+        } catch(e) { console.warn("시세 갱신 지연"); }
+    }
+
+    async function manualRefreshPrices() {
+        toggleLd(true, "최신 시세 동기화 중...");
+        await fetchExchangeRate();
+        await fetchIndices();
+        await autoRefreshPrices();
+        renderIdx();
+        toggleLd(false);
+    }
+
+    async function fetchMissingPrices() {
+        await autoRefreshPrices(); // 초기 누락분 조회도 동일한 갱신 로직 사용
     }
 
     function renderIdx() {
@@ -567,7 +573,7 @@ const firebaseConfig = {
         if (cache[tk] && cache[tk].price > 0) return cache[tk];
         let qTk = /^\d{6}$/.test(tk) ? tk+'.KS' : tk;
         try {
-            const url = encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${qTk}`);
+            const url = encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${qTk}?_=${Date.now()}`);
             const res  = await fetch(`https://api.allorigins.win/get?url=${url}`);
             const data = await res.json();
             const meta = JSON.parse(data.contents).chart.result[0].meta;
@@ -592,8 +598,6 @@ const firebaseConfig = {
         if (!tk) { nmIn.value = ''; return; }
 
         tkIn.value = tk;
-
-        // 1. 0.001초 즉시 처리 로직 (비동기 최적화)
         const isKorean = /^\d{6}$/.test(tk);
         const instantName = tMap[tk] || (cache[tk] ? cache[tk].name : "");
         
@@ -606,27 +610,18 @@ const firebaseConfig = {
             nmIn.placeholder = "API 검색 중...";
         }
 
-        // 2. 백그라운드 현재가 처리
         getStk(tk).then(info => {
             if (!nmIn.value) {
-                if (info.name && info.name !== tk) {
-                    nmIn.value = info.name;
-                } else {
-                    nmIn.placeholder = "직접 입력";
-                }
+                if (info.name && info.name !== tk) nmIn.value = info.name;
+                else nmIn.placeholder = "직접 입력";
             }
-            if (info.price > 0 && !prIn.value) {
-                prIn.value = info.price;
-            }
+            if (info.price > 0 && !prIn.value) prIn.value = info.price;
         }).catch(() => {
             if (!nmIn.value) nmIn.placeholder = "직접 입력";
         });
     }
 
-
-    // =========================================================
-    // 8. 전면 화면 계산 및 렌더링
-    // =========================================================
+    // 화면 갱신 메인 함수
     function updateAll() {
         let stats = [], hlds = [];
 
@@ -669,7 +664,14 @@ const firebaseConfig = {
                 const sign = ret > 0 ? '+' : '';
                 const fn   = info.name || p.n;
 
-                ptHtml += `<tr>
+                // 시세 변동 애니메이션 클래스 판별
+                let flashClass = '';
+                if (previousPrices[tk]) {
+                    if (curPr > previousPrices[tk]) flashClass = 'price-up';
+                    else if (curPr < previousPrices[tk]) flashClass = 'price-down';
+                }
+
+                ptHtml += `<tr class="${flashClass}">
                     <td>${fn}<br><small style="color:#888">${tk}</small></td>
                     <td>${p.q.toLocaleString(undefined,{maximumFractionDigits:4})}</td>
                     <td>${sym}${p.c.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
@@ -751,6 +753,9 @@ const firebaseConfig = {
             if(dashBest) dashBest.innerText  = '-';
             if(dashWorst) dashWorst.innerText = '-';
         }
+        
+        // 시세 변동 기록 초기화 (애니메이션 1회용)
+        previousPrices = {};
     }
 </script>
 </body>
