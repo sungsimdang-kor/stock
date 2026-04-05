@@ -153,9 +153,9 @@
 
     <div class="tabs" id="tab-menu">
         <button class="tab-btn active" onclick="switchTab('dashboard', this)">통합 뷰</button>
-        <button class="tab-btn" onclick="switchTab('user-김태호', this)">김태호</button>
-        <button class="tab-btn" onclick="switchTab('user-이용우', this)">이용우</button>
-        <button class="tab-btn" onclick="switchTab('user-이형주', this)">이형주</button>
+        <button class="tab-btn" onclick="switchTab('u-김태호', this)">김태호</button>
+        <button class="tab-btn" onclick="switchTab('u-이용우', this)">이용우</button>
+        <button class="tab-btn" onclick="switchTab('u-이형주', this)">이형주</button>
     </div>
 
     <div id="dashboard" class="tab-content active">
@@ -185,15 +185,90 @@
 </div>
 
 <script>
-    // =========================================================
-    // 1. UI 기초 구성 및 탭 전환 (통신 에러와 무관하게 100% 작동 보장)
-    // =========================================================
+    // 1. 상태 변수 및 초기화 설정
     const users = ['김태호', '이용우', '이형주'];
+    let exKRW = 1350; 
+    const tMap = {
+        'AAPL':'Apple','MSFT':'Microsoft','TSLA':'Tesla','NVDA':'NVIDIA',
+        'GOOGL':'Alphabet','AMZN':'Amazon','META':'Meta',
+        '005930':'삼성전자','000660':'SK하이닉스','373220':'LG에너지솔루션',
+        '035420':'NAVER','035720':'카카오'
+    };
+    const mSym = {
+        'KRW=X': '원달러환율', '^IXIC': '나스닥', '^GSPC': 'S&P 500', 
+        '^KS11': 'KOSPI', '^KQ11': '코스닥', '^VIX': 'VIX', 'CL=F': 'WTI 유가'
+    };
+    const cache = {};
+    const state = { trades: {}, charts: {} };
+    users.forEach(u => state.trades[u] = []);
 
+    // 2. Firebase 설정
+    const firebaseConfig = {
+        apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
+        authDomain: "howooju.firebaseapp.com",
+        databaseURL: "https://howooju-default-rtdb.firebaseio.com",
+        projectId: "howooju",
+        storageBucket: "howooju.firebasestorage.app",
+        messagingSenderId: "252732591437",
+        appId: "1:252732591437:web:961c790c34b8269cb7bb04",
+        measurementId: "G-3GEWPQ2G00"
+    };
+
+    let db = null;
+    try {
+        if (typeof firebase !== 'undefined') {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+        }
+    } catch (e) { console.error("Firebase 초기화 에러:", e); }
+
+
+    // 3. 로딩 및 모달 유틸리티
+    function toggleLd(show, txt = "처리 중...") {
+        const loader = document.getElementById('loader');
+        const loaderTxt = document.getElementById('loader-txt');
+        if(loaderTxt) loaderTxt.innerText = txt;
+        if(loader) loader.style.display = show ? 'flex' : 'none';
+    }
+
+    let pendingDelete = null;
+    function openDelModal(u, id) { pendingDelete = { u, id }; document.getElementById('del-modal').classList.add('open'); }
+    function closeDelModal() { pendingDelete = null; document.getElementById('del-modal').classList.remove('open'); }
+    
+    document.getElementById('del-confirm-btn').addEventListener('click', async function() {
+        if (!pendingDelete || !db) return;
+        const { id } = pendingDelete;
+        closeDelModal();
+        toggleLd(true, "삭제 중...");
+        
+        let isSuccess = false;
+        const fallbackTimer = setTimeout(() => {
+            if (!isSuccess) { toggleLd(false); alert("삭제 응답이 없습니다."); }
+        }, 3000);
+
+        try { 
+            await db.ref(`trades/${id}`).remove(); 
+            isSuccess = true;
+            clearTimeout(fallbackTimer);
+            toggleLd(false);
+        } catch(e) { 
+            isSuccess = true;
+            clearTimeout(fallbackTimer);
+            toggleLd(false);
+            alert("삭제 실패: " + e.message); 
+        }
+    });
+
+    document.getElementById('del-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeDelModal();
+    });
+
+
+    // 4. 화면 초기 렌더링 및 탭 전환
     function initUI() {
         const con = document.getElementById('pages-container');
         if (!con) return;
-        con.innerHTML = ''; 
+        con.innerHTML = '';
         
         users.forEach(u => {
             const html = `
@@ -251,112 +326,381 @@
             if (dtInput) dtInput.value = new Date().toISOString().substring(0, 10);
         });
     }
-    initUI(); // 스크립트 시작 즉시 화면 DOM 생성
 
-    function switchTab(id, btn) {
-        document.querySelectorAll('.tab-content, .tab-btn').forEach(el => el.classList.remove('active'));
-        const target = id === 'dashboard' ? 'dashboard' : `u-${id.split('-')[1]}`;
-        const targetEl = document.getElementById(target);
+    function switchTab(targetId, btn) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        
+        const targetEl = document.getElementById(targetId);
         if (targetEl) targetEl.classList.add('active');
         if (btn) btn.classList.add('active');
     }
 
-    function toggleLd(show, txt = "처리 중...") {
-        const loader = document.getElementById('loader');
-        const loaderTxt = document.getElementById('loader-txt');
-        if(loaderTxt) loaderTxt.innerText = txt;
-        if(loader) loader.style.display = show ? 'flex' : 'none';
-    }
 
+    // 5. 페이지 완전 로드 후 백그라운드 데이터 호출
+    window.onload = () => {
+        initUI(); // DOM 생성 완벽 보장
+        
+        toggleLd(true, "매매 데이터 로딩 중...");
+        const loadTimer = setTimeout(() => { toggleLd(false); }, 3000);
 
-    // =========================================================
-    // 2. Firebase 설정 및 안전한 초기화
-    // =========================================================
-    const firebaseConfig = {
-        apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
-        authDomain: "howooju.firebaseapp.com",
-        /* ⚠️ 만약 계속 데이터가 안불러와지면 이 URL을 파이어베이스 Realtime Database 화면 상단의 링크로 교체하세요 */
-        databaseURL: "https://howooju-default-rtdb.firebaseio.com",
-        projectId: "howooju",
-        storageBucket: "howooju.firebasestorage.app",
-        messagingSenderId: "252732591437",
-        appId: "1:252732591437:web:961c790c34b8269cb7bb04",
-        measurementId: "G-3GEWPQ2G00"
-    };
+        fetchExchangeRate();
+        fetchIndices().then(() => renderIdx());
 
-    let db = null;
-    try {
-        if (typeof firebase !== 'undefined') {
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.database();
+        if (db) {
+            db.ref('trades').on('value', async (snapshot) => {
+                clearTimeout(loadTimer); 
+                try {
+                    const data = snapshot.val() || {};
+                    users.forEach(u => state.trades[u] = []);
+                    
+                    Object.keys(data).forEach(key => {
+                        const t = data[key];
+                        t.id = key;
+                        if(state.trades[t.user]) state.trades[t.user].push(t);
+                    });
+
+                    updateAll();
+                    toggleLd(false);
+
+                    await fetchMissingPrices();
+                    updateAll();
+                } catch (err) {
+                    console.error("데이터 렌더링 에러:", err);
+                    toggleLd(false);
+                }
+            }, (error) => {
+                clearTimeout(loadTimer);
+                toggleLd(false);
+                console.error("Firebase 읽기 에러:", error);
+            });
+        } else {
+            clearTimeout(loadTimer);
+            toggleLd(false);
         }
-    } catch (e) {
-        console.error("Firebase 초기화 에러:", e);
-    }
-
-
-    // =========================================================
-    // 3. 상태 관리 및 외부 API 변수
-    // =========================================================
-    let exKRW = 1350; 
-    const tMap = {
-        'AAPL':'Apple','MSFT':'Microsoft','TSLA':'Tesla','NVDA':'NVIDIA',
-        'GOOGL':'Alphabet','AMZN':'Amazon','META':'Meta',
-        '005930':'삼성전자','000660':'SK하이닉스','373220':'LG에너지솔루션',
-        '035420':'NAVER','035720':'카카오'
     };
-    const mSym = {
-        'KRW=X': '원달러환율', '^IXIC': '나스닥', '^GSPC': 'S&P 500', 
-        '^KS11': 'KOSPI', '^KQ11': '코스닥', '^VIX': 'VIX', 'CL=F': 'WTI 유가'
-    };
-    const cache = {};
-    const state = { trades: {}, charts: {} };
-    users.forEach(u => state.trades[u] = []);
 
 
-    // =========================================================
-    // 4. 모달 동작 제어
-    // =========================================================
-    let pendingDelete = null;
-    function openDelModal(u, id) { pendingDelete = { u, id }; document.getElementById('del-modal').classList.add('open'); }
-    function closeDelModal() { pendingDelete = null; document.getElementById('del-modal').classList.remove('open'); }
-    
-    document.getElementById('del-confirm-btn').addEventListener('click', async function() {
-        if (!pendingDelete || !db) return;
-        const { id } = pendingDelete;
-        closeDelModal();
-        toggleLd(true, "삭제 중...");
+    // 6. 데이터 입출력 (매매 추가/수정/삭제)
+    async function saveTr(u) {
+        if (!db) return alert("데이터베이스에 연결되지 않았습니다.");
+        
+        const eid = document.getElementById(`eid-${u}`).value;
+        const tk  = document.getElementById(`tk-${u}`).value.toUpperCase();
+        const data = {
+            user:     u,
+            date:     document.getElementById(`dt-${u}`).value,
+            ticker:   tk,
+            name:     document.getElementById(`nm-${u}`).value || tk,
+            type:     document.getElementById(`ty-${u}`).value,
+            currency: document.getElementById(`cr-${u}`).value,
+            price:    parseFloat(document.getElementById(`pr-${u}`).value),
+            qty:      parseFloat(document.getElementById(`qt-${u}`).value)
+        };
+        if (!data.ticker || isNaN(data.price) || isNaN(data.qty)) return alert("입력값을 확인해 주세요.");
+
+        toggleLd(true, "저장 중...");
         
         let isSuccess = false;
         const fallbackTimer = setTimeout(() => {
             if (!isSuccess) {
                 toggleLd(false);
-                alert("삭제 응답이 없습니다. Firebase 설정을 확인해 주세요.");
+                alert("저장 응답이 없습니다. 네트워크 또는 DB 주소를 확인하세요.");
             }
-        }, 2500);
+        }, 3000);
 
-        try { 
-            await db.ref(`trades/${id}`).remove(); 
+        try {
+            if (eid) await db.ref(`trades/${eid}`).update(data);
+            else await db.ref('trades').push(data);
+            
             isSuccess = true;
             clearTimeout(fallbackTimer);
+            cancelEd(u);
             toggleLd(false);
         } catch(e) { 
             isSuccess = true;
             clearTimeout(fallbackTimer);
             toggleLd(false);
-            alert("삭제 실패: " + e.message); 
+            alert("저장 실패: " + e.message); 
         }
-    });
+    }
 
-    document.getElementById('del-modal').addEventListener('click', function(e) {
-        if (e.target === this) closeDelModal();
-    });
+    function editTr(u, id) {
+        const tr = state.trades[u].find(t => String(t.id) === String(id));
+        if (!tr) return;
+        document.getElementById(`eid-${u}`).value  = tr.id;
+        document.getElementById(`dt-${u}`).value   = tr.date;
+        document.getElementById(`tk-${u}`).value   = tr.ticker;
+        document.getElementById(`nm-${u}`).value   = tr.name;
+        document.getElementById(`ty-${u}`).value   = tr.type;
+        document.getElementById(`cr-${u}`).value   = tr.currency;
+        document.getElementById(`pr-${u}`).value   = tr.price;
+        document.getElementById(`qt-${u}`).value   = tr.qty;
+        document.getElementById(`btn-${u}`).innerText = "수정 완료";
+        document.getElementById(`cbtn-${u}`).style.display = "block";
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function cancelEd(u) {
+        document.getElementById(`eid-${u}`).value = "";
+        ['tk','nm','pr','qt'].forEach(id => {
+            const el = document.getElementById(`${id}-${u}`);
+            if(el) el.value = '';
+        });
+        document.getElementById(`dt-${u}`).value = new Date().toISOString().substring(0, 10);
+        document.getElementById(`btn-${u}`).innerText = "저장";
+        document.getElementById(`cbtn-${u}`).style.display = "none";
+    }
 
 
-    // =========================================================
-    // 5. 페이지 로딩 후 백그라운드 데이터 호출
-    // =========================================================
-    window.onload = () => {
-        toggleLd(true, "매매 데이터 로딩 중...");
+    // 7. 실시간 시세 및 API 호출 함수들
+    async function fetchExchangeRate() {
+        try {
+            const res = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
+            const data = await res.json();
+            if (data?.usd?.krw) {
+                exKRW = data.usd.krw;
+                const dEl = document.getElementById('exchange-rate-display');
+                if(dEl) dEl.innerText = `적용 환율: 1 USD = ${exKRW.toLocaleString(undefined, {maximumFractionDigits: 2})} KRW`;
+                updateAll(); 
+            }
+        } catch(e) { console.warn("환율 API 지연"); }
+    }
 
-        // 안전장치: DB 연결이 3초 이상 지연되면 무조건 로딩 해제 (무한 대
+    async function fetchIndices() {
+        const symbols = Object.keys(mSym).join(',');
+        try {
+            const url = encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}`);
+            const yRes = await fetch(`https://api.allorigins.win/get?url=${url}`);
+            const yData = await yRes.json();
+            const parsed = JSON.parse(yData.contents);
+            if (parsed.quoteResponse?.result) {
+                parsed.quoteResponse.result.forEach(item => {
+                    cache[item.symbol] = {
+                        price:  item.regularMarketPrice || 0,
+                        change: item.regularMarketChangePercent || 0,
+                        name:   mSym[item.symbol] || item.shortName,
+                        curr:   item.currency === 'KRW' ? 'KRW' : 'USD'
+                    };
+                });
+            }
+        } catch(e) { console.warn("지표 API 지연"); }
+    }
+
+    async function fetchMissingPrices() {
+        let missingTickers = new Set();
+        users.forEach(u => state.trades[u].forEach(t => {
+            if (!cache[t.ticker] || cache[t.ticker].price <= 0) missingTickers.add(t.ticker);
+        }));
+
+        if (missingTickers.size > 0) {
+            const q = Array.from(missingTickers).map(t => /^\d{6}$/.test(t) ? t+'.KS' : t).join(',');
+            try {
+                const url = encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${q}`);
+                const yRes = await fetch(`https://api.allorigins.win/get?url=${url}`);
+                const yData = await yRes.json();
+                const parsed = JSON.parse(yData.contents);
+                if (parsed.quoteResponse?.result) {
+                    parsed.quoteResponse.result.forEach(item => {
+                        const tk = item.symbol.replace('.KS', '');
+                        cache[tk] = {
+                            price:  item.regularMarketPrice || 0,
+                            change: item.regularMarketChangePercent || 0,
+                            name:   item.shortName || item.longName || tMap[tk] || tk,
+                            curr:   item.currency === 'KRW' ? 'KRW' : 'USD'
+                        };
+                    });
+                }
+            } catch(e) { console.warn("야후 시세 API 지연"); }
+        }
+    }
+
+    function renderIdx() {
+        const grid = document.getElementById('market-indices');
+        if(!grid) return;
+        const html = Object.entries(mSym).map(([sym, lbl]) => {
+            const info = cache[sym];
+            let priceStr = '-';
+            let changeHtml = '<span class="pct" style="color:#888">로딩중...</span>';
+
+            if (info && info.price > 0) {
+                priceStr = info.price.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                const pct = info.change;
+                const cls  = pct > 0 ? 'profit' : (pct < 0 ? 'loss' : '');
+                const sign = pct > 0 ? '+' : '';
+                changeHtml = `<span class="pct ${cls}">(${sign}${pct.toFixed(2)}%)</span>`;
+            }
+            return `<div class="idx-item"><div class="val">${priceStr} ${changeHtml}</div><div class="key">${lbl}</div></div>`;
+        }).join('');
+        grid.innerHTML = html;
+    }
+
+    async function getStk(tk) {
+        if (!tk) return null;
+        if (cache[tk] && cache[tk].price > 0) return cache[tk];
+        let qTk = /^\d{6}$/.test(tk) ? tk+'.KS' : tk;
+        try {
+            const url = encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${qTk}`);
+            const res  = await fetch(`https://api.allorigins.win/get?url=${url}`);
+            const data = await res.json();
+            const meta = JSON.parse(data.contents).chart.result[0].meta;
+            const price = meta.regularMarketPrice || 0;
+            const prev  = meta.chartPreviousClose || price;
+            const change = prev > 0 ? ((price - prev) / prev) * 100 : 0;
+            const info = { price, change, name: meta.shortName||meta.longName||tMap[tk]||tk, curr: meta.currency==='KRW'?'KRW':'USD' };
+            cache[tk] = info;
+            return info;
+        } catch(e) {
+            return { price:0, change:0, name:tMap[tk]||tk, curr:/^\d{6}$/.test(tk)?'KRW':'USD' };
+        }
+    }
+
+    async function handleTk(u) {
+        const tkIn = document.getElementById(`tk-${u}`);
+        const nmIn = document.getElementById(`nm-${u}`);
+        const prIn = document.getElementById(`pr-${u}`);
+        const crSel = document.getElementById(`cr-${u}`);
+
+        const tk = tkIn.value.trim().toUpperCase();
+        if (!tk) { nmIn.value = ''; return; }
+
+        tkIn.value = tk;
+        nmIn.placeholder = "검색 중..."; nmIn.value = "";
+
+        const info = await getStk(tk);
+        nmIn.value = info.name;
+        crSel.value = info.curr;
+        if (info.price > 0 && !prIn.value) prIn.value = info.price;
+        nmIn.placeholder = "자동 입력";
+    }
+
+
+    // 8. 전면 화면 계산 및 렌더링
+    function updateAll() {
+        let stats = [], hlds = [];
+
+        for (const u of users) {
+            let port = {}, real = 0, tInv = 0, tVal = 0, cLbl = [], cDat = [];
+
+            state.trades[u].sort((a,b) => new Date(a.date)-new Date(b.date)).forEach(t => {
+                if (!port[t.ticker]) port[t.ticker] = { n: t.name, q: 0, c: 0, cr: t.currency };
+                let p = port[t.ticker];
+                if (t.type === 'buy') {
+                    const totalQty = p.q + t.qty;
+                    p.c = totalQty > 0 ? (p.q*p.c + t.qty*t.price) / totalQty : 0;
+                    p.q += t.qty;
+                } else {
+                    real += (t.price - p.c) * t.qty * (t.currency==='USD' ? exKRW : 1);
+                    p.q  -= t.qty;
+                }
+            });
+
+            const rpSpan = document.getElementById(`rp-${u}`);
+            if(rpSpan) {
+                rpSpan.innerText = real.toLocaleString('ko-KR', {maximumFractionDigits: 0});
+                rpSpan.className = real > 0 ? 'profit' : (real < 0 ? 'loss' : '');
+            }
+
+            let ptHtml = '';
+            for (const [tk, p] of Object.entries(port)) {
+                if (p.q <= 0) continue;
+                const info  = cache[tk] || { price: p.c, name: p.n };
+                const curPr = info.price > 0 ? info.price : p.c;
+                const xr    = p.cr === 'USD' ? exKRW : 1;
+
+                const iKw = p.q * p.c * xr;
+                const vKw = p.q * curPr * xr;
+                tInv += iKw; tVal += vKw;
+
+                const ret  = iKw > 0 ? ((vKw - iKw)/iKw)*100 : 0;
+                const sym  = p.cr === 'USD' ? '$' : '₩';
+                const cls  = ret > 0 ? 'profit' : (ret < 0 ? 'loss' : '');
+                const sign = ret > 0 ? '+' : '';
+                const fn   = info.name || p.n;
+
+                ptHtml += `<tr>
+                    <td>${fn}<br><small style="color:#888">${tk}</small></td>
+                    <td>${p.q.toLocaleString(undefined,{maximumFractionDigits:4})}</td>
+                    <td>${sym}${p.c.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
+                    <td>${sym}${curPr.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
+                    <td>₩${vKw.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
+                    <td class="${cls}">${sign}${ret.toFixed(2)}%</td>
+                </tr>`;
+                cLbl.push(fn); cDat.push(vKw); hlds.push({ u, n: fn, r: ret });
+            }
+
+            const portTbody = document.getElementById(`port-${u}`);
+            if(portTbody) portTbody.innerHTML = ptHtml || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">종목 없음</td></tr>';
+
+            const logArr = [...state.trades[u]].sort((a,b) => new Date(b.date)-new Date(a.date));
+            const logTbody = document.getElementById(`log-${u}`);
+            if(logTbody) {
+                logTbody.innerHTML = logArr.map(t => {
+                    const sym      = t.currency === 'USD' ? '$' : '₩';
+                    const typeCls  = t.type === 'buy' ? 'loss' : 'profit';
+                    const typeName = t.type === 'buy' ? '매수' : '매도';
+                    return `<tr>
+                        <td>${t.date}</td>
+                        <td>${t.name}</td>
+                        <td class="${typeCls}">${typeName}</td>
+                        <td>${sym}${t.price.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
+                        <td>${t.qty}</td>
+                        <td>
+                            <button class="a-btn edit-btn" data-u="${u}" data-id="${t.id}" onclick="editTr(this.dataset.u, this.dataset.id)">수정</button>
+                            <button class="a-btn del-btn"  data-u="${u}" data-id="${t.id}" onclick="openDelModal(this.dataset.u, this.dataset.id)">삭제</button>
+                        </td>
+                    </tr>`;
+                }).join('') || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">내역 없음</td></tr>';
+            }
+
+            const ctxEl = document.getElementById(`ch-${u}`);
+            if(ctxEl && typeof Chart !== 'undefined') {
+                if (state.charts[u]) state.charts[u].destroy();
+                state.charts[u] = new Chart(ctxEl.getContext('2d'), {
+                    type: 'doughnut',
+                    data: { labels: cLbl, datasets: [{ data: cDat, backgroundColor: ['#4e79a7','#f28e2c','#e15759','#76b7b2','#59a14f','#edc949'], borderWidth: 0 }] },
+                    options: { maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12 } } } }
+                });
+            }
+
+            const ur = tVal - tInv;
+            const rp = tInv > 0 ? (ur/tInv)*100 : 0;
+            stats.push({ u, i: tInv, v: tVal, ur, r: real, rp });
+        }
+
+        const dashBody = document.getElementById('dash-body');
+        if(dashBody) {
+            dashBody.innerHTML = stats.map(s => {
+                const urCls = s.ur > 0 ? 'profit' : (s.ur < 0 ? 'loss' : '');
+                const rCls  = s.r  > 0 ? 'profit' : (s.r  < 0 ? 'loss' : '');
+                const rpCls = s.rp > 0 ? 'profit' : (s.rp < 0 ? 'loss' : '');
+                return `<tr>
+                    <td><strong>${s.u}</strong></td>
+                    <td>₩${s.i.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
+                    <td>₩${s.v.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
+                    <td class="${urCls}">₩${s.ur.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
+                    <td class="${rCls}">₩${s.r.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
+                    <td class="${rpCls}">${s.rp>0?'+':''}${s.rp.toFixed(2)}%</td>
+                </tr>`;
+            }).join('');
+        }
+
+        const win = [...stats].sort((a,b) => b.rp - a.rp)[0];
+        const dashTop = document.getElementById('dash-top');
+        if(dashTop) dashTop.innerText = win && win.i > 0 ? `${win.u} (${win.rp>0?'+':''}${win.rp.toFixed(2)}%)` : '-';
+
+        const dashBest = document.getElementById('dash-best');
+        const dashWorst = document.getElementById('dash-worst');
+        if (hlds.length > 0) {
+            const b = hlds.reduce((p,c) => p.r > c.r ? p : c);
+            const w = hlds.reduce((p,c) => p.r < c.r ? p : c);
+            if(dashBest) dashBest.innerText  = `${b.n} (+${b.r.toFixed(2)}%)`;
+            if(dashWorst) dashWorst.innerText = `${w.n} (${w.r.toFixed(2)}%)`;
+        } else {
+            if(dashBest) dashBest.innerText  = '-';
+            if(dashWorst) dashWorst.innerText = '-';
+        }
+    }
+</script>
+</body>
+</html>
