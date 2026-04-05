@@ -10,7 +10,6 @@
     <style>
         :root { --bg: #f4f6f8; --card: #ffffff; --pri: #333333; --brd: #e0e0e0; --profit: #ff4d4f; --loss: #1890ff; }
 
-        /* ── 모바일 스크롤 핵심 수정 ── */
         html { height: 100%; }
         body {
             font-family: -apple-system, sans-serif;
@@ -32,7 +31,6 @@
 
         .exchange-info { text-align: right; font-size: 12px; color: #666; margin-bottom: 10px; font-weight: bold; }
 
-        /* 탭바: 가로만 스크롤, 세로 터치는 body에 넘김 */
         .tabs {
             display: flex;
             border-bottom: 2px solid var(--brd);
@@ -76,7 +74,6 @@
         .m-box h4 { margin: 0 0 10px 0; font-size: 13px; color: #666; }
         .m-box p { margin: 0; font-size: 22px; font-weight: bold; }
 
-        /* 테이블 래퍼: 가로만 스크롤 */
         .tbl-wrap { width: 100%; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
         table { width: 100%; border-collapse: collapse; min-width: 700px; }
         th, td { padding: 12px 10px; border-bottom: 1px solid var(--brd); text-align: right; font-size: 14px; white-space: nowrap; }
@@ -104,12 +101,10 @@
         .profit { color: var(--profit); font-weight: bold; }
         .loss   { color: var(--loss);   font-weight: bold; }
 
-        /* 로더 */
         #loader { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; justify-content: center; align-items: center; font-weight: bold; flex-direction: column; gap: 15px; }
         .spin { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--pri); border-radius: 50%; animation: sp 1s linear infinite; }
         @keyframes sp { 100% { transform: rotate(360deg); } }
 
-        /* ── 커스텀 삭제 확인 모달 ── */
         #del-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center; }
         #del-modal.open { display: flex; }
         .del-modal-box { background: white; border-radius: 16px; padding: 30px 24px 20px; max-width: 320px; width: 90%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
@@ -121,7 +116,6 @@
         #del-confirm-btn { background: #e74c3c; color: white; }
         #del-cancel-btn  { background: #f0f0f0; color: #333; }
 
-        /* 모바일 반응형 */
         @media (max-width: 600px) {
             .container { padding: 10px; }
             .card { padding: 14px; }
@@ -190,7 +184,6 @@
 </div>
 
 <script>
-    // ── Firebase 설정 ──
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
         authDomain: "howooju.firebaseapp.com",
@@ -206,7 +199,7 @@
     const db = firebase.database();
 
     const users = ['김태호', '이용우', '이형주'];
-    let exKRW = 1350; // 기본 환율
+    let exKRW = 1350; 
 
     const tMap = {
         'AAPL':'Apple','MSFT':'Microsoft','TSLA':'Tesla','NVDA':'NVIDIA',
@@ -216,20 +209,14 @@
     };
 
     const mSym = {
-        'KRW=X': '원달러환율',
-        '^IXIC':  '나스닥',
-        '^GSPC':  'S&P 500',
-        '^KS11':  'KOSPI',
-        '^KQ11':  '코스닥',
-        '^VIX':   'VIX',
-        'CL=F':   'WTI 유가'
+        'KRW=X': '원달러환율', '^IXIC': '나스닥', '^GSPC': 'S&P 500', 
+        '^KS11': 'KOSPI', '^KQ11': '코스닥', '^VIX': 'VIX', 'CL=F': 'WTI 유가'
     };
 
     const cache = {};
     const state = { trades: {}, charts: {} };
     users.forEach(u => state.trades[u] = []);
 
-    // ── 모달 및 공통 UI 상태 제어 ──
     let pendingDelete = null;
     function openDelModal(u, id) { pendingDelete = { u, id }; document.getElementById('del-modal').classList.add('open'); }
     function closeDelModal() { pendingDelete = null; document.getElementById('del-modal').classList.remove('open'); }
@@ -239,9 +226,8 @@
         const { id } = pendingDelete;
         closeDelModal();
         toggleLd(true, "삭제 중...");
-        try {
-            await db.ref(`trades/${id}`).remove();
-        } catch(e) { alert("삭제 실패: " + e.message); }
+        try { await db.ref(`trades/${id}`).remove(); } 
+        catch(e) { alert("삭제 실패: " + e.message); }
         toggleLd(false);
     });
 
@@ -254,41 +240,50 @@
         document.getElementById('loader').style.display = show ? 'flex' : 'none';
     }
 
-    // ── 비동기 데이터 로딩 핵심부 (체감 속도 최적화) ──
     window.onload = () => {
         createPages();
         toggleLd(true, "매매 데이터 동기화 중...");
 
-        // 1. 환율 비동기 로딩 (결과 도착 시 화면 자동 갱신)
-        fetchExchangeRate();
+        // 안전장치: 어떤 경우에도 5초가 지나면 로딩 화면을 강제로 제거
+        const fallbackTimer = setTimeout(() => {
+            toggleLd(false);
+            console.warn("로딩 지연 - 강제 해제됨");
+        }, 5000);
 
-        // 2. 글로벌 마켓 지표 비동기 로딩
+        fetchExchangeRate();
         fetchIndices().then(() => renderIdx());
 
-        // 3. 파이어베이스 데이터 연결 (데이터 수신 즉시 로딩 해제)
+        // Firebase 데이터 연동 및 에러 콜백 추가
         db.ref('trades').on('value', async (snapshot) => {
-            const data = snapshot.val() || {};
-            users.forEach(u => state.trades[u] = []);
-            
-            Object.keys(data).forEach(key => {
-                const t = data[key];
-                t.id = key;
-                if(state.trades[t.user]) state.trades[t.user].push(t);
-            });
+            clearTimeout(fallbackTimer); // 데이터가 정상 수신되면 타이머 취소
+            try {
+                const data = snapshot.val() || {};
+                users.forEach(u => state.trades[u] = []);
+                
+                Object.keys(data).forEach(key => {
+                    const t = data[key];
+                    t.id = key;
+                    if(state.trades[t.user]) state.trades[t.user].push(t);
+                });
 
-            // 매매 데이터가 도착하면 즉시 화면 렌더링 (보유 수량 및 평단가 확보)
-            updateAll();
-            
-            // 💡 핵심: 무거운 시세 조회를 기다리지 않고 여기서 바로 로딩화면을 닫습니다.
+                updateAll();
+                toggleLd(false);
+
+                await fetchMissingPrices();
+                updateAll();
+            } catch (err) {
+                console.error("데이터 처리 중 오류:", err);
+                toggleLd(false);
+            }
+        }, (error) => {
+            // Firebase 규칙(Rules) 오류 처리
+            clearTimeout(fallbackTimer);
             toggleLd(false);
-
-            // 백그라운드에서 현재 시세를 조회하고, 도착하면 화면을 다시 한 번 렌더링합니다.
-            await fetchMissingPrices();
-            updateAll();
+            alert("데이터베이스 연결 실패!\nFirebase Console > Realtime Database > 규칙(Rules)에서 읽기/쓰기 권한이 true로 설정되어 있는지 확인하세요.");
+            console.error("Firebase 권한 에러:", error);
         });
     };
 
-    // ── 외부 API 비동기 함수들 ──
     async function fetchExchangeRate() {
         try {
             const res = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
@@ -296,9 +291,9 @@
             if (data?.usd?.krw) {
                 exKRW = data.usd.krw;
                 document.getElementById('exchange-rate-display').innerText = `적용 환율: 1 USD = ${exKRW.toLocaleString(undefined, {maximumFractionDigits: 2})} KRW`;
-                updateAll(); // 환율 도착 시 재계산
+                updateAll(); 
             }
-        } catch(e) { console.warn("환율 API 조회 실패, 기본값 사용"); }
+        } catch(e) { console.warn("환율 API 조회 실패"); }
     }
 
     async function fetchIndices() {
@@ -318,7 +313,7 @@
                     };
                 });
             }
-        } catch(e) { console.warn("지표 데이터 조회 지연"); }
+        } catch(e) { console.warn("지표 조회 지연"); }
     }
 
     async function fetchMissingPrices() {
@@ -345,11 +340,10 @@
                         };
                     });
                 }
-            } catch(e) { console.warn("보조 야후 API 조회 지연"); }
+            } catch(e) { console.warn("야후 API 조회 지연"); }
         }
     }
 
-    // ── 화면 렌더링 함수들 ──
     function renderIdx() {
         const grid = document.getElementById('market-indices');
         const html = Object.entries(mSym).map(([sym, lbl]) => {
@@ -523,7 +517,8 @@
                 if (!port[t.ticker]) port[t.ticker] = { n: t.name, q: 0, c: 0, cr: t.currency };
                 let p = port[t.ticker];
                 if (t.type === 'buy') {
-                    p.c = (p.q*p.c + t.qty*t.price) / (p.q + t.qty);
+                    const totalQty = p.q + t.qty;
+                    p.c = totalQty > 0 ? (p.q*p.c + t.qty*t.price) / totalQty : 0;
                     p.q += t.qty;
                 } else {
                     real += (t.price - p.c) * t.qty * (t.currency==='USD' ? exKRW : 1);
