@@ -29,7 +29,7 @@
             box-sizing: border-box;
         }
 
-        .top-info-bar { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 10px; gap: 15px; }
+        .top-info-bar { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 10px; gap: 15px; flex-wrap: wrap; }
         .exchange-info { font-size: 12px; color: #666; font-weight: bold; }
         .refresh-btn { background: #e0e0e0; border: none; padding: 6px 12px; border-radius: 20px; font-size: 11px; cursor: pointer; font-weight: bold; color: #333; transition: 0.2s; }
         .refresh-btn:hover { background: #ccc; }
@@ -158,6 +158,7 @@
 
 <div class="container">
     <div class="top-info-bar">
+        <div class="exchange-info" id="last-update-display">마지막 갱신: -</div>
         <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
         <button class="refresh-btn" onclick="manualRefreshPrices()">🔄 시세 갱신</button>
     </div>
@@ -227,8 +228,8 @@
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
         authDomain: "howooju.firebaseapp.com",
-        // 👇 반드시 본인의 실제 데이터베이스 URL로 수정하세요! (현재는 임시 기본값입니다)
-        databaseURL: "https://howooju-default-rtdb.asia-southeast1.firebasedatabase.app/",
+        // ⚠️ 주의: 사용하시는 실제 파이어베이스 DB URL 주소로 반드시 변경하세요.
+        databaseURL: "https://howooju-default-rtdb.firebaseio.com",
         projectId: "howooju",
         storageBucket: "howooju.firebasestorage.app",
         messagingSenderId: "252732591437",
@@ -249,6 +250,15 @@
         const loaderTxt = document.getElementById('loader-txt');
         if(loaderTxt) loaderTxt.innerText = txt;
         if(loader) loader.style.display = show ? 'flex' : 'none';
+    }
+
+    function setLastUpdatedTime() {
+        const now = new Date();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        const ss = String(now.getSeconds()).padStart(2, '0');
+        const dEl = document.getElementById('last-update-display');
+        if (dEl) dEl.innerText = `마지막 갱신: ${hh}:${mm}:${ss}`;
     }
 
     let pendingDelete = null;
@@ -357,15 +367,11 @@
     window.onload = () => {
         initUI(); 
         
-        toggleLd(true, "매매 데이터 로딩 중...");
-        const loadTimer = setTimeout(() => { toggleLd(false); }, 3000);
-
         fetchExchangeRate();
         fetchIndices().then(() => renderIdx());
 
         if (db) {
             db.ref('trades').on('value', async (snapshot) => {
-                clearTimeout(loadTimer); 
                 try {
                     const data = snapshot.val() || {};
                     users.forEach(u => state.trades[u] = []);
@@ -376,23 +382,14 @@
                         if(state.trades[t.user]) state.trades[t.user].push(t);
                     });
 
-                    updateAll();
-                    toggleLd(false);
-
-                    await fetchMissingPrices();
-                    updateAll();
+                    updateAll(); 
+                    await autoRefreshPrices();
                 } catch (err) {
                     console.error("데이터 렌더링 에러:", err);
-                    toggleLd(false);
                 }
             }, (error) => {
-                clearTimeout(loadTimer);
-                toggleLd(false);
                 console.error("Firebase 읽기 에러:", error);
             });
-        } else {
-            clearTimeout(loadTimer);
-            toggleLd(false);
         }
 
         setInterval(autoRefreshPrices, 30000);
@@ -468,7 +465,6 @@
         document.getElementById(`cbtn-${u}`).style.display = "none";
     }
 
-    // --- 시세 갱신 핵심 로직 변경 (v8/chart 개별 호출 방식) ---
     async function fetchExchangeRate() {
         try {
             const res = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
@@ -485,10 +481,11 @@
     async function fetchIndices() {
         const promises = Object.keys(mSym).map(async sym => {
             try {
-                const url = encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&_=${Date.now()}`);
-                const yRes = await fetch(`https://api.allorigins.win/get?url=${url}`);
-                const yData = await yRes.json();
-                const meta = JSON.parse(yData.contents).chart.result[0].meta;
+                const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&_=${Date.now()}`;
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+                const res = await fetch(proxyUrl);
+                const data = await res.json();
+                const meta = data.chart.result[0].meta;
                 
                 const price = meta.regularMarketPrice || 0;
                 const prev  = meta.chartPreviousClose || price;
@@ -500,16 +497,18 @@
         await Promise.all(promises);
     }
 
-    // 차단이 심한 기존 방식을 버리고 getStk를 병렬 호출하도록 수정
     async function autoRefreshPrices() {
         let activeTickers = new Set();
         users.forEach(u => state.trades[u].forEach(t => activeTickers.add(t.ticker)));
-        if (activeTickers.size === 0) return;
+        if (activeTickers.size === 0) {
+            setLastUpdatedTime();
+            return;
+        }
 
         let isUpdated = false;
         const promises = Array.from(activeTickers).map(async tk => {
             const oldPrice = cache[tk] ? cache[tk].price : 0;
-            const info = await getStk(tk, true); // 강제로 가격 새로 가져오기
+            const info = await getStk(tk, true); 
             if (info && info.price > 0 && info.price !== oldPrice) {
                 previousPrices[tk] = oldPrice; 
                 isUpdated = true;
@@ -518,6 +517,7 @@
         
         await Promise.all(promises);
         if (isUpdated) updateAll();
+        setLastUpdatedTime();
     }
 
     async function manualRefreshPrices() {
@@ -527,18 +527,6 @@
         await autoRefreshPrices();
         renderIdx();
         toggleLd(false);
-    }
-
-    async function fetchMissingPrices() {
-        let missingTickers = new Set();
-        users.forEach(u => state.trades[u].forEach(t => {
-            if (!cache[t.ticker] || cache[t.ticker].price <= 0) missingTickers.add(t.ticker);
-        }));
-
-        if (missingTickers.size > 0) {
-            const promises = Array.from(missingTickers).map(tk => getStk(tk, true));
-            await Promise.all(promises);
-        }
     }
 
     function renderIdx() {
@@ -561,18 +549,17 @@
         grid.innerHTML = html;
     }
 
-    // force 매개변수를 추가하여 필요시 캐시를 무시하고 갱신 가능하게 함
     async function getStk(tk, force = false) {
         if (!tk) return null;
         if (!force && cache[tk] && cache[tk].price > 0) return cache[tk];
         
         let qTk = /^\d{6}$/.test(tk) ? tk+'.KS' : tk;
         try {
-            // 시간값을 추가해 브라우저와 프록시 서버의 캐싱을 원천 방지
-            const url = encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${qTk}?interval=1d&_=${Date.now()}`);
-            const res  = await fetch(`https://api.allorigins.win/get?url=${url}`);
+            const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${qTk}?interval=1d&_=${Date.now()}`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+            const res  = await fetch(proxyUrl);
             const data = await res.json();
-            const meta = JSON.parse(data.contents).chart.result[0].meta;
+            const meta = data.chart.result[0].meta;
             
             const price = meta.regularMarketPrice || 0;
             const prev  = meta.chartPreviousClose || price;
@@ -582,7 +569,6 @@
             cache[tk] = info;
             return info;
         } catch(e) {
-            // 실패 시 기존 데이터 또는 평단가를 쓰기 위한 초기값 리턴
             return cache[tk] || { price:0, change:0, name:tMap[tk]||tk, curr:/^\d{6}$/.test(tk)?'KRW':'USD' };
         }
     }
@@ -648,22 +634,29 @@
             let ptHtml = '';
             for (const [tk, p] of Object.entries(port)) {
                 if (p.q <= 0) continue;
-                const info  = cache[tk] || { price: p.c, name: p.n };
-                const curPr = info.price > 0 ? info.price : p.c; // 현재가가 0이면 평단가 표시 방어
+                const info  = cache[tk] || { price: 0, name: p.n };
                 const xr    = p.cr === 'USD' ? exKRW : 1;
 
                 const iKw = p.q * p.c * xr;
-                const vKw = p.q * curPr * xr;
-                tInv += iKw; tVal += vKw;
+                
+                const isLoaded = info.price > 0;
+                const curPr = isLoaded ? info.price : p.c; 
+                const vKw = isLoaded ? (p.q * curPr * xr) : iKw;
+                
+                tInv += iKw; 
+                tVal += vKw;
 
-                const ret  = iKw > 0 ? ((vKw - iKw)/iKw)*100 : 0;
+                const ret  = isLoaded && iKw > 0 ? ((vKw - iKw)/iKw)*100 : 0;
                 const sym  = p.cr === 'USD' ? '$' : '₩';
-                const cls  = ret > 0 ? 'profit' : (ret < 0 ? 'loss' : '');
-                const sign = ret > 0 ? '+' : '';
+                const cls  = isLoaded ? (ret > 0 ? 'profit' : (ret < 0 ? 'loss' : '')) : '';
+                const sign = isLoaded && ret > 0 ? '+' : '';
                 const fn   = info.name || p.n;
 
+                const displayCurPr = isLoaded ? `${sym}${curPr.toLocaleString(undefined,{maximumFractionDigits:2})}` : `<span style="color:#aaa;font-size:12px;">불러오는중...</span>`;
+                const displayRet = isLoaded ? `${sign}${ret.toFixed(2)}%` : `<span style="color:#aaa;">-</span>`;
+
                 let flashClass = '';
-                if (previousPrices[tk]) {
+                if (isLoaded && previousPrices[tk]) {
                     if (curPr > previousPrices[tk]) flashClass = 'price-up';
                     else if (curPr < previousPrices[tk]) flashClass = 'price-down';
                 }
@@ -672,11 +665,11 @@
                     <td>${fn}<br><small style="color:#888">${tk}</small></td>
                     <td>${p.q.toLocaleString(undefined,{maximumFractionDigits:4})}</td>
                     <td>${sym}${p.c.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
-                    <td>${sym}${curPr.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
+                    <td>${displayCurPr}</td>
                     <td>₩${vKw.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
-                    <td class="${cls}">${sign}${ret.toFixed(2)}%</td>
+                    <td class="${cls}">${displayRet}</td>
                 </tr>`;
-                cLbl.push(fn); cDat.push(vKw); hlds.push({ u, n: fn, r: ret });
+                cLbl.push(fn); cDat.push(vKw); hlds.push({ u, n: fn, r: ret, loaded: isLoaded });
             }
 
             const portTbody = document.getElementById(`port-${u}`);
@@ -741,9 +734,10 @@
 
         const dashBest = document.getElementById('dash-best');
         const dashWorst = document.getElementById('dash-worst');
-        if (hlds.length > 0) {
-            const b = hlds.reduce((p,c) => p.r > c.r ? p : c);
-            const w = hlds.reduce((p,c) => p.r < c.r ? p : c);
+        const loadedHlds = hlds.filter(h => h.loaded);
+        if (loadedHlds.length > 0) {
+            const b = loadedHlds.reduce((p,c) => p.r > c.r ? p : c);
+            const w = loadedHlds.reduce((p,c) => p.r < c.r ? p : c);
             if(dashBest) dashBest.innerText  = `${b.n} (+${b.r.toFixed(2)}%)`;
             if(dashWorst) dashWorst.innerText = `${w.n} (${w.r.toFixed(2)}%)`;
         } else {
