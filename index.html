@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>주식 스터디 대시보드</title>
+    <title>호우주 스터디 대시보드 🐜</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -11,16 +11,9 @@
         :root { --bg: #f4f6f8; --card: #ffffff; --pri: #333333; --brd: #e0e0e0; --profit: #ff4d4f; --loss: #1890ff; }
 
         html { height: 100%; }
-        body {
-            font-family: -apple-system, sans-serif;
-            background: var(--bg);
-            margin: 0; padding: 0; color: #333;
-            height: 100%;
-            overflow-y: auto;
-            overflow-x: hidden;
-            -webkit-overflow-scrolling: touch;
-        }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 0; color: #333; height: 100%; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
 
+        /* 로그인 화면 */
         #login-screen { position: fixed; inset: 0; background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 100000; }
         .login-box { background: var(--card); padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; width: 100%; max-width: 320px; box-sizing: border-box; }
         .login-box h2 { margin: 0 0 25px; color: var(--pri); font-size: 22px; }
@@ -58,7 +51,6 @@
         .idx-item .val { font-size: 20px; font-weight: 800; margin-bottom: 4px; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #fff; }
         .idx-item .pct { font-size: 13px; font-weight: bold; }
         .idx-item .key { font-size: 13px; color: #b0b0b0; font-weight: 500; }
-        .idx-loading { color: #aaa; font-size: 14px; text-align: center; padding: 20px 0; }
 
         .metrics { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
         .m-box { flex: 1; min-width: 200px; background: var(--card); padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 5px solid #ccc; }
@@ -161,7 +153,7 @@
         <div class="top-info-bar">
             <div class="exchange-info" id="last-update-display">마지막 갱신: -</div>
             <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
-            <button class="refresh-btn" onclick="syncMarketData(true)">🔄 시세 갱신</button>
+            <button class="refresh-btn" onclick="alert('데이터 갱신은 구글 서버에서 15분마다 안전하게 자동 처리되며 화면에 즉시 반영됩니다.')">🔄 시세 자동 갱신됨</button>
         </div>
 
         <div class="tabs" id="tab-menu">
@@ -199,6 +191,7 @@
 </div>
 
 <script>
+    // --- 로그인 확인 ---
     function checkPwd() {
         const pwd = document.getElementById('pwd-input').value;
         if (pwd === 'richguys') {
@@ -215,6 +208,7 @@
         }
     };
 
+    // --- 글로벌 변수 ---
     const users = ['김태호', '이용우', '이형주'];
     let exKRW = 1350; 
     let previousPrices = {}; 
@@ -224,32 +218,23 @@
     const tMap = {
         'AAPL':'Apple', 'MSFT':'Microsoft', 'TSLA':'Tesla', 'NVDA':'NVIDIA',
         'GOOGL':'Alphabet', 'AMZN':'Amazon', 'META':'Meta', 'BRK-B':'Berkshire Hathaway',
-        'TSM':'TSMC', 'AVGO':'Broadcom', 'LLY':'Eli Lilly', 'JPM':'JPMorgan',
-        'V':'Visa', 'UNH':'UnitedHealth', 'XOM':'Exxon Mobil', 'WMT':'Walmart',
-        'JNJ':'Johnson & Johnson', 'MA':'Mastercard', 'PG':'Procter & Gamble',
-        'AMD':'AMD', 'NFLX':'Netflix', 'QCOM':'Qualcomm', 'INTC':'Intel',
-        'SPY':'SPY ETF', 'QQQ':'QQQ ETF', 'VOO':'VOO ETF', 'SCHD':'SCHD ETF',
         '005930':'삼성전자', '000660':'SK하이닉스', '373220':'LG에너지솔루션',
-        '207940':'삼성바이오로직스', '005380':'현대차', '000270':'기아',
-        '068270':'셀트리온', '005490':'POSCO홀딩스', '035420':'NAVER',
-        '035720':'카카오', '003670':'포스코퓨처엠', '051910':'LG화학',
-        '012330':'현대모비스', '105560':'KB금융', '028260':'삼성물산',
-        '055550':'신한지주', '032830':'삼성생명', '033780':'KT&G'
+        '207940':'삼성바이오로직스', '005380':'현대차', '035420':'NAVER', '035720':'카카오'
     };
 
     const mSym = {
         'KRW=X': '원달러환율', '^IXIC': '나스닥', '^GSPC': 'S&P 500', 
         '^KS11': 'KOSPI', '^KQ11': '코스닥', '^VIX': 'VIX', 'CL=F': 'WTI 유가'
     };
-    const cache = {};
+    let cache = {};
     const state = { trades: {}, charts: {} };
     users.forEach(u => state.trades[u] = []);
 
-    // Firebase 안전한 키 생성 함수 ( . # $ [ ] 방지)
     function safeKey(key) {
         return key.replace(/[.#$\[\]]/g, '_');
     }
 
+    // ⚠️ 이곳의 databaseURL을 본인 주소로 교체하세요! ⚠️
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
         authDomain: "howooju.firebaseapp.com",
@@ -262,7 +247,6 @@
     };
 
     let db = null;
-    let isFirstMarketDataLoad = true;
 
     function startApp() {
         document.getElementById('login-screen').style.display = 'none';
@@ -278,9 +262,9 @@
         } catch (e) { console.error("Firebase 초기화 에러:", e); }
 
         initUI(); 
-        toggleLd(true, "서버 연결 및 데이터 로딩 중...");
         
         if (db) {
+            // 1. 매매 데이터 실시간 수신
             db.ref('trades').on('value', (snapshot) => {
                 const data = snapshot.val() || {};
                 users.forEach(u => state.trades[u] = []);
@@ -293,9 +277,9 @@
                 updateAll();
             });
 
+            // 2. 서버(GAS)가 수집한 시장 데이터 수신
             db.ref('marketData').on('value', (snapshot) => {
                 const data = snapshot.val();
-                toggleLd(false);
                 if(data) {
                     exKRW = data.exKRW || 1350;
                     Object.assign(cache, data.cache || {});
@@ -308,14 +292,9 @@
                     
                     renderIdx();
                     updateAll();
-                } else if (isFirstMarketDataLoad) {
-                    syncMarketData(true);
                 }
-                isFirstMarketDataLoad = false;
             });
         }
-
-        setInterval(() => syncMarketData(false), 15 * 60 * 1000);
     }
 
     function toggleLd(show, txt = "처리 중...") {
@@ -334,13 +313,10 @@
         const { id } = pendingDelete;
         closeDelModal();
         toggleLd(true, "삭제 중...");
-        try { await db.ref(`trades/${id}`).remove(); } catch(e) { alert("삭제 실패: " + e.message); }
+        try { await db.ref(`trades/${id}`).remove(); } catch(e) { alert("삭제 실패"); }
         toggleLd(false);
     });
-
-    document.getElementById('del-modal').addEventListener('click', function(e) {
-        if (e.target === this) closeDelModal();
-    });
+    document.getElementById('del-modal').addEventListener('click', function(e) { if (e.target === this) closeDelModal(); });
 
     function getSortArrow(u, key) {
         if (sortStates[u].key !== key) return '↕';
@@ -348,12 +324,8 @@
     }
 
     function sortPort(u, key) {
-        if (sortStates[u].key === key) {
-            sortStates[u].asc = !sortStates[u].asc;
-        } else {
-            sortStates[u].key = key;
-            sortStates[u].asc = (key === 'fn') ? true : false; 
-        }
+        if (sortStates[u].key === key) sortStates[u].asc = !sortStates[u].asc;
+        else { sortStates[u].key = key; sortStates[u].asc = (key === 'fn') ? true : false; }
         updateAll();
     }
 
@@ -440,69 +412,6 @@
         if (btn) btn.classList.add('active');
     }
 
-    async function getStk(tk, force = false) {
-        if (!tk) return null;
-        let qTk = mSym[tk] ? tk : (/^\d{6}$/.test(tk) ? tk+'.KS' : tk);
-        
-        try {
-            const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${qTk}?interval=1d&_=${Date.now()}`;
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-            const res  = await fetch(proxyUrl);
-            const data = await res.json();
-            const meta = data.chart.result[0].meta;
-            
-            const price = meta.regularMarketPrice || 0;
-            const prev  = meta.chartPreviousClose || price;
-            const change = prev > 0 ? ((price - prev) / prev) * 100 : 0;
-            
-            return { price, change, name: meta.shortName||meta.longName||tMap[tk]||tk, curr: meta.currency==='KRW'?'KRW':'USD' };
-        } catch(e) {
-            return null;
-        }
-    }
-
-    async function syncMarketData(isManual = false) {
-        if (!db) return alert("데이터베이스 연결 오류");
-        if (isManual) toggleLd(true, "최신 시세 조회 및 DB 저장 중...");
-        
-        try {
-            let newExKRW = exKRW;
-            try {
-                const resEx = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
-                const dataEx = await resEx.json();
-                if (dataEx?.usd?.krw) newExKRW = dataEx.usd.krw;
-            } catch(e) {}
-
-            let activeTickers = new Set(Object.keys(mSym)); 
-            users.forEach(u => state.trades[u].forEach(t => activeTickers.add(t.ticker)));
-            
-            let newCache = {};
-            const promises = Array.from(activeTickers).map(async tk => {
-                const info = await getStk(tk, true); 
-                const fbKey = safeKey(tk);
-                if (info && info.price > 0) {
-                    newCache[fbKey] = info;
-                } else if (cache[fbKey]) {
-                    newCache[fbKey] = cache[fbKey]; // 통신 실패 시 기존 값 유지
-                }
-            });
-            
-            await Promise.all(promises);
-
-            await db.ref('marketData').set({
-                lastUpdated: Date.now(),
-                exKRW: newExKRW,
-                cache: newCache
-            });
-
-        } catch(e) {
-            console.error("API 갱신 실패:", e);
-            if(isManual) alert("시세 갱신 실패: " + e.message);
-        }
-        
-        if (isManual) toggleLd(false);
-    }
-
     async function saveTr(u) {
         if (!db) return alert("데이터베이스에 연결되지 않았습니다.");
         
@@ -525,8 +434,7 @@
             if (eid) await db.ref(`trades/${eid}`).update(data);
             else await db.ref('trades').push(data);
             cancelEd(u);
-            syncMarketData(false); // 새로운 종목 추가 시 시세 동기화 스케줄 반영
-        } catch(e) { alert("저장 실패: " + e.message); }
+        } catch(e) { alert("저장 실패"); }
         toggleLd(false);
     }
 
@@ -561,7 +469,8 @@
         const grid = document.getElementById('market-indices');
         if(!grid) return;
         const html = Object.entries(mSym).map(([sym, lbl]) => {
-            const info = cache[safeKey(sym)];
+            const fbKey = safeKey(sym);
+            const info = cache[fbKey];
             let priceStr = '-';
             let changeHtml = '<span class="pct" style="color:#888">로딩중...</span>';
 
@@ -577,6 +486,7 @@
         grid.innerHTML = html;
     }
 
+    // 폼 입력 시에만 작동하는 실시간 검색 (저장과 무관)
     async function handleTk(u) {
         const tkIn = document.getElementById(`tk-${u}`);
         const nmIn = document.getElementById(`nm-${u}`);
@@ -600,14 +510,17 @@
             nmIn.placeholder = "API 검색 중...";
         }
 
-        const info = await getStk(tk);
-        if (info) {
-            if (!nmIn.value) {
-                if (info.name && info.name !== tk) nmIn.value = info.name;
-                else nmIn.placeholder = "직접 입력";
-            }
-            if (info.price > 0 && !prIn.value) prIn.value = info.price;
-        } else {
+        let qTk = isKorean ? tk+'.KS' : tk;
+        try {
+            const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${qTk}?interval=1d&_=${Date.now()}`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+            const res  = await fetch(proxyUrl);
+            const data = await res.json();
+            const meta = data.chart.result[0].meta;
+            
+            if (!nmIn.value) nmIn.value = meta.shortName || meta.longName || tk;
+            if (meta.regularMarketPrice > 0 && !prIn.value) prIn.value = meta.regularMarketPrice;
+        } catch(e) {
             if (!nmIn.value) nmIn.placeholder = "직접 입력";
         }
     }
