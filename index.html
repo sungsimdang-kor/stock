@@ -219,16 +219,17 @@
     // =========================================================
     // 2. Firebase 설정
     // =========================================================
-    const firebaseConfig = {
-        apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
-        authDomain: "howooju.firebaseapp.com",
-        databaseURL: "https://howooju-default-rtdb.firebaseio.com",
-        projectId: "howooju",
-        storageBucket: "howooju.firebasestorage.app",
-        messagingSenderId: "252732591437",
-        appId: "1:252732591437:web:961c790c34b8269cb7bb04",
-        measurementId: "G-3GEWPQ2G00"
-    };
+const firebaseConfig = {
+    apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
+    authDomain: "howooju.firebaseapp.com",
+    // 아래 부분을 방금 복사한 URL로 덮어쓰기 하세요.
+    databaseURL: "https://howooju-default-rtdb.asia-southeast1.firebasedatabase.app/",
+    projectId: "howooju",
+    storageBucket: "howooju.firebasestorage.app",
+    messagingSenderId: "252732591437",
+    appId: "1:252732591437:web:961c790c34b8269cb7bb04",
+    measurementId: "G-3GEWPQ2G00"
+};
 
     let db = null;
     try {
