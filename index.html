@@ -1,0 +1,670 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2685.5">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
+  </style>
+</head>
+<body>
+<p class="p1">&lt;!DOCTYPE html&gt;</p>
+<p class="p1">&lt;html lang="ko"&gt;</p>
+<p class="p1">&lt;head&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;meta charset="UTF-8"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;title&gt;주식 스터디 대시보드&lt;/title&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;script src="https://cdn.jsdelivr.net/npm/chart.js"&gt;&lt;/script&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;style&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>:root { --bg: #f4f6f8; --card: #ffffff; --pri: #333333; --brd: #e0e0e0; --profit: #ff4d4f; --loss: #1890ff; }</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>/* ── 모바일 스크롤 핵심 수정 ── */</p>
+<p class="p1"><span class="Apple-converted-space">        </span>html {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>height: 100%;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>body {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>font-family: -apple-system, sans-serif;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>background: var(--bg);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>margin: 0; padding: 0; color: #333;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>height: 100%;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>/* 모바일에서 세로 스크롤 명시 허용 */</p>
+<p class="p1"><span class="Apple-converted-space">            </span>overflow-y: auto;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>overflow-x: hidden;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>-webkit-overflow-scrolling: touch;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>.container {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>max-width: 1200px;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>margin: 0 auto;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>padding: 15px;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>padding-bottom: 60px;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>/* 컨테이너 자체는 높이를 강제하지 않음 */</p>
+<p class="p1"><span class="Apple-converted-space">            </span>box-sizing: border-box;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>/* 탭바: 가로만 스크롤, 세로 터치는 body에 넘김 */</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.tabs {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>display: flex;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>border-bottom: 2px solid var(--brd);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>margin-bottom: 20px;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>overflow-x: auto;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>overflow-y: hidden;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>white-space: nowrap;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>-webkit-overflow-scrolling: touch;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>touch-action: pan-x;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>scrollbar-width: none;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.tabs::-webkit-scrollbar { display: none; }</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>.tab-btn { background: none; border: none; padding: 12px 20px; font-size: 16px; cursor: pointer; color: #666; font-weight: bold; flex-shrink: 0; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.tab-btn.active { color: var(--pri); border-bottom: 3px solid var(--pri); margin-bottom: -2px; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.tab-content { display: none; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.tab-content.active { display: block; }</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>.card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.card h3 { margin-top: 0; border-bottom: 1px solid var(--brd); padding-bottom: 10px; font-size: 18px; }</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>.idx-wrap { background: #1a1a1a; padding: 25px; border-radius: 12px; margin-bottom: 20px; color: white; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.idx-wrap h3 { border-color: #333; color: #eee; text-align: center; font-size: 15px; margin-bottom: 20px; font-weight: bold; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.idx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.idx-item { text-align: center; padding: 10px; border-right: 1px solid #333; display: flex; flex-direction: column; justify-content: center; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.idx-item:last-child { border-right: none; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.idx-item .val { font-size: 20px; font-weight: 800; margin-bottom: 4px; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #fff; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.idx-item .pct { font-size: 13px; font-weight: bold; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.idx-item .key { font-size: 13px; color: #b0b0b0; font-weight: 500; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>/* 지표 로딩 애니메이션 */</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.idx-loading { color: #aaa; font-size: 14px; text-align: center; padding: 20px 0; }</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>.metrics { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.m-box { flex: 1; min-width: 200px; background: var(--card); padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 5px solid #ccc; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.m-box.gold { border-left-color: #ffd700; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.m-box.red<span class="Apple-converted-space">  </span>{ border-left-color: var(--profit); }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.m-box.blue { border-left-color: var(--loss); }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.m-box h4 { margin: 0 0 10px 0; font-size: 13px; color: #666; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.m-box p { margin: 0; font-size: 22px; font-weight: bold; }</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>/* 테이블 래퍼: 가로만 스크롤 */</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.tbl-wrap {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>width: 100%;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>overflow-x: auto;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>overflow-y: hidden;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>-webkit-overflow-scrolling: touch;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>touch-action: pan-x;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>table { width: 100%; border-collapse: collapse; min-width: 700px; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>th, td { padding: 12px 10px; border-bottom: 1px solid var(--brd); text-align: right; font-size: 14px; white-space: nowrap; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>th { background: #f9fafc; color: #555; font-size: 13px; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>th:first-child, td:first-child { text-align: left; }</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; align-items: end; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.f-grp { display: flex; flex-direction: column; font-size: 12px; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.f-grp label { margin-bottom: 4px; color: #555; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.f-grp input, .f-grp select { padding: 8px; border: 1px solid var(--brd); border-radius: 4px; font-size: 14px; box-sizing: border-box; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>input[disabled] { background-color: #eaecf0; cursor: not-allowed; color: #555; font-weight: bold; border: 1px solid #ccc; }</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>.btn-grp { display: flex; gap: 8px; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>button { cursor: pointer; font-weight: bold; transition: 0.2s; border: none; border-radius: 6px; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.p-btn { flex: 1; padding: 10px; background: var(--pri); color: white; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.c-btn { flex: 1; padding: 10px; background: #6c757d; color: white; display: none; }</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>.a-btn { padding: 6px 10px; font-size: 12px; margin-left: 4px; color: white; border-radius: 4px; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.edit-btn { background: #f1c40f; color: #333; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.del-btn<span class="Apple-converted-space">  </span>{ background: #e74c3c; }</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.chart { height: 250px; width: 100%; margin: 0 auto; }</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>.profit { color: var(--profit); font-weight: bold; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.loss <span class="Apple-converted-space">  </span>{ color: var(--loss); <span class="Apple-converted-space">  </span>font-weight: bold; }</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>/* 로더 */</p>
+<p class="p1"><span class="Apple-converted-space">        </span>#loader { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; justify-content: center; align-items: center; font-weight: bold; flex-direction: column; gap: 15px; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.spin { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--pri); border-radius: 50%; animation: sp 1s linear infinite; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>@keyframes sp { 100% { transform: rotate(360deg); } }</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>/* ── 커스텀 삭제 확인 모달 ── */</p>
+<p class="p1"><span class="Apple-converted-space">        </span>#del-modal {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>display: none;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>position: fixed; inset: 0;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>background: rgba(0,0,0,0.5);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>z-index: 10000;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>justify-content: center;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>align-items: center;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>#del-modal.open { display: flex; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.del-modal-box {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>background: white;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>border-radius: 16px;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>padding: 30px 24px 20px;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>max-width: 320px;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>width: 90%;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>text-align: center;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>box-shadow: 0 20px 60px rgba(0,0,0,0.3);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.del-modal-box .icon { font-size: 40px; margin-bottom: 12px; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.del-modal-box h4 { margin: 0 0 8px; font-size: 17px; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.del-modal-box p<span class="Apple-converted-space">  </span>{ margin: 0 0 24px; font-size: 14px; color: #666; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.del-modal-btns { display: flex; gap: 10px; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.del-modal-btns button { flex: 1; padding: 12px; border-radius: 8px; font-size: 15px; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>#del-confirm-btn { background: #e74c3c; color: white; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>#del-cancel-btn<span class="Apple-converted-space">  </span>{ background: #f0f0f0; color: #333; }</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>/* 모바일 반응형 */</p>
+<p class="p1"><span class="Apple-converted-space">        </span>@media (max-width: 600px) {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>.container { padding: 10px; }</p>
+<p class="p1"><span class="Apple-converted-space">            </span>.card { padding: 14px; }</p>
+<p class="p1"><span class="Apple-converted-space">            </span>.idx-grid { grid-template-columns: repeat(2, 1fr); }</p>
+<p class="p1"><span class="Apple-converted-space">            </span>.idx-item { border-right: none; border-bottom: 1px solid #333; }</p>
+<p class="p1"><span class="Apple-converted-space">            </span>.idx-item:nth-child(odd) { border-right: 1px solid #333; }</p>
+<p class="p1"><span class="Apple-converted-space">            </span>.idx-item:last-child { border-bottom: none; }</p>
+<p class="p1"><span class="Apple-converted-space">            </span>.m-box { min-width: 100%; }</p>
+<p class="p1"><span class="Apple-converted-space">            </span>.form-grid { grid-template-columns: 1fr 1fr; }</p>
+<p class="p1"><span class="Apple-converted-space">            </span>.btn-grp { grid-column: span 2; }</p>
+<p class="p1"><span class="Apple-converted-space">            </span>.grid-2 { grid-template-columns: 1fr; }</p>
+<p class="p1"><span class="Apple-converted-space">            </span>.idx-item .val { font-size: 16px; }</p>
+<p class="p1"><span class="Apple-converted-space">            </span>th, td { padding: 9px 7px; font-size: 13px; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/style&gt;</p>
+<p class="p1">&lt;/head&gt;</p>
+<p class="p1">&lt;body&gt;</p>
+<p class="p2"><br></p>
+<p class="p1">&lt;!-- 로더 --&gt;</p>
+<p class="p1">&lt;div id="loader"&gt;&lt;div class="spin"&gt;&lt;/div&gt;&lt;div id="loader-txt"&gt;데이터 동기화 중...&lt;/div&gt;&lt;/div&gt;</p>
+<p class="p2"><br></p>
+<p class="p1">&lt;!-- ── 삭제 확인 커스텀 모달 ── --&gt;</p>
+<p class="p1">&lt;div id="del-modal"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="del-modal-box"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="icon"&gt;🗑️&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;h4&gt;매매 기록 삭제&lt;/h4&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;p&gt;해당 기록을 영구적으로 삭제합니다.&lt;br&gt;이 작업은 되돌릴 수 없습니다.&lt;/p&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="del-modal-btns"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;button id="del-cancel-btn" onclick="closeDelModal()"&gt;취소&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;button id="del-confirm-btn"&gt;삭제&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
+<p class="p1">&lt;/div&gt;</p>
+<p class="p2"><br></p>
+<p class="p1">&lt;div class="container"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="tabs" id="tab-menu"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="tab-btn active" onclick="switchTab('dashboard', this)"&gt;통합 뷰&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="tab-btn" onclick="switchTab('user-김태호', this)"&gt;김태호&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="tab-btn" onclick="switchTab('user-이용우', this)"&gt;이용우&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="tab-btn" onclick="switchTab('user-이형주', this)"&gt;이형주&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div id="dashboard" class="tab-content active"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="idx-wrap"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;h3&gt;글로벌 마켓 실시간 지표&lt;/h3&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="idx-grid" id="market-indices"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="idx-loading"&gt;지표 불러오는 중...&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="metrics"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="m-box gold"&gt;&lt;h4&gt;오늘의 수익 왕&lt;/h4&gt;&lt;p id="dash-top"&gt;-&lt;/p&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="m-box red"&gt;&lt;h4&gt;최대 수익 주식&lt;/h4&gt;&lt;p id="dash-best" class="profit"&gt;-&lt;/p&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="m-box blue"&gt;&lt;h4&gt;최대 손해 주식&lt;/h4&gt;&lt;p id="dash-worst" class="loss"&gt;-&lt;/p&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="card"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;h3&gt;인원별 오버뷰 (원화 환산)&lt;/h3&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="tbl-wrap"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;table&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;thead&gt;&lt;tr&gt;&lt;th&gt;이름&lt;/th&gt;&lt;th&gt;투자 원금&lt;/th&gt;&lt;th&gt;현재 평가액&lt;/th&gt;&lt;th&gt;미실현 수익&lt;/th&gt;&lt;th&gt;실현 수익&lt;/th&gt;&lt;th&gt;총 수익률&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;tbody id="dash-body"&gt;&lt;/tbody&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;/table&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div id="pages-container"&gt;&lt;/div&gt;</p>
+<p class="p1">&lt;/div&gt;</p>
+<p class="p2"><br></p>
+<p class="p1">&lt;script&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const API_URL = 'https://script.google.com/macros/s/AKfycbws0zNCaNdxg-OcjUk5Hi2vQ6anfSmbgjOEryJuDmp8tsDnz1HG0oyG4WOYVwJbjiZu/exec';</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const users = ['김태호', '이용우', '이형주'];</p>
+<p class="p1"><span class="Apple-converted-space">    </span>let exKRW = 1350;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>const tMap = {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>'AAPL':'Apple','MSFT':'Microsoft','TSLA':'Tesla','NVDA':'NVIDIA',</p>
+<p class="p1"><span class="Apple-converted-space">        </span>'GOOGL':'Alphabet','AMZN':'Amazon','META':'Meta',</p>
+<p class="p1"><span class="Apple-converted-space">        </span>'005930':'삼성전자','000660':'SK하이닉스','373220':'LG에너지솔루션',</p>
+<p class="p1"><span class="Apple-converted-space">        </span>'035420':'NAVER','035720':'카카오'</p>
+<p class="p1"><span class="Apple-converted-space">    </span>};</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>// 야후 심볼 → 한글 레이블</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const mSym = {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>'KRW=X': '원달러환율',</p>
+<p class="p1"><span class="Apple-converted-space">        </span>'^IXIC':<span class="Apple-converted-space">  </span>'나스닥',</p>
+<p class="p1"><span class="Apple-converted-space">        </span>'^GSPC':<span class="Apple-converted-space">  </span>'S&amp;P 500',</p>
+<p class="p1"><span class="Apple-converted-space">        </span>'^KS11':<span class="Apple-converted-space">  </span>'KOSPI',</p>
+<p class="p1"><span class="Apple-converted-space">        </span>'^KQ11':<span class="Apple-converted-space">  </span>'코스닥',</p>
+<p class="p1"><span class="Apple-converted-space">        </span>'^VIX': <span class="Apple-converted-space">  </span>'VIX',</p>
+<p class="p1"><span class="Apple-converted-space">        </span>'CL=F': <span class="Apple-converted-space">  </span>'WTI 유가'</p>
+<p class="p1"><span class="Apple-converted-space">    </span>};</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>const cache = {};</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const state = { trades: {}, charts: {} };</p>
+<p class="p1"><span class="Apple-converted-space">    </span>users.forEach(u =&gt; state.trades[u] = []);</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>// ── 삭제 모달 상태 ──────────────────────────────────────────────────────────</p>
+<p class="p1"><span class="Apple-converted-space">    </span>let pendingDelete = null; // { u, id }</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function openDelModal(u, id) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>pendingDelete = { u, id };</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById('del-modal').classList.add('open');</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p1"><span class="Apple-converted-space">    </span>function closeDelModal() {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>pendingDelete = null;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById('del-modal').classList.remove('open');</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p1"><span class="Apple-converted-space">    </span>document.getElementById('del-confirm-btn').addEventListener('click', async function() {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>if (!pendingDelete) return;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const { u, id } = pendingDelete;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>closeDelModal();</p>
+<p class="p1"><span class="Apple-converted-space">        </span>toggleLd(true, "삭제 중...");</p>
+<p class="p1"><span class="Apple-converted-space">        </span>try {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>await postReq({ action: 'delete', id: String(id) });</p>
+<p class="p1"><span class="Apple-converted-space">            </span>await fetchAll();</p>
+<p class="p1"><span class="Apple-converted-space">        </span>} catch(e) {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>alert("삭제 실패: " + e.message);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>toggleLd(false);</p>
+<p class="p1"><span class="Apple-converted-space">    </span>});</p>
+<p class="p1"><span class="Apple-converted-space">    </span>// 모달 바깥 클릭 시 닫기</p>
+<p class="p1"><span class="Apple-converted-space">    </span>document.getElementById('del-modal').addEventListener('click', function(e) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>if (e.target === this) closeDelModal();</p>
+<p class="p1"><span class="Apple-converted-space">    </span>});</p>
+<p class="p1"><span class="Apple-converted-space">    </span>// ────────────────────────────────────────────────────────────────────────────</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>window.onload = async () =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>createPages();</p>
+<p class="p1"><span class="Apple-converted-space">        </span>toggleLd(true, "데이터 불러오는 중...");</p>
+<p class="p1"><span class="Apple-converted-space">        </span>await fetchAll();</p>
+<p class="p1"><span class="Apple-converted-space">        </span>toggleLd(false);</p>
+<p class="p1"><span class="Apple-converted-space">    </span>};</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function toggleLd(show, txt = "처리 중...") {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById('loader-txt').innerText = txt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById('loader').style.display = show ? 'flex' : 'none';</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>async function postReq(payload) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>return fetch(API_URL, {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>method: 'POST',</p>
+<p class="p1"><span class="Apple-converted-space">            </span>redirect: 'follow',</p>
+<p class="p1"><span class="Apple-converted-space">            </span>headers: { 'Content-Type': 'text/plain;charset=utf-8' },</p>
+<p class="p1"><span class="Apple-converted-space">            </span>body: JSON.stringify(payload)</p>
+<p class="p1"><span class="Apple-converted-space">        </span>});</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>async function fetchAll() {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>try {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const res = await fetch(API_URL);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const data = await res.json();</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">            </span>// ── 수정 1: App Script가 서버사이드에서 가져온 지표 데이터 사용 ──</p>
+<p class="p1"><span class="Apple-converted-space">            </span>if (data.indices) {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>Object.entries(data.indices).forEach(([sym, info]) =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>cache[sym] = {</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>price:<span class="Apple-converted-space">  </span>info.price,</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>change: info.change,</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>name: <span class="Apple-converted-space">  </span>mSym[sym] || info.name,</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>curr: <span class="Apple-converted-space">  </span>info.currency === 'KRW' ? 'KRW' : 'USD'</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>};</p>
+<p class="p1"><span class="Apple-converted-space">                </span>});</p>
+<p class="p1"><span class="Apple-converted-space">            </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">            </span>if (data.trades) {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>users.forEach(u =&gt; state.trades[u] = data.trades.filter(t =&gt; t.user === u));</p>
+<p class="p1"><span class="Apple-converted-space">            </span>}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>} catch(e) {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>console.error("스프레드시트 데이터 연동 실패:", e);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>// 환율 업데이트</p>
+<p class="p1"><span class="Apple-converted-space">        </span>if (cache['KRW=X'] &amp;&amp; cache['KRW=X'].price &gt; 0) exKRW = cache['KRW=X'].price;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>// 종목 현재가 캐시 보충 (App Script가 안 가져온 종목만)</p>
+<p class="p1"><span class="Apple-converted-space">        </span>let missingTickers = new Set();</p>
+<p class="p1"><span class="Apple-converted-space">        </span>users.forEach(u =&gt; state.trades[u].forEach(t =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>if (!cache[t.ticker] || cache[t.ticker].price &lt;= 0) missingTickers.add(t.ticker);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}));</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>if (missingTickers.size &gt; 0) {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const q = Array.from(missingTickers).map(t =&gt; /^\d{6}$/.test(t) ? t+'.KS' : t).join(',');</p>
+<p class="p1"><span class="Apple-converted-space">            </span>try {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const url = encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${q}`);</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const yRes = await fetch(`https://api.allorigins.win/get?url=${url}`);</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const yData = await yRes.json();</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const parsed = JSON.parse(yData.contents);</p>
+<p class="p1"><span class="Apple-converted-space">                </span>if (parsed.quoteResponse &amp;&amp; parsed.quoteResponse.result) {</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>parsed.quoteResponse.result.forEach(item =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>const tk = item.symbol.replace('.KS', '');</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>cache[tk] = {</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>price:<span class="Apple-converted-space">  </span>item.regularMarketPrice || 0,</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>change: item.regularMarketChangePercent || 0,</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>name: <span class="Apple-converted-space">  </span>item.shortName || item.longName || tMap[tk] || tk,</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>curr: <span class="Apple-converted-space">  </span>item.currency === 'KRW' ? 'KRW' : 'USD'</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>};</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>});</p>
+<p class="p1"><span class="Apple-converted-space">                </span>}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>} catch(e) {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>console.warn("보조 야후 API 조회 실패:", e);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>renderIdx();</p>
+<p class="p1"><span class="Apple-converted-space">        </span>updateAll();</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function renderIdx() {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const grid = document.getElementById('market-indices');</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const html = Object.entries(mSym).map(([sym, lbl]) =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const info = cache[sym];</p>
+<p class="p1"><span class="Apple-converted-space">            </span>let priceStr = '-';</p>
+<p class="p1"><span class="Apple-converted-space">            </span>let changeHtml = '&lt;span class="pct" style="color:#888"&gt;(-)&lt;/span&gt;';</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">            </span>if (info &amp;&amp; info.price &gt; 0) {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>priceStr = info.price.toLocaleString(undefined, { maximumFractionDigits: 2 });</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const pct = info.change;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const cls<span class="Apple-converted-space">  </span>= pct &gt; 0 ? 'profit' : (pct &lt; 0 ? 'loss' : '');</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const sign = pct &gt; 0 ? '+' : '';</p>
+<p class="p1"><span class="Apple-converted-space">                </span>changeHtml = `&lt;span class="pct ${cls}"&gt;(${sign}${pct.toFixed(2)}%)&lt;/span&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">            </span>return `&lt;div class="idx-item"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;div class="val"&gt;${priceStr} ${changeHtml}&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;div class="key"&gt;${lbl}&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}).join('');</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>grid.innerHTML = html;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>async function getStk(tk) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>if (!tk) return null;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>if (cache[tk] &amp;&amp; cache[tk].price &gt; 0) return cache[tk];</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>let qTk = /^\d{6}$/.test(tk) ? tk+'.KS' : tk;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>try {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const url = encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${qTk}`);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const res<span class="Apple-converted-space">  </span>= await fetch(`https://api.allorigins.win/get?url=${url}`);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const data = await res.json();</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const meta = JSON.parse(data.contents).chart.result[0].meta;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">            </span>const price = meta.regularMarketPrice || 0;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const prev<span class="Apple-converted-space">  </span>= meta.chartPreviousClose || price;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const change = prev &gt; 0 ? ((price - prev) / prev) * 100 : 0;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">            </span>const info = { price, change, name: meta.shortName||meta.longName||tMap[tk]||tk, curr: meta.currency==='KRW'?'KRW':'USD' };</p>
+<p class="p1"><span class="Apple-converted-space">            </span>cache[tk] = info;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>return info;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>} catch(e) {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>return { price:0, change:0, name:tMap[tk]||tk, curr:/^\d{6}$/.test(tk)?'KRW':'USD' };</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>async function handleTk(u) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const tkIn = document.getElementById(`tk-${u}`);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const nmIn = document.getElementById(`nm-${u}`);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const prIn = document.getElementById(`pr-${u}`);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const crSel = document.getElementById(`cr-${u}`);</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>const tk = tkIn.value.trim().toUpperCase();</p>
+<p class="p1"><span class="Apple-converted-space">        </span>if (!tk) { nmIn.value = ''; return; }</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>tkIn.value = tk;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>nmIn.placeholder = "검색 중..."; nmIn.value = "";</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>const info = await getStk(tk);</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>nmIn.value = info.name;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>crSel.value = info.curr;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>if (info.price &gt; 0 &amp;&amp; !prIn.value) prIn.value = info.price;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>nmIn.placeholder = "자동 입력";</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function createPages() {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const con = document.getElementById('pages-container');</p>
+<p class="p1"><span class="Apple-converted-space">        </span>users.forEach(u =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>con.innerHTML += `</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;div id="u-${u}" class="tab-content"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="card"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;h3&gt;매매 입력/수정&lt;/h3&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;div class="form-grid"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;input type="hidden" id="eid-${u}"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;div class="f-grp"&gt;&lt;label&gt;날짜&lt;/label&gt;&lt;input type="date" id="dt-${u}"&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;div class="f-grp"&gt;&lt;label&gt;티커 (입력 후 바깥 클릭)&lt;/label&gt;&lt;input type="text" id="tk-${u}" onchange="handleTk('${u}')" placeholder="AAPL, 005930"&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;div class="f-grp"&gt;&lt;label&gt;종목명 (자동)&lt;/label&gt;&lt;input type="text" id="nm-${u}" disabled placeholder="자동 입력"&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;div class="f-grp"&gt;&lt;label&gt;유형&lt;/label&gt;&lt;select id="ty-${u}"&gt;&lt;option value="buy"&gt;매수&lt;/option&gt;&lt;option value="sell"&gt;매도&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;div class="f-grp"&gt;&lt;label&gt;통화 (자동)&lt;/label&gt;&lt;select id="cr-${u}" disabled&gt;&lt;option value="USD"&gt;USD&lt;/option&gt;&lt;option value="KRW"&gt;KRW&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;div class="f-grp"&gt;&lt;label&gt;가격&lt;/label&gt;&lt;input type="number" step="0.01" id="pr-${u}"&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;div class="f-grp"&gt;&lt;label&gt;수량&lt;/label&gt;&lt;input type="number" step="0.0001" id="qt-${u}"&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;div class="f-grp btn-grp" style="grid-column: span 1;"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                </span>&lt;button class="p-btn" id="btn-${u}" onclick="saveTr('${u}')"&gt;저장&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                </span>&lt;button class="c-btn" id="cbtn-${u}" onclick="cancelEd('${u}')"&gt;취소&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="card"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;h3&gt;매매 일지&lt;/h3&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;div class="tbl-wrap"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;table&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                </span>&lt;thead&gt;&lt;tr&gt;&lt;th&gt;날짜&lt;/th&gt;&lt;th&gt;종목&lt;/th&gt;&lt;th&gt;유형&lt;/th&gt;&lt;th&gt;가격&lt;/th&gt;&lt;th&gt;수량&lt;/th&gt;&lt;th&gt;관리&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                </span>&lt;tbody id="log-${u}"&gt;&lt;/tbody&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;/table&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="grid-2"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;div class="card"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;h3&gt;현재 포트폴리오 (실시간 연동)&lt;/h3&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;div class="tbl-wrap"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                </span>&lt;table&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                    </span>&lt;thead&gt;&lt;tr&gt;&lt;th&gt;종목&lt;/th&gt;&lt;th&gt;수량&lt;/th&gt;&lt;th&gt;평단가&lt;/th&gt;&lt;th&gt;현재가&lt;/th&gt;&lt;th&gt;평가액&lt;/th&gt;&lt;th&gt;수익률&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                    </span>&lt;tbody id="port-${u}"&gt;&lt;/tbody&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                </span>&lt;/table&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;div class="card"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;h3&gt;비중 차트&lt;/h3&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;div class="chart"&gt;&lt;canvas id="ch-${u}"&gt;&lt;/canvas&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>document.getElementById(`dt-${u}`).value = new Date().toISOString().substring(0, 10);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>});</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>async function saveTr(u) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const eid = document.getElementById(`eid-${u}`).value;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const tk<span class="Apple-converted-space">  </span>= document.getElementById(`tk-${u}`).value.toUpperCase();</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const data = {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>action: <span class="Apple-converted-space">  </span>eid ? 'edit' : 'add',</p>
+<p class="p1"><span class="Apple-converted-space">            </span>id: <span class="Apple-converted-space">      </span>eid ? String(eid) : String(Date.now()),</p>
+<p class="p1"><span class="Apple-converted-space">            </span>user: <span class="Apple-converted-space">    </span>u,</p>
+<p class="p1"><span class="Apple-converted-space">            </span>date: <span class="Apple-converted-space">    </span>document.getElementById(`dt-${u}`).value,</p>
+<p class="p1"><span class="Apple-converted-space">            </span>ticker: <span class="Apple-converted-space">  </span>tk,</p>
+<p class="p1"><span class="Apple-converted-space">            </span>name: <span class="Apple-converted-space">    </span>document.getElementById(`nm-${u}`).value || tk,</p>
+<p class="p1"><span class="Apple-converted-space">            </span>type: <span class="Apple-converted-space">    </span>document.getElementById(`ty-${u}`).value,</p>
+<p class="p1"><span class="Apple-converted-space">            </span>currency: document.getElementById(`cr-${u}`).value,</p>
+<p class="p1"><span class="Apple-converted-space">            </span>price:<span class="Apple-converted-space">    </span>parseFloat(document.getElementById(`pr-${u}`).value),</p>
+<p class="p1"><span class="Apple-converted-space">            </span>qty:<span class="Apple-converted-space">      </span>parseFloat(document.getElementById(`qt-${u}`).value)</p>
+<p class="p1"><span class="Apple-converted-space">        </span>};</p>
+<p class="p1"><span class="Apple-converted-space">        </span>if (!data.ticker || isNaN(data.price) || isNaN(data.qty)) return alert("입력값을 확인해 주세요.");</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>toggleLd(true, "스프레드시트에 기록 중...");</p>
+<p class="p1"><span class="Apple-converted-space">        </span>try {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>await postReq(data);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>await fetchAll();</p>
+<p class="p1"><span class="Apple-converted-space">            </span>cancelEd(u);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>} catch(e) {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>alert("저장 실패: " + e.message);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>toggleLd(false);</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function editTr(u, id) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const tr = state.trades[u].find(t =&gt; String(t.id) === String(id));</p>
+<p class="p1"><span class="Apple-converted-space">        </span>if (!tr) return;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById(`eid-${u}`).value<span class="Apple-converted-space">  </span>= tr.id;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById(`dt-${u}`).value <span class="Apple-converted-space">  </span>= tr.date;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById(`tk-${u}`).value <span class="Apple-converted-space">  </span>= tr.ticker;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById(`nm-${u}`).value <span class="Apple-converted-space">  </span>= tr.name;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById(`ty-${u}`).value <span class="Apple-converted-space">  </span>= tr.type;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById(`cr-${u}`).value <span class="Apple-converted-space">  </span>= tr.currency;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById(`pr-${u}`).value <span class="Apple-converted-space">  </span>= tr.price;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById(`qt-${u}`).value <span class="Apple-converted-space">  </span>= tr.qty;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById(`btn-${u}`).innerText = "수정 완료";</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById(`cbtn-${u}`).style.display = "block";</p>
+<p class="p1"><span class="Apple-converted-space">        </span>window.scrollTo({ top: 0, behavior: 'smooth' });</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function cancelEd(u) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById(`eid-${u}`).value = "";</p>
+<p class="p1"><span class="Apple-converted-space">        </span>['tk','nm','pr','qt'].forEach(id =&gt; document.getElementById(`${id}-${u}`).value = '');</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById(`dt-${u}`).value = new Date().toISOString().substring(0, 10);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById(`btn-${u}`).innerText = "저장";</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById(`cbtn-${u}`).style.display = "none";</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>// ── 수정 2: confirm() 대신 커스텀 모달 호출 ─────────────────────────────</p>
+<p class="p1"><span class="Apple-converted-space">    </span>function delTr(u, id) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>openDelModal(u, id);</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p1"><span class="Apple-converted-space">    </span>// ────────────────────────────────────────────────────────────────────────────</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function updateAll() {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>let stats = [], hlds = [];</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>for (const u of users) {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>let port = {}, real = 0, tInv = 0, tVal = 0, cLbl = [], cDat = [];</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">            </span>state.trades[u].sort((a,b) =&gt; new Date(a.date)-new Date(b.date)).forEach(t =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>if (!port[t.ticker]) port[t.ticker] = { n: t.name, q: 0, c: 0, cr: t.currency };</p>
+<p class="p1"><span class="Apple-converted-space">                </span>let p = port[t.ticker];</p>
+<p class="p1"><span class="Apple-converted-space">                </span>if (t.type === 'buy') {</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>p.c = (p.q*p.c + t.qty*t.price) / (p.q + t.qty);</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>p.q += t.qty;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>} else {</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>real += (t.price - p.c) * t.qty * (t.currency==='USD' ? exKRW : 1);</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>p.q<span class="Apple-converted-space">  </span>-= t.qty;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">            </span>let ptHtml = '';</p>
+<p class="p1"><span class="Apple-converted-space">            </span>for (const [tk, p] of Object.entries(port)) {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>if (p.q &lt;= 0) continue;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const info<span class="Apple-converted-space">  </span>= cache[tk] || { price: p.c, name: p.n };</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const curPr = info.price &gt; 0 ? info.price : p.c;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const xr<span class="Apple-converted-space">    </span>= p.cr === 'USD' ? exKRW : 1;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">                </span>const iKw = p.q * p.c * xr;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const vKw = p.q * curPr * xr;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>tInv += iKw; tVal += vKw;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">                </span>const ret<span class="Apple-converted-space">  </span>= iKw &gt; 0 ? ((vKw - iKw)/iKw)*100 : 0;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const sym<span class="Apple-converted-space">  </span>= p.cr === 'USD' ? '$' : '₩';</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const cls<span class="Apple-converted-space">  </span>= ret &gt; 0 ? 'profit' : (ret &lt; 0 ? 'loss' : '');</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const sign = ret &gt; 0 ? '+' : '';</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const fn <span class="Apple-converted-space">  </span>= info.name || p.n;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">                </span>ptHtml += `&lt;tr&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;td&gt;${fn}&lt;br&gt;&lt;small style="color:#888"&gt;${tk}&lt;/small&gt;&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;td&gt;${p.q.toLocaleString(undefined,{maximumFractionDigits:4})}&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;td&gt;${sym}${p.c.toLocaleString(undefined,{maximumFractionDigits:2})}&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;td&gt;${sym}${curPr.toLocaleString(undefined,{maximumFractionDigits:2})}&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;td&gt;₩${vKw.toLocaleString('ko-KR',{maximumFractionDigits:0})}&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;td class="${cls}"&gt;${sign}${ret.toFixed(2)}%&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;/tr&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>cLbl.push(fn); cDat.push(vKw); hlds.push({ u, n: fn, r: ret });</p>
+<p class="p1"><span class="Apple-converted-space">            </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">            </span>document.getElementById(`port-${u}`).innerHTML =</p>
+<p class="p1"><span class="Apple-converted-space">                </span>ptHtml || '&lt;tr&gt;&lt;td colspan="6" style="text-align:center;color:#aaa;padding:20px"&gt;종목 없음&lt;/td&gt;&lt;/tr&gt;';</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">            </span>// 매매 일지 렌더링</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const logArr = [...state.trades[u]].sort((a,b) =&gt; new Date(b.date)-new Date(a.date));</p>
+<p class="p1"><span class="Apple-converted-space">            </span>document.getElementById(`log-${u}`).innerHTML = logArr.map(t =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const sym<span class="Apple-converted-space">      </span>= t.currency === 'USD' ? '$' : '₩';</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const typeCls<span class="Apple-converted-space">  </span>= t.type === 'buy' ? 'loss' : 'profit';</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const typeName = t.type === 'buy' ? '매수' : '매도';</p>
+<p class="p1"><span class="Apple-converted-space">                </span>// data-* 속성으로 ID 전달 → onclick 인라인 문자열 이스케이프 문제 방지</p>
+<p class="p1"><span class="Apple-converted-space">                </span>return `&lt;tr&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;td&gt;${t.date}&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;td&gt;${t.name}&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;td class="${typeCls}"&gt;${typeName}&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;td&gt;${sym}${t.price.toLocaleString(undefined,{maximumFractionDigits:2})}&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;td&gt;${t.qty}&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;button class="a-btn edit-btn" data-u="${u}" data-id="${t.id}" onclick="editTr(this.dataset.u, this.dataset.id)"&gt;수정&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;button class="a-btn del-btn"<span class="Apple-converted-space">  </span>data-u="${u}" data-id="${t.id}" onclick="delTr(this.dataset.u, this.dataset.id)"&gt;삭제&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;/tr&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>}).join('') || '&lt;tr&gt;&lt;td colspan="6" style="text-align:center;color:#aaa;padding:20px"&gt;내역 없음&lt;/td&gt;&lt;/tr&gt;';</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">            </span>if (state.charts[u]) state.charts[u].destroy();</p>
+<p class="p1"><span class="Apple-converted-space">            </span>state.charts[u] = new Chart(document.getElementById(`ch-${u}`).getContext('2d'), {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>type: 'doughnut',</p>
+<p class="p1"><span class="Apple-converted-space">                </span>data: {</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>labels: cLbl,</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>datasets: [{</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>data: cDat,</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>backgroundColor: ['#4e79a7','#f28e2c','#e15759','#76b7b2','#59a14f','#edc949'],</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>borderWidth: 0</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>}]</p>
+<p class="p1"><span class="Apple-converted-space">                </span>},</p>
+<p class="p1"><span class="Apple-converted-space">                </span>options: {</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>maintainAspectRatio: false,</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>plugins: { legend: { position: 'right', labels: { boxWidth: 12 } } }</p>
+<p class="p1"><span class="Apple-converted-space">                </span>}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">            </span>const ur = tVal - tInv;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const rp = tInv &gt; 0 ? (ur/tInv)*100 : 0;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>stats.push({ u, i: tInv, v: tVal, ur, r: real, rp });</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById('dash-body').innerHTML = stats.map(s =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const urCls = s.ur &gt; 0 ? 'profit' : (s.ur &lt; 0 ? 'loss' : '');</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const rCls<span class="Apple-converted-space">  </span>= s.r<span class="Apple-converted-space">  </span>&gt; 0 ? 'profit' : (s.r<span class="Apple-converted-space">  </span>&lt; 0 ? 'loss' : '');</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const rpCls = s.rp &gt; 0 ? 'profit' : (s.rp &lt; 0 ? 'loss' : '');</p>
+<p class="p1"><span class="Apple-converted-space">            </span>return `&lt;tr&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;td&gt;&lt;strong&gt;${s.u}&lt;/strong&gt;&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;td&gt;₩${s.i.toLocaleString('ko-KR',{maximumFractionDigits:0})}&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;td&gt;₩${s.v.toLocaleString('ko-KR',{maximumFractionDigits:0})}&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;td class="${urCls}"&gt;₩${s.ur.toLocaleString('ko-KR',{maximumFractionDigits:0})}&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;td class="${rCls}"&gt;₩${s.r.toLocaleString('ko-KR',{maximumFractionDigits:0})}&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;td class="${rpCls}"&gt;${s.rp&gt;0?'+':''}${s.rp.toFixed(2)}%&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/tr&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}).join('');</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>const win = [...stats].sort((a,b) =&gt; b.rp - a.rp)[0];</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById('dash-top').innerText =</p>
+<p class="p1"><span class="Apple-converted-space">            </span>win &amp;&amp; win.i &gt; 0 ? `${win.u} (${win.rp&gt;0?'+':''}${win.rp.toFixed(2)}%)` : '-';</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>if (hlds.length &gt; 0) {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const b = hlds.reduce((p,c) =&gt; p.r &gt; c.r ? p : c);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const w = hlds.reduce((p,c) =&gt; p.r &lt; c.r ? p : c);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>document.getElementById('dash-best').innerText<span class="Apple-converted-space">  </span>= `${b.n} (+${b.r.toFixed(2)}%)`;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>document.getElementById('dash-worst').innerText = `${w.n} (${w.r.toFixed(2)}%)`;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>} else {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>document.getElementById('dash-best').innerText<span class="Apple-converted-space">  </span>= '-';</p>
+<p class="p1"><span class="Apple-converted-space">            </span>document.getElementById('dash-worst').innerText = '-';</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function switchTab(id, btn) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.querySelectorAll('.tab-content, .tab-btn').forEach(el =&gt; el.classList.remove('active'));</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const target = id === 'dashboard' ? 'dashboard' : `u-${id.split('-')[1]}`;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById(target).classList.add('active');</p>
+<p class="p1"><span class="Apple-converted-space">        </span>btn.classList.add('active');</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p1">&lt;/script&gt;</p>
+<p class="p1">&lt;/body&gt;</p>
+<p class="p1">&lt;/html&gt;</p>
+</body>
+</html>
