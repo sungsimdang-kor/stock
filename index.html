@@ -164,7 +164,7 @@
 
     <div class="container">
         <div class="top-info-bar">
-            <div class="version-tag">V1.2</div>
+            <div class="version-tag">V1.3</div>
             <div class="top-right-items">
                 <div class="exchange-info" id="last-update-display">서버 데이터 대기 중...</div>
                 <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
@@ -279,7 +279,7 @@
         return key.replace(/[.#$\[\]]/g, '_');
     }
 
-    // ⚠️ 파이어베이스 URL을 반드시 본인의 주소로 교체하세요! ⚠️
+    // ⚠️ Firebase 접속 설정 ⚠️
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
         authDomain: "howooju.firebaseapp.com",
@@ -372,14 +372,72 @@
         if(loader) loader.style.display = show ? 'flex' : 'none';
     }
 
-    // --- 웹브라우저 자체 15분 캐싱 엔진 (Yahoo API 이중화 방식 적용) ---
+    // 💡 가장 핵심적인 "삼중 다중 프록시" 통신 엔진 (차단 100% 우회)
+    async function fetchProxy(url) {
+        const proxies = [
+            'https://api.allorigins.win/raw?url=',
+            'https://api.codetabs.com/v1/proxy/?quest=',
+            'https://corsproxy.io/?'
+        ];
+        for (let i = 0; i < proxies.length; i++) {
+            try {
+                let reqUrl = proxies[i] + encodeURIComponent(url);
+                let res = await fetch(reqUrl, { cache: 'no-store' });
+                if (res.ok) {
+                    let json = await res.json();
+                    if (json) return json;
+                }
+            } catch(e) { } // 실패 시 다음 서버로 
+        }
+        return null;
+    }
+
+    // 한국/미국 주식 및 지표 가져오기 통합 헬퍼
+    async function getStk(tk, force = false) {
+        if (!tk) return null;
+        const fbKey = safeKey(tk);
+        if (!force && cache[fbKey] && cache[fbKey].price > 0) return cache[fbKey];
+        
+        const isKorean = /^\d{6}$/.test(tk);
+        
+        // 한국 주식: 네이버를 먼저 시도하고, 막히면 야후 한국 주식으로 대체
+        if (isKorean) {
+            try {
+                const naverUrl = `https://m.stock.naver.com/api/stock/${tk}/integration`;
+                const nData = await fetchProxy(naverUrl);
+                if (nData && nData.dealInfo && nData.dealInfo.closePrice) {
+                    const price = parseFloat(nData.dealInfo.closePrice.replace(/,/g,''));
+                    const change = parseFloat(nData.dealInfo.fluctuationRate || "0");
+                    if (price > 0) return { price, change, name: nData.stockName || tk, curr: 'KRW' };
+                }
+            } catch(e) {}
+        }
+        
+        // 야후 파이낸스 (미국 주식, 지표, 한국 주식 2차 예비)
+        const qTks = isKorean ? [tk+'.KS', tk+'.KQ'] : [mSym[tk] || tk];
+        for (let q of qTks) {
+            try {
+                const yUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(q)}?interval=1d&_=${Date.now()}`;
+                const yData = await fetchProxy(yUrl);
+                if (yData && yData.chart && yData.chart.result && yData.chart.result.length > 0) {
+                    const meta = yData.chart.result[0].meta;
+                    const price = meta.regularMarketPrice || 0;
+                    const prev = meta.chartPreviousClose || price;
+                    const change = prev > 0 ? ((price - prev) / prev) * 100 : 0;
+                    if (price > 0) return { price, change, name: meta.shortName || meta.longName || tMap[tk] || tk, curr: meta.currency==='KRW'?'KRW':'USD' };
+                }
+            } catch(e) {}
+        }
+        return null;
+    }
+
     window.isFetchingMarketData = false;
     async function syncMarketDataToFirebase(isManual = false) {
         if (!db) return;
         if (window.isFetchingMarketData) return;
         window.isFetchingMarketData = true;
 
-        if (isManual) toggleLd(true, "안전한 방식으로 시세 데이터를 갱신 중입니다...");
+        if (isManual) toggleLd(true, "우회 서버를 통해 최신 시세 수집 중...");
 
         try {
             let newExKRW = exKRW;
@@ -395,22 +453,19 @@
             let newCache = {};
             const promises = Array.from(activeTickers).map(async tk => {
                 const fbKey = safeKey(tk);
-                try {
-                    const info = await getStk(tk, true);
-                    if (info && info.price > 0) {
-                        newCache[fbKey] = info;
-                        if (cache[fbKey] && info.price !== cache[fbKey].price) {
-                            previousPrices[tk] = cache[fbKey].price;
-                        }
-                    } else if (cache[fbKey]) {
-                        newCache[fbKey] = cache[fbKey];
+                const info = await getStk(tk, true);
+                
+                if (info && info.price > 0) {
+                    newCache[fbKey] = info;
+                    if (cache[fbKey] && info.price !== cache[fbKey].price) {
+                        previousPrices[tk] = cache[fbKey].price;
                     }
-                } catch(e) {
-                    if (cache[fbKey]) newCache[fbKey] = cache[fbKey];
+                } else if (cache[fbKey]) {
+                    newCache[fbKey] = cache[fbKey]; // 실패 시 기존 캐시 보존
                 }
             });
 
-            await Promise.allSettled(promises);
+            await Promise.all(promises);
 
             await db.ref('marketData').set({
                 lastUpdated: Date.now(),
@@ -425,56 +480,6 @@
 
         window.isFetchingMarketData = false;
         if (isManual) toggleLd(false);
-    }
-
-    // 야후 파이낸스 단일 종목 가져오기 헬퍼 (한국 주식은 .KS, 실패시 .KQ 자동 변환)
-    async function fetchYahooChart(queryTk, originalTk) {
-        const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(queryTk)}?interval=1d&_=${Date.now()}`;
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-        const res = await fetch(proxyUrl);
-        if (!res.ok) throw new Error('fetch error');
-        const data = await res.json();
-        if (!data.chart || !data.chart.result || !data.chart.result[0]) throw new Error('no data');
-        
-        const meta = data.chart.result[0].meta;
-        const price = meta.regularMarketPrice || 0;
-        const prev = meta.chartPreviousClose || price;
-        const change = prev > 0 ? ((price - prev) / prev) * 100 : 0;
-        
-        return {
-            price: Number(price),
-            change: Number(change),
-            name: meta.shortName || meta.longName || tMap[originalTk] || mSym[originalTk] || originalTk,
-            curr: meta.currency === 'KRW' ? 'KRW' : 'USD'
-        };
-    }
-
-    // KOSPI/KOSDAQ 폴백 이중화 적용
-    async function getStk(tk, force = false) {
-        if (!tk) return null;
-        const fbKey = safeKey(tk);
-        if (!force && cache[fbKey] && cache[fbKey].price > 0) return cache[fbKey];
-        
-        const isKorean = /^\d{6}$/.test(tk);
-        
-        if (isKorean) {
-            try {
-                return await fetchYahooChart(tk + '.KS', tk); // 먼저 KOSPI 시도
-            } catch(e) {
-                try {
-                    return await fetchYahooChart(tk + '.KQ', tk); // 실패하면 KOSDAQ 시도
-                } catch(e2) {
-                    return null;
-                }
-            }
-        } else {
-            let qTk = mSym[tk] ? tk : tk;
-            try {
-                return await fetchYahooChart(qTk, tk);
-            } catch(e) {
-                return null;
-            }
-        }
     }
 
     let pendingDelete = null;
@@ -515,9 +520,9 @@
         con.innerHTML = '';
         
         users.forEach(u => {
-            // 레이아웃 순서: 포트폴리오 -> 차트 -> 매매입력 -> 매매일지
             const html = `
                 <div id="u-${u}" class="tab-content">
+                    
                     <div class="card">
                         <h3>현재 포트폴리오 (실시간 연동)</h3>
                         <div class="tbl-wrap">
@@ -740,10 +745,7 @@
 
         const info = await getStk(tk, true);
         if (info) {
-            if (!nmIn.value) {
-                if (info.name && info.name !== tk) nmIn.value = info.name;
-                else nmIn.placeholder = "직접 입력";
-            }
+            if (!nmIn.value) nmIn.value = info.name;
             if (info.price > 0 && !prIn.value) prIn.value = info.price;
         } else {
             if (!nmIn.value) nmIn.placeholder = "직접 입력";
