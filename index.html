@@ -817,4 +817,42 @@
                     return `<tr>
                         <td><strong>${s.u}</strong></td>
                         <td>₩${s.i.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
-                        <td>₩${s.v.toLocaleString('ko-KR',{maximumFraction
+                        <td>₩${s.v.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
+                        <td class="${urCls}">₩${s.ur.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
+                        <td class="${rCls}">₩${s.r.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
+                        <td class="${rpCls}">${s.rp>0?'+':''}${s.rp.toFixed(2)}%</td>
+                    </tr>`;
+                }).join('');
+            }
+
+            const win = [...stats].sort((a,b) => b.rp - a.rp)[0];
+            const dashTop = document.getElementById('dash-top');
+            if(dashTop) dashTop.innerText = win && win.i > 0 ? `${win.u} (${win.rp>0?'+':''}${win.rp.toFixed(2)}%)` : '-';
+
+            const dashBest = document.getElementById('dash-best');
+            const dashWorst = document.getElementById('dash-worst');
+            
+            if (allDailyChanges.length > 0) {
+                const b = allDailyChanges.reduce((p,c) => p.change > c.change ? p : c, allDailyChanges[0]);
+                const w = allDailyChanges.reduce((p,c) => p.change < c.change ? p : c, allDailyChanges[0]);
+                
+                if(dashBest) {
+                    dashBest.innerText = `${b.n} (${b.change > 0 ? '+' : ''}${b.change.toFixed(2)}%)`;
+                    dashBest.className = b.change > 0 ? 'profit' : (b.change < 0 ? 'loss' : '');
+                }
+                if(dashWorst) {
+                    dashWorst.innerText = `${w.n} (${w.change > 0 ? '+' : ''}${w.change.toFixed(2)}%)`;
+                    dashWorst.className = w.change > 0 ? 'profit' : (w.change < 0 ? 'loss' : '');
+                }
+            } else {
+                if(dashBest) { dashBest.innerText = '-'; dashBest.className = ''; }
+                if(dashWorst) { dashWorst.innerText = '-'; dashWorst.className = ''; }
+            }
+            
+        } catch (error) {
+            console.error("데이터 렌더링 중 오류 발생:", error);
+        }
+    }
+</script>
+</body>
+</html>
