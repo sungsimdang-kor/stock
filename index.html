@@ -164,7 +164,7 @@
 
     <div class="container">
         <div class="top-info-bar">
-            <div class="version-tag">V1.1</div>
+            <div class="version-tag">V1.2</div>
             <div class="top-right-items">
                 <div class="exchange-info" id="last-update-display">서버 데이터 대기 중...</div>
                 <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
@@ -279,7 +279,7 @@
         return key.replace(/[.#$\[\]]/g, '_');
     }
 
-    // ⚠️ 본인의 실제 데이터베이스 URL로 교체 확인! ⚠️
+    // ⚠️ 파이어베이스 URL을 반드시 본인의 주소로 교체하세요! ⚠️
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
         authDomain: "howooju.firebaseapp.com",
@@ -358,7 +358,7 @@
                     renderIdx();
                     updateAll();
                 } else {
-                    document.getElementById('last-update-display').innerText = "최초 데이터 생성 중...";
+                    document.getElementById('last-update-display').innerText = "최초 데이터 수집 중...";
                     syncMarketDataToFirebase(false);
                 }
             });
@@ -372,14 +372,14 @@
         if(loader) loader.style.display = show ? 'flex' : 'none';
     }
 
-    // --- 웹브라우저 기반 15분 캐싱 엔진 (서버 막힘 완벽 우회) ---
+    // --- 웹브라우저 자체 15분 캐싱 엔진 (Yahoo API 이중화 방식 적용) ---
     window.isFetchingMarketData = false;
     async function syncMarketDataToFirebase(isManual = false) {
         if (!db) return;
         if (window.isFetchingMarketData) return;
         window.isFetchingMarketData = true;
 
-        if (isManual) toggleLd(true, "시세 데이터를 수집하여 서버에 동기화 중...");
+        if (isManual) toggleLd(true, "안전한 방식으로 시세 데이터를 갱신 중입니다...");
 
         try {
             let newExKRW = exKRW;
@@ -395,29 +395,8 @@
             let newCache = {};
             const promises = Array.from(activeTickers).map(async tk => {
                 const fbKey = safeKey(tk);
-                const isKorean = /^\d{6}$/.test(tk);
-
                 try {
-                    let info;
-                    if (isKorean) {
-                        const url = `https://m.stock.naver.com/api/stock/${tk}/integration`;
-                        const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
-                        const data = await res.json();
-                        const price = parseFloat((data.dealInfo.closePrice||"0").replace(/,/g,''));
-                        const change = parseFloat(data.dealInfo.fluctuationRate||"0");
-                        info = { price, change, name: data.stockName||tk, curr: 'KRW' };
-                    } else {
-                        let qTk = mSym[tk] ? tk : tk; 
-                        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(qTk)}?interval=1d`;
-                        const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
-                        const data = await res.json();
-                        const meta = data.chart.result[0].meta;
-                        const price = meta.regularMarketPrice || 0;
-                        const prev = meta.chartPreviousClose || price;
-                        const change = prev > 0 ? ((price - prev) / prev) * 100 : 0;
-                        info = { price, change, name: meta.shortName||meta.longName||tMap[tk]||tk, curr: meta.currency==='KRW'?'KRW':'USD' };
-                    }
-
+                    const info = await getStk(tk, true);
                     if (info && info.price > 0) {
                         newCache[fbKey] = info;
                         if (cache[fbKey] && info.price !== cache[fbKey].price) {
@@ -446,6 +425,56 @@
 
         window.isFetchingMarketData = false;
         if (isManual) toggleLd(false);
+    }
+
+    // 야후 파이낸스 단일 종목 가져오기 헬퍼 (한국 주식은 .KS, 실패시 .KQ 자동 변환)
+    async function fetchYahooChart(queryTk, originalTk) {
+        const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(queryTk)}?interval=1d&_=${Date.now()}`;
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+        const res = await fetch(proxyUrl);
+        if (!res.ok) throw new Error('fetch error');
+        const data = await res.json();
+        if (!data.chart || !data.chart.result || !data.chart.result[0]) throw new Error('no data');
+        
+        const meta = data.chart.result[0].meta;
+        const price = meta.regularMarketPrice || 0;
+        const prev = meta.chartPreviousClose || price;
+        const change = prev > 0 ? ((price - prev) / prev) * 100 : 0;
+        
+        return {
+            price: Number(price),
+            change: Number(change),
+            name: meta.shortName || meta.longName || tMap[originalTk] || mSym[originalTk] || originalTk,
+            curr: meta.currency === 'KRW' ? 'KRW' : 'USD'
+        };
+    }
+
+    // KOSPI/KOSDAQ 폴백 이중화 적용
+    async function getStk(tk, force = false) {
+        if (!tk) return null;
+        const fbKey = safeKey(tk);
+        if (!force && cache[fbKey] && cache[fbKey].price > 0) return cache[fbKey];
+        
+        const isKorean = /^\d{6}$/.test(tk);
+        
+        if (isKorean) {
+            try {
+                return await fetchYahooChart(tk + '.KS', tk); // 먼저 KOSPI 시도
+            } catch(e) {
+                try {
+                    return await fetchYahooChart(tk + '.KQ', tk); // 실패하면 KOSDAQ 시도
+                } catch(e2) {
+                    return null;
+                }
+            }
+        } else {
+            let qTk = mSym[tk] ? tk : tk;
+            try {
+                return await fetchYahooChart(qTk, tk);
+            } catch(e) {
+                return null;
+            }
+        }
     }
 
     let pendingDelete = null;
@@ -486,10 +515,9 @@
         con.innerHTML = '';
         
         users.forEach(u => {
-            // 레이아웃 순서: 포트폴리오 -> 차트 -> 매매입력 -> 매매일지 (1행씩 블록 구성 유지)
+            // 레이아웃 순서: 포트폴리오 -> 차트 -> 매매입력 -> 매매일지
             const html = `
                 <div id="u-${u}" class="tab-content">
-                    
                     <div class="card">
                         <h3>현재 포트폴리오 (실시간 연동)</h3>
                         <div class="tbl-wrap">
@@ -634,7 +662,7 @@
             if (eid) await db.ref(`trades/${eid}`).update(data);
             else await db.ref('trades').push(data);
             cancelEd(u);
-            syncMarketDataToFirebase(false);
+            syncMarketDataToFirebase(false); 
         } catch(e) { alert("저장 실패: " + e.message); }
         toggleLd(false);
     }
@@ -673,7 +701,7 @@
             const fbKey = safeKey(sym);
             const info = cache[fbKey];
             let priceStr = '-';
-            let changeHtml = '<span class="pct" style="color:#888">데이터 없음</span>';
+            let changeHtml = '<span class="pct" style="color:#aaa">데이터 없음</span>';
 
             if (info && info.price > 0) {
                 priceStr = info.price.toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -710,25 +738,15 @@
             nmIn.placeholder = "API 검색 중...";
         }
 
-        if(isKorean) {
-            try {
-                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent("https://m.stock.naver.com/api/stock/" + tk + "/integration")}`;
-                const res = await fetch(proxyUrl);
-                const data = await res.json();
-                if (!nmIn.value) nmIn.value = data.stockName || tk;
-                const p = parseFloat((data.dealInfo.closePrice||"0").replace(/,/g,''));
-                if (p > 0 && !prIn.value) prIn.value = p;
-            } catch(e) { if (!nmIn.value) nmIn.placeholder = "직접 입력"; }
+        const info = await getStk(tk, true);
+        if (info) {
+            if (!nmIn.value) {
+                if (info.name && info.name !== tk) nmIn.value = info.name;
+                else nmIn.placeholder = "직접 입력";
+            }
+            if (info.price > 0 && !prIn.value) prIn.value = info.price;
         } else {
-            try {
-                let qTk = mSym[tk] ? tk : tk;
-                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/"+qTk+"?interval=1d")}`;
-                const res  = await fetch(proxyUrl);
-                const data = await res.json();
-                const meta = data.chart.result[0].meta;
-                if (!nmIn.value) nmIn.value = meta.shortName || meta.longName || tk;
-                if (meta.regularMarketPrice > 0 && !prIn.value) prIn.value = meta.regularMarketPrice;
-            } catch(e) { if (!nmIn.value) nmIn.placeholder = "직접 입력"; }
+            if (!nmIn.value) nmIn.placeholder = "직접 입력";
         }
     }
 
@@ -783,16 +801,16 @@
                     });
 
                     if (isLoaded) {
-                        allDailyChanges.push({ n: info.name || p.n, change: info.change });
+                        allDailyChanges.push({ n: info.name || p.n, change: Number(info.change || 0) });
                     }
                 }
 
                 const s = sortStates[u];
                 portArray.sort((a, b) => {
-                    let valA = a[s.key];
-                    let valB = b[s.key];
-                    if (typeof valA === 'string') return s.asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-                    return s.asc ? valA - valB : valB - valA;
+                    let valA = a[s.key] ?? '';
+                    let valB = b[s.key] ?? '';
+                    if (typeof valA === 'string') return s.asc ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA));
+                    return s.asc ? (Number(valA) - Number(valB)) : (Number(valB) - Number(valA));
                 });
 
                 const theadEl = document.getElementById(`thead-${u}`);
@@ -873,15 +891,17 @@
                     }).join('') || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">내역 없음</td></tr>';
                 }
 
-                const ctxEl = document.getElementById(`ch-${u}`);
-                if(ctxEl && typeof Chart !== 'undefined') {
-                    if (state.charts[u]) state.charts[u].destroy();
-                    state.charts[u] = new Chart(ctxEl.getContext('2d'), {
-                        type: 'doughnut',
-                        data: { labels: cLbl, datasets: [{ data: cDat, backgroundColor: ['#4e79a7','#f28e2c','#e15759','#76b7b2','#59a14f','#edc949'], borderWidth: 0 }] },
-                        options: { maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12 } } } }
-                    });
-                }
+                try {
+                    const ctxEl = document.getElementById(`ch-${u}`);
+                    if(ctxEl && typeof Chart !== 'undefined') {
+                        if (state.charts[u]) state.charts[u].destroy();
+                        state.charts[u] = new Chart(ctxEl.getContext('2d'), {
+                            type: 'doughnut',
+                            data: { labels: cLbl, datasets: [{ data: cDat, backgroundColor: ['#4e79a7','#f28e2c','#e15759','#76b7b2','#59a14f','#edc949'], borderWidth: 0 }] },
+                            options: { maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12 } } } }
+                        });
+                    }
+                } catch(e) { console.error("차트 에러:", e); }
 
                 const ur = tVal - tInv;
                 const rp = tInv > 0 ? (ur/tInv)*100 : 0;
@@ -913,8 +933,8 @@
             const dashWorst = document.getElementById('dash-worst');
             
             if (allDailyChanges.length > 0) {
-                const b = allDailyChanges.reduce((p,c) => p.change > c.change ? p : c);
-                const w = allDailyChanges.reduce((p,c) => p.change < c.change ? p : c);
+                const b = allDailyChanges.reduce((p,c) => p.change > c.change ? p : c, allDailyChanges[0]);
+                const w = allDailyChanges.reduce((p,c) => p.change < c.change ? p : c, allDailyChanges[0]);
                 
                 if(dashBest) {
                     dashBest.innerText = `${b.n} (${b.change > 0 ? '+' : ''}${b.change.toFixed(2)}%)`;
