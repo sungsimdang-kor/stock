@@ -75,7 +75,7 @@
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; align-items: end; }
         .f-grp { display: flex; flex-direction: column; font-size: 12px; }
         .f-grp label { margin-bottom: 4px; color: #555; }
-        .f-grp input, .f-grp select { padding: 8px; border: 1px solid var(--brd); border-radius: 4px; font-size: 14px; box-sizing: border-box; }
+        .f-grp input, .f-grp select, .f-grp textarea { padding: 8px; border: 1px solid var(--brd); border-radius: 4px; font-size: 14px; box-sizing: border-box; }
         input[disabled], select[disabled] { background-color: #eaecf0; cursor: not-allowed; color: #555; font-weight: bold; border: 1px solid #ccc; }
 
         .filter-bar { display: flex; gap: 10px; margin-bottom: 15px; align-items: center; flex-wrap: wrap; background: #f9fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--brd); }
@@ -93,6 +93,14 @@
         .chart { height: 350px; width: 100%; max-width: 600px; margin: 0 auto; }
         .profit { color: var(--profit); font-weight: bold; }
         .loss   { color: var(--loss);   font-weight: bold; }
+
+        /* 타임라인 (개인별 의견) 스타일 */
+        .op-item { background: #f9fafc; padding: 15px; border-radius: 8px; border-left: 4px solid var(--pri); margin-bottom: 15px; }
+        .op-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; color: #666; align-items: center; }
+        .op-author { font-weight: bold; color: var(--pri); font-size: 14px; }
+        .op-content { font-size: 14px; line-height: 1.5; white-space: pre-wrap; color: #333; }
+        .op-del { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 12px; padding: 0; }
+        .op-del:hover { text-decoration: underline; background: none; }
 
         #loader { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; justify-content: center; align-items: center; font-weight: bold; flex-direction: column; gap: 15px; }
         .spin { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--pri); border-radius: 50%; animation: sp 1s linear infinite; }
@@ -140,7 +148,7 @@
     <div id="del-modal">
         <div class="del-modal-box">
             <div class="icon">🗑️</div>
-            <h4>매매 기록 삭제</h4>
+            <h4>데이터 삭제</h4>
             <p>해당 기록을 영구적으로 삭제합니다.<br>이 작업은 되돌릴 수 없습니다.</p>
             <div class="del-modal-btns">
                 <button id="del-cancel-btn" onclick="closeDelModal()">취소</button>
@@ -153,11 +161,12 @@
         <div class="top-info-bar">
             <div class="exchange-info" id="last-update-display">서버 데이터 대기 중...</div>
             <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
-            <button class="refresh-btn" onclick="manualRefreshPrices()">🔄 시세 갱신</button>
+            <button class="refresh-btn" onclick="alert('데이터 갱신은 구글 서버에서 15분마다 안전하게 자동 처리되며 화면에 즉시 반영됩니다.')">🔄 시세 자동 갱신됨</button>
         </div>
 
         <div class="tabs" id="tab-menu">
             <button class="tab-btn active" onclick="switchTab('dashboard', this)">통합 뷰</button>
+            <button class="tab-btn" onclick="switchTab('opinions', this)">개인별 의견 (공유)</button>
             <button class="tab-btn" onclick="switchTab('u-김태호', this)">김태호</button>
             <button class="tab-btn" onclick="switchTab('u-이용우', this)">이용우</button>
             <button class="tab-btn" onclick="switchTab('u-이형주', this)">이형주</button>
@@ -172,8 +181,8 @@
             </div>
             <div class="metrics">
                 <div class="m-box gold"><h4>오늘의 수익 왕</h4><p id="dash-top">-</p></div>
-                <div class="m-box red"><h4>최대 수익 주식</h4><p id="dash-best" class="profit">-</p></div>
-                <div class="m-box blue"><h4>최대 손해 주식</h4><p id="dash-worst" class="loss">-</p></div>
+                <div class="m-box red"><h4>일일 최대 상승 주식</h4><p id="dash-best" class="profit">-</p></div>
+                <div class="m-box blue"><h4>일일 최대 하락 주식</h4><p id="dash-worst" class="loss">-</p></div>
             </div>
             <div class="card">
                 <h3>인원별 오버뷰 (원화 환산)</h3>
@@ -182,6 +191,35 @@
                         <thead><tr><th>이름</th><th>투자 원금</th><th>현재 평가액</th><th>미실현 수익</th><th>실현 수익</th><th>총 수익률</th></tr></thead>
                         <tbody id="dash-body"></tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="opinions" class="tab-content">
+            <div class="card">
+                <h3>의견 및 매매 기록 공유</h3>
+                <div class="form-grid" style="grid-template-columns: 1fr;">
+                    <div class="f-grp" style="max-width: 200px;">
+                        <label>작성자</label>
+                        <select id="op-user">
+                            <option value="김태호">김태호</option>
+                            <option value="이용우">이용우</option>
+                            <option value="이형주">이형주</option>
+                        </select>
+                    </div>
+                    <div class="f-grp">
+                        <label>내용 (시장 방향성, 관심 종목, 매매 이유 등)</label>
+                        <textarea id="op-text" rows="4" placeholder="자유롭게 의견을 작성해 주세요..."></textarea>
+                    </div>
+                    <div class="btn-grp" style="max-width: 200px;">
+                        <button class="p-btn" onclick="saveOpinion()">의견 등록</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h3>타임라인</h3>
+                <div id="opinions-timeline" style="display:flex; flex-direction:column;">
+                    <div class="idx-loading">의견을 불러오는 중...</div>
                 </div>
             </div>
         </div>
@@ -225,14 +263,13 @@
         '^KS11': 'KOSPI', '^KQ11': '코스닥', '^VIX': 'VIX', 'CL=F': 'WTI 유가'
     };
     let cache = {};
-    const state = { trades: {}, charts: {} };
+    const state = { trades: {}, opinions: [] };
     users.forEach(u => state.trades[u] = []);
 
     function safeKey(key) {
         return key.replace(/[.#$\[\]]/g, '_');
     }
 
-    // ⚠️ 아시아 리전 URL 반영 완료 ⚠️
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
         authDomain: "howooju.firebaseapp.com",
@@ -262,11 +299,10 @@
         initUI(); 
         
         if (db) {
-            // 1. 매매 데이터 실시간 수신
+            // 1. 매매 데이터
             db.ref('trades').on('value', (snapshot) => {
                 const data = snapshot.val() || {};
                 users.forEach(u => state.trades[u] = []);
-                
                 Object.keys(data).forEach(key => {
                     const t = data[key];
                     t.id = key;
@@ -275,7 +311,19 @@
                 updateAll();
             });
 
-            // 2. 서버(GAS)가 수집한 시장 데이터 오직 '수신'만 수행 (자동으로 안 가져옴)
+            // 2. 의견 데이터 (타임라인)
+            db.ref('opinions').on('value', (snapshot) => {
+                const data = snapshot.val() || {};
+                state.opinions = [];
+                Object.keys(data).forEach(key => {
+                    const op = data[key];
+                    op.id = key;
+                    state.opinions.push(op);
+                });
+                renderOpinions();
+            });
+
+            // 3. 시장 데이터
             db.ref('marketData').on('value', (snapshot) => {
                 const data = snapshot.val();
                 if(data && data.cache) {
@@ -305,15 +353,23 @@
     }
 
     let pendingDelete = null;
-    function openDelModal(u, id) { pendingDelete = { u, id }; document.getElementById('del-modal').classList.add('open'); }
-    function closeDelModal() { pendingDelete = null; document.getElementById('del-modal').classList.remove('open'); }
+    // mode: 'trade' 또는 'opinion'
+    function openDelModal(id, mode = 'trade') { 
+        pendingDelete = { id, mode }; 
+        document.getElementById('del-modal').classList.add('open'); 
+    }
+    function closeDelModal() { 
+        pendingDelete = null; 
+        document.getElementById('del-modal').classList.remove('open'); 
+    }
     
     document.getElementById('del-confirm-btn').addEventListener('click', async function() {
         if (!pendingDelete || !db) return;
-        const { id } = pendingDelete;
+        const { id, mode } = pendingDelete;
+        const node = mode === 'opinion' ? 'opinions' : 'trades';
         closeDelModal();
         toggleLd(true, "삭제 중...");
-        try { await db.ref(`trades/${id}`).remove(); } catch(e) { alert("삭제 실패"); }
+        try { await db.ref(`${node}/${id}`).remove(); } catch(e) { alert("삭제 실패"); }
         toggleLd(false);
     });
     document.getElementById('del-modal').addEventListener('click', function(e) { if (e.target === this) closeDelModal(); });
@@ -412,48 +468,56 @@
         if (btn) btn.classList.add('active');
     }
 
-    // 갱신 버튼 클릭 시 강제로 한 번 프론트엔드에서 수집 후 Firebase에 덮어쓰기
-    async function manualRefreshPrices() {
-        if (!db) return alert("데이터베이스 연결 오류");
-        toggleLd(true, "최신 시세 조회 및 DB 갱신 중...");
+    // --- 의견 공유 관련 로직 ---
+    async function saveOpinion() {
+        if (!db) return alert("DB 미연결");
+        const user = document.getElementById('op-user').value;
+        const text = document.getElementById('op-text').value.trim();
         
+        if (!text) return alert("내용을 입력해 주세요.");
+
+        toggleLd(true, "의견 등록 중...");
         try {
-            let newExKRW = exKRW;
-            try {
-                const resEx = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
-                const dataEx = await resEx.json();
-                if (dataEx?.usd?.krw) newExKRW = dataEx.usd.krw;
-            } catch(e) {}
-
-            let activeTickers = new Set(Object.keys(mSym)); 
-            users.forEach(u => state.trades[u].forEach(t => activeTickers.add(t.ticker)));
-            
-            let newCache = {};
-            const promises = Array.from(activeTickers).map(async tk => {
-                const info = await getStk(tk, true); 
-                const fbKey = safeKey(tk);
-                if (info && info.price > 0) {
-                    newCache[fbKey] = info;
-                } else if (cache[fbKey]) {
-                    newCache[fbKey] = cache[fbKey]; // 통신 실패 시 기존 값 유지
-                }
+            await db.ref('opinions').push({
+                user: user,
+                text: text,
+                timestamp: Date.now()
             });
-            
-            await Promise.all(promises);
-
-            await db.ref('marketData').set({
-                lastUpdated: Date.now(),
-                exKRW: newExKRW,
-                cache: newCache
-            });
-
-        } catch(e) {
-            alert("시세 갱신 실패: " + e.message);
-        }
-        
+            document.getElementById('op-text').value = '';
+        } catch(e) { alert("등록 실패"); }
         toggleLd(false);
     }
 
+    function renderOpinions() {
+        const container = document.getElementById('opinions-timeline');
+        if (!container) return;
+        
+        const arr = [...state.opinions].sort((a,b) => b.timestamp - a.timestamp);
+        
+        if (arr.length === 0) {
+            container.innerHTML = '<div style="text-align:center; color:#aaa; padding:20px;">아직 등록된 의견이 없습니다.</div>';
+            return;
+        }
+
+        container.innerHTML = arr.map(op => {
+            const d = new Date(op.timestamp);
+            const dateStr = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            return `
+                <div class="op-item">
+                    <div class="op-header">
+                        <span class="op-author">${op.user}</span>
+                        <div>
+                            <span>${dateStr}</span>
+                            <button class="op-del" style="margin-left:10px;" onclick="openDelModal('${op.id}', 'opinion')">삭제</button>
+                        </div>
+                    </div>
+                    <div class="op-content">${op.text}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // --- 매매 저장 ---
     async function saveTr(u) {
         if (!db) return alert("데이터베이스에 연결되지 않았습니다.");
         
@@ -476,8 +540,7 @@
             if (eid) await db.ref(`trades/${eid}`).update(data);
             else await db.ref('trades').push(data);
             cancelEd(u);
-            manualRefreshPrices(); // 종목 추가 후 수동 시세 1회 연동
-        } catch(e) { alert("저장 실패: " + e.message); }
+        } catch(e) { alert("저장 실패"); }
         toggleLd(false);
     }
 
@@ -529,28 +592,6 @@
         grid.innerHTML = html;
     }
 
-    // 폼 입력 시에만 호출됨
-    async function getStk(tk, force = false) {
-        if (!tk) return null;
-        let qTk = mSym[tk] ? tk : (/^\d{6}$/.test(tk) ? tk+'.KS' : tk);
-        
-        try {
-            const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${qTk}?interval=1d&_=${Date.now()}`;
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-            const res  = await fetch(proxyUrl);
-            const data = await res.json();
-            const meta = data.chart.result[0].meta;
-            
-            const price = meta.regularMarketPrice || 0;
-            const prev  = meta.chartPreviousClose || price;
-            const change = prev > 0 ? ((price - prev) / prev) * 100 : 0;
-            
-            return { price, change, name: meta.shortName||meta.longName||tMap[tk]||tk, curr: meta.currency==='KRW'?'KRW':'USD' };
-        } catch(e) {
-            return null;
-        }
-    }
-
     async function handleTk(u) {
         const tkIn = document.getElementById(`tk-${u}`);
         const nmIn = document.getElementById(`nm-${u}`);
@@ -574,20 +615,32 @@
             nmIn.placeholder = "API 검색 중...";
         }
 
-        const info = await getStk(tk);
-        if (info) {
-            if (!nmIn.value) {
-                if (info.name && info.name !== tk) nmIn.value = info.name;
-                else nmIn.placeholder = "직접 입력";
-            }
-            if (info.price > 0 && !prIn.value) prIn.value = info.price;
+        // 입력 폼 보조용 실시간 조회 (저장X)
+        if(isKorean) {
+            try {
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent("https://m.stock.naver.com/api/stock/" + tk + "/integration")}`;
+                const res = await fetch(proxyUrl);
+                const data = await res.json();
+                if (!nmIn.value) nmIn.value = data.stockName || tk;
+                const p = parseFloat((data.dealInfo.closePrice||"0").replace(/,/g,''));
+                if (p > 0 && !prIn.value) prIn.value = p;
+            } catch(e) { if (!nmIn.value) nmIn.placeholder = "직접 입력"; }
         } else {
-            if (!nmIn.value) nmIn.placeholder = "직접 입력";
+            try {
+                let qTk = mSym[tk] ? tk : tk;
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/"+qTk+"?interval=1d")}`;
+                const res  = await fetch(proxyUrl);
+                const data = await res.json();
+                const meta = data.chart.result[0].meta;
+                if (!nmIn.value) nmIn.value = meta.shortName || meta.longName || tk;
+                if (meta.regularMarketPrice > 0 && !prIn.value) prIn.value = meta.regularMarketPrice;
+            } catch(e) { if (!nmIn.value) nmIn.placeholder = "직접 입력"; }
         }
     }
 
     function updateAll() {
         let stats = [], hlds = [];
+        let allDailyChanges = []; // 대시보드의 최대 수익/하락 종목 계산용 (일일 등락률)
 
         for (const u of users) {
             let port = {}, real = 0, tInv = 0, tVal = 0, cLbl = [], cDat = [];
@@ -615,7 +668,7 @@
             for (const [tk, p] of Object.entries(port)) {
                 if (p.q <= 0) continue;
                 const fbKey = safeKey(tk);
-                const info  = cache[fbKey] || { price: 0, name: p.n };
+                const info  = cache[fbKey] || { price: 0, name: p.n, change: 0 };
                 const xr    = p.cr === 'USD' ? exKRW : 1;
 
                 const iKw = p.q * p.c * xr;
@@ -633,6 +686,10 @@
                     tk: tk, fn: info.name || p.n, q: p.q, c: p.c, curPr: curPr,
                     vKw: vKw, ret: ret, profitAmt: profitAmt, isLoaded: isLoaded, sym: p.cr === 'USD' ? '$' : '₩'
                 });
+
+                if (isLoaded) {
+                    allDailyChanges.push({ n: info.name || p.n, change: info.change });
+                }
             }
 
             const s = sortStates[u];
@@ -663,115 +720,4 @@
                 const displayRet = item.isLoaded ? `${sign}${item.ret.toFixed(2)}%` : `<span style="color:#aaa;">-</span>`;
                 
                 const pSign = item.profitAmt > 0 ? '+' : '';
-                const pCls = item.profitAmt > 0 ? 'profit' : (item.profitAmt < 0 ? 'loss' : '');
-                const profitStr = item.isLoaded ? `<span class="${pCls}">(${pSign}₩${Math.abs(item.profitAmt).toLocaleString('ko-KR',{maximumFractionDigits:0})})</span>` : '';
-
-                let flashClass = '';
-                if (item.isLoaded && previousPrices[item.tk]) {
-                    if (item.curPr > previousPrices[item.tk]) flashClass = 'price-up';
-                    else if (item.curPr < previousPrices[item.tk]) flashClass = 'price-down';
-                }
-
-                ptHtml += `<tr class="${flashClass}">
-                    <td>${item.fn}<br><small style="color:#888">${item.tk}</small></td>
-                    <td>${item.q.toLocaleString(undefined,{maximumFractionDigits:4})}</td>
-                    <td>${item.sym}${item.c.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
-                    <td>${displayCurPr}</td>
-                    <td>₩${item.vKw.toLocaleString('ko-KR',{maximumFractionDigits:0})} <br><small>${profitStr}</small></td>
-                    <td class="${cls}">${displayRet}</td>
-                </tr>`;
-
-                cLbl.push(item.fn); cDat.push(item.vKw); hlds.push({ u, n: item.fn, r: item.ret, loaded: item.isLoaded });
-            });
-
-            const portTbody = document.getElementById(`port-${u}`);
-            if(portTbody) portTbody.innerHTML = ptHtml || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">종목 없음</td></tr>';
-
-            let logArr = [...state.trades[u]].sort((a,b) => new Date(b.date)-new Date(a.date));
-            const fDtS = document.getElementById(`f-dt-s-${u}`) ? document.getElementById(`f-dt-s-${u}`).value : '';
-            const fDtE = document.getElementById(`f-dt-e-${u}`) ? document.getElementById(`f-dt-e-${u}`).value : '';
-            const fTxt = document.getElementById(`f-txt-${u}`) ? document.getElementById(`f-txt-${u}`).value.toLowerCase() : '';
-            const fTy = document.getElementById(`f-ty-${u}`) ? document.getElementById(`f-ty-${u}`).value : 'all';
-
-            logArr = logArr.filter(t => {
-                if (fDtS && t.date < fDtS) return false;
-                if (fDtE && t.date > fDtE) return false;
-                if (fTy !== 'all' && t.type !== fTy) return false;
-                if (fTxt && !t.name.toLowerCase().includes(fTxt) && !t.ticker.toLowerCase().includes(fTxt)) return false;
-                return true;
-            });
-
-            const logTbody = document.getElementById(`log-${u}`);
-            if(logTbody) {
-                logTbody.innerHTML = logArr.map(t => {
-                    const sym      = t.currency === 'USD' ? '$' : '₩';
-                    const typeCls  = t.type === 'buy' ? 'loss' : 'profit';
-                    const typeName = t.type === 'buy' ? '매수' : '매도';
-                    return `<tr>
-                        <td>${t.date}</td>
-                        <td>${t.name}</td>
-                        <td class="${typeCls}">${typeName}</td>
-                        <td>${sym}${t.price.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
-                        <td>${t.qty}</td>
-                        <td>
-                            <button class="a-btn edit-btn" data-u="${u}" data-id="${t.id}" onclick="editTr(this.dataset.u, this.dataset.id)">수정</button>
-                            <button class="a-btn del-btn"  data-u="${u}" data-id="${t.id}" onclick="openDelModal(this.dataset.u, this.dataset.id)">삭제</button>
-                        </td>
-                    </tr>`;
-                }).join('') || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">내역 없음</td></tr>';
-            }
-
-            const ctxEl = document.getElementById(`ch-${u}`);
-            if(ctxEl && typeof Chart !== 'undefined') {
-                if (state.charts[u]) state.charts[u].destroy();
-                state.charts[u] = new Chart(ctxEl.getContext('2d'), {
-                    type: 'doughnut',
-                    data: { labels: cLbl, datasets: [{ data: cDat, backgroundColor: ['#4e79a7','#f28e2c','#e15759','#76b7b2','#59a14f','#edc949'], borderWidth: 0 }] },
-                    options: { maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12 } } } }
-                });
-            }
-
-            const ur = tVal - tInv;
-            const rp = tInv > 0 ? (ur/tInv)*100 : 0;
-            stats.push({ u, i: tInv, v: tVal, ur, r: real, rp });
-        }
-
-        const dashBody = document.getElementById('dash-body');
-        if(dashBody) {
-            dashBody.innerHTML = stats.map(s => {
-                const urCls = s.ur > 0 ? 'profit' : (s.ur < 0 ? 'loss' : '');
-                const rCls  = s.r  > 0 ? 'profit' : (s.r  < 0 ? 'loss' : '');
-                const rpCls = s.rp > 0 ? 'profit' : (s.rp < 0 ? 'loss' : '');
-                return `<tr>
-                    <td><strong>${s.u}</strong></td>
-                    <td>₩${s.i.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
-                    <td>₩${s.v.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
-                    <td class="${urCls}">₩${s.ur.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
-                    <td class="${rCls}">₩${s.r.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
-                    <td class="${rpCls}">${s.rp>0?'+':''}${s.rp.toFixed(2)}%</td>
-                </tr>`;
-            }).join('');
-        }
-
-        const win = [...stats].sort((a,b) => b.rp - a.rp)[0];
-        const dashTop = document.getElementById('dash-top');
-        if(dashTop) dashTop.innerText = win && win.i > 0 ? `${win.u} (${win.rp>0?'+':''}${win.rp.toFixed(2)}%)` : '-';
-
-        const dashBest = document.getElementById('dash-best');
-        const dashWorst = document.getElementById('dash-worst');
-        const loadedHlds = hlds.filter(h => h.loaded);
-        if (loadedHlds.length > 0) {
-            const b = loadedHlds.reduce((p,c) => p.r > c.r ? p : c);
-            const w = loadedHlds.reduce((p,c) => p.r < c.r ? p : c);
-            if(dashBest) dashBest.innerText  = `${b.n} (+${b.r.toFixed(2)}%)`;
-            if(dashWorst) dashWorst.innerText = `${w.n} (${w.r.toFixed(2)}%)`;
-        } else {
-            if(dashBest) dashBest.innerText  = '-';
-            if(dashWorst) dashWorst.innerText = '-';
-        }
-        
-        previousPrices = {}; 
-    }
-</script>
-</body>
-</html>
+                const pCls = item.profitAmt > 0 ? 'profit' : (item.profitAmt < 0 ? 'loss'
