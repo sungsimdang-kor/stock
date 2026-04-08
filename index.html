@@ -2,109 +2,204 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>주식 스터디 대시보드 V1.6</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주식 스터디 대시보드</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
         :root { --bg: #f4f6f8; --card: #ffffff; --pri: #333333; --brd: #e0e0e0; --profit: #ff4d4f; --loss: #1890ff; }
+
         html { height: 100%; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; padding: 0; color: #333; height: 100%; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 0; color: #333; height: 100%; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
 
         #login-screen { position: fixed; inset: 0; background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 100000; }
-        .login-box { background: var(--card); padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 320px; }
-        .login-box input { width: 100%; padding: 14px; border: 1px solid var(--brd); border-radius: 6px; margin-bottom: 20px; font-size: 16px; box-sizing: border-box; text-align: center; }
-        .login-box button { width: 100%; padding: 14px; background: var(--pri); color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .login-box { background: var(--card); padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; width: 100%; max-width: 320px; box-sizing: border-box; }
+        .login-box h2 { margin: 0 0 25px; color: var(--pri); font-size: 22px; }
+        .login-box input { width: 100%; padding: 14px; border: 1px solid var(--brd); border-radius: 6px; margin-bottom: 20px; font-size: 16px; box-sizing: border-box; text-align: center; letter-spacing: 2px; }
+        .login-box button { width: 100%; padding: 14px; background: var(--pri); color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .login-box button:hover { background: #000; }
+        
+        #main-app { display: none; } 
 
-        #main-app { display: none; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 15px; padding-bottom: 60px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 15px; padding-bottom: 60px; box-sizing: border-box; }
 
         .top-info-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px; }
-        .version-tag { font-weight: 800; color: var(--pri); font-size: 12px; background: #eef2f5; padding: 4px 10px; border-radius: 6px; }
+        .version-tag { font-weight: 800; color: var(--pri); font-size: 14px; background: #eef2f5; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--brd); }
+        .top-right-items { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        
         .exchange-info { font-size: 12px; color: #666; font-weight: bold; }
-        .refresh-btn { background: #e0e0e0; border: none; padding: 6px 12px; border-radius: 20px; font-size: 11px; cursor: pointer; font-weight: bold; }
+        .refresh-btn { background: #e0e0e0; border: none; padding: 6px 12px; border-radius: 20px; font-size: 11px; cursor: pointer; font-weight: bold; color: #333; transition: 0.2s; }
+        .refresh-btn:hover { background: #ccc; }
 
-        .tabs { display: flex; border-bottom: 2px solid var(--brd); margin-bottom: 20px; overflow-x: auto; scrollbar-width: none; }
+        .tabs { display: flex; border-bottom: 2px solid var(--brd); margin-bottom: 20px; overflow-x: auto; overflow-y: hidden; white-space: nowrap; -webkit-overflow-scrolling: touch; touch-action: pan-x; scrollbar-width: none; }
         .tabs::-webkit-scrollbar { display: none; }
-        .tab-btn { background: none; border: none; padding: 12px 18px; font-size: 15px; cursor: pointer; color: #888; font-weight: bold; flex-shrink: 0; }
+        .tab-btn { background: none; border: none; padding: 12px 20px; font-size: 16px; cursor: pointer; color: #666; font-weight: bold; flex-shrink: 0; }
         .tab-btn.active { color: var(--pri); border-bottom: 3px solid var(--pri); margin-bottom: -2px; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        .card { background: var(--card); padding: 18px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        .metrics { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
-        .m-box { flex: 1; min-width: 220px; background: var(--card); padding: 15px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 5px solid #ccc; position: relative; }
-        .m-box h4 { margin: 0 0 8px 0; font-size: 12px; color: #666; }
-        .m-box .val-main { margin: 0; font-size: 18px; font-weight: bold; }
-        .m-box .val-sub { font-size: 13px; font-weight: bold; margin-top: 4px; display: block; }
-
-        .curr-btn { padding: 2px 8px; border: 1px solid #ddd; background: #fff; cursor: pointer; border-radius: 4px; font-size: 11px; }
-        .curr-btn.active { background: var(--pri); color: #fff; border-color: var(--pri); }
-
-        .tbl-wrap { width: 100%; overflow-x: auto; border-radius: 8px; }
-        table { width: 100%; border-collapse: collapse; min-width: 650px; }
-        th, td { padding: 12px 8px; border-bottom: 1px solid var(--brd); text-align: right; font-size: 14px; }
-        th { background: #f9fafc; color: #666; font-size: 12px; font-weight: 600; }
-        th:first-child, td:first-child { text-align: left; }
-
-        .profit { color: var(--profit) !important; }
-        .loss { color: var(--loss) !important; }
-
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; align-items: end; }
-        .f-grp { display: flex; flex-direction: column; font-size: 12px; }
-        .f-grp label { margin-bottom: 4px; color: #666; font-weight: bold; }
-        .f-grp input, .f-grp select, .f-grp textarea { padding: 8px; border: 1px solid var(--brd); border-radius: 4px; font-size: 13px; }
-
-        .op-item { background: #f9fafc; padding: 15px; border-radius: 8px; border-left: 4px solid var(--pri); margin-bottom: 15px; }
-        .watchlist-badge { background: #eef2f5; padding: 10px; border-radius: 6px; margin-top: 10px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 12px; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; width: 100%; box-sizing: border-box; }
+        .card h3 { margin-top: 0; border-bottom: 1px solid var(--brd); padding-bottom: 10px; font-size: 18px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--brd); padding-bottom: 10px; margin-bottom: 15px; }
+        .card-header h3 { border: none; padding: 0; margin: 0; }
         
-        #loader { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.8); z-index: 10000; justify-content: center; align-items: center; flex-direction: column; }
-        .spin { width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid var(--pri); border-radius: 50%; animation: sp 1s linear infinite; }
+        .realized-badge { background: #fff3cd; color: #856404; padding: 6px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; border: 1px solid #ffeeba; }
+
+        .idx-wrap { background: #1a1a1a; padding: 25px; border-radius: 12px; margin-bottom: 20px; color: white; }
+        .idx-wrap h3 { border-color: #333; color: #eee; text-align: center; font-size: 15px; margin-bottom: 20px; font-weight: bold; }
+        .idx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; }
+        .idx-item { text-align: center; padding: 10px; border-right: 1px solid #333; display: flex; flex-direction: column; justify-content: center; }
+        .idx-item:last-child { border-right: none; }
+        .idx-item .val { font-size: 20px; font-weight: 800; margin-bottom: 4px; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #fff; }
+        .idx-item .pct { font-size: 13px; font-weight: bold; }
+        .idx-item .key { font-size: 13px; color: #b0b0b0; font-weight: 500; }
+
+        .metrics { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
+        .m-box { flex: 1; min-width: 200px; background: var(--card); padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 5px solid #ccc; }
+        .m-box.gold { border-left-color: #ffd700; }
+        .m-box.red  { border-left-color: var(--profit); }
+        .m-box.blue { border-left-color: var(--loss); }
+        .m-box h4 { margin: 0 0 10px 0; font-size: 13px; color: #666; }
+        .m-box p { margin: 0; font-size: 22px; font-weight: bold; }
+
+        /* 통화 토글 버튼 */
+        .curr-btn { padding: 4px 10px; border: 1px solid #ccc; background: #f9fafc; cursor: pointer; border-radius: 4px; font-size: 12px; color: #555; transition: 0.2s; }
+        .curr-btn.active { background: var(--pri); color: #fff; font-weight: bold; border-color: var(--pri); }
+
+        .tbl-wrap { width: 100%; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
+        table { width: 100%; border-collapse: collapse; min-width: 700px; }
+        th, td { padding: 12px 10px; border-bottom: 1px solid var(--brd); text-align: right; font-size: 14px; white-space: nowrap; }
+        th { background: #f9fafc; color: #555; font-size: 13px; cursor: pointer; user-select: none; transition: background 0.2s; }
+        th:hover { background: #eef2f5; }
+        th:first-child, td:first-child { text-align: left; }
+        
+        .price-up { animation: flash-up 1s ease-out; }
+        .price-down { animation: flash-down 1s ease-out; }
+        @keyframes flash-up { 0% { background-color: rgba(255, 77, 79, 0.2); } 100% { background-color: transparent; } }
+        @keyframes flash-down { 0% { background-color: rgba(24, 144, 255, 0.2); } 100% { background-color: transparent; } }
+
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; align-items: end; }
+        .f-grp { display: flex; flex-direction: column; font-size: 12px; }
+        .f-grp label { margin-bottom: 4px; color: #555; }
+        .f-grp input, .f-grp select, .f-grp textarea { padding: 8px; border: 1px solid var(--brd); border-radius: 4px; font-size: 14px; box-sizing: border-box; }
+        input[disabled], select[disabled] { background-color: #eaecf0; cursor: not-allowed; color: #555; font-weight: bold; border: 1px solid #ccc; }
+
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 15px; align-items: center; flex-wrap: wrap; background: #f9fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--brd); }
+        .filter-bar input, .filter-bar select { padding: 8px; border: 1px solid var(--brd); border-radius: 4px; font-size: 13px; box-sizing: border-box; }
+        .filter-label { font-size: 13px; font-weight: bold; color: #555; margin-right: 5px; }
+
+        .btn-grp { display: flex; gap: 8px; }
+        button { cursor: pointer; font-weight: bold; transition: 0.2s; border: none; border-radius: 6px; }
+        .p-btn { flex: 1; padding: 10px; background: var(--pri); color: white; }
+        .c-btn { flex: 1; padding: 10px; background: #6c757d; color: white; display: none; }
+        .a-btn { padding: 6px 10px; font-size: 12px; margin-left: 4px; color: white; border-radius: 4px; }
+        .edit-btn { background: #f1c40f; color: #333; }
+        .del-btn  { background: #e74c3c; }
+
+        .chart { height: 350px; width: 100%; max-width: 600px; margin: 0 auto; }
+        .profit { color: var(--profit); font-weight: bold; }
+        .loss   { color: var(--loss);   font-weight: bold; }
+
+        /* 타임라인 스타일 */
+        .op-item { background: #f9fafc; padding: 15px; border-radius: 8px; border-left: 4px solid var(--pri); margin-bottom: 15px; }
+        .op-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; color: #666; align-items: center; }
+        .op-author { font-weight: bold; color: var(--pri); font-size: 14px; }
+        .op-content { font-size: 14px; line-height: 1.5; white-space: pre-wrap; color: #333; }
+        .op-del { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 12px; padding: 0; }
+        .op-del:hover { text-decoration: underline; background: none; }
+
+        #loader { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; justify-content: center; align-items: center; font-weight: bold; flex-direction: column; gap: 15px; }
+        .spin { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--pri); border-radius: 50%; animation: sp 1s linear infinite; }
         @keyframes sp { 100% { transform: rotate(360deg); } }
+
+        #del-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center; }
+        #del-modal.open { display: flex; }
+        .del-modal-box { background: white; border-radius: 16px; padding: 30px 24px 20px; max-width: 320px; width: 90%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .del-modal-box .icon { font-size: 40px; margin-bottom: 12px; }
+        .del-modal-box h4 { margin: 0 0 8px; font-size: 17px; }
+        .del-modal-box p  { margin: 0 0 24px; font-size: 14px; color: #666; }
+        .del-modal-btns { display: flex; gap: 10px; }
+        .del-modal-btns button { flex: 1; padding: 12px; border-radius: 8px; font-size: 15px; }
+        #del-confirm-btn { background: #e74c3c; color: white; }
+        #del-cancel-btn  { background: #f0f0f0; color: #333; }
+
+        @media (max-width: 600px) {
+            .container { padding: 10px; }
+            .card { padding: 14px; }
+            .idx-grid { grid-template-columns: repeat(2, 1fr); }
+            .idx-item { border-right: none; border-bottom: 1px solid #333; }
+            .idx-item:nth-child(odd) { border-right: 1px solid #333; }
+            .idx-item:last-child { border-bottom: none; }
+            .m-box { min-width: 100%; }
+            .form-grid { grid-template-columns: 1fr 1fr; }
+            .btn-grp { grid-column: span 2; }
+            .idx-item .val { font-size: 16px; }
+            th, td { padding: 9px 7px; font-size: 13px; }
+        }
     </style>
 </head>
 <body>
 
 <div id="login-screen">
     <div class="login-box">
-        <h2 style="margin-top:0">주식 스터디 로그인</h2>
-        <input type="password" id="pwd-input" placeholder="비밀번호">
-        <button onclick="checkPwd()">입장</button>
+        <h2>대시보드 로그인</h2>
+        <input type="password" id="pwd-input" placeholder="비밀번호 입력">
+        <button id="login-btn">입장하기</button>
     </div>
 </div>
 
 <div id="main-app">
-    <div id="loader"><div class="spin"></div><p id="loader-txt">처리 중...</p></div>
+    <div id="loader"><div class="spin"></div><div id="loader-txt">처리 중...</div></div>
+
+    <div id="del-modal">
+        <div class="del-modal-box">
+            <div class="icon">🗑️</div>
+            <h4>데이터 삭제</h4>
+            <p>해당 기록을 영구적으로 삭제합니다.<br>이 작업은 되돌릴 수 없습니다.</p>
+            <div class="del-modal-btns">
+                <button id="del-cancel-btn" onclick="closeDelModal()">취소</button>
+                <button id="del-confirm-btn">삭제</button>
+            </div>
+        </div>
+    </div>
 
     <div class="container">
         <div class="top-info-bar">
-            <div class="version-tag">V1.6</div>
+            <div class="version-tag">V1.5</div>
             <div class="top-right-items">
-                <div class="exchange-info" id="exchange-rate-display">로딩 중...</div>
+                <div class="exchange-info" id="last-update-display">서버 데이터 대기 중...</div>
+                <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
                 <button class="refresh-btn" onclick="syncMarketDataToFirebase(true)">🔄 시세 갱신</button>
             </div>
         </div>
 
-        <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('dashboard', this)">대시보드</button>
-            <button class="tab-btn" onclick="switchTab('opinions', this)">개인 의견 & 관심종목</button>
+        <div class="tabs" id="tab-menu">
+            <button class="tab-btn active" onclick="switchTab('dashboard', this)">통합 뷰</button>
+            <button class="tab-btn" onclick="switchTab('opinions', this)">개인별 의견 (공유)</button>
             <button class="tab-btn" onclick="switchTab('u-김태호', this)">김태호</button>
             <button class="tab-btn" onclick="switchTab('u-이용우', this)">이용우</button>
             <button class="tab-btn" onclick="switchTab('u-이형주', this)">이형주</button>
-            <button class="tab-btn" onclick="switchTab('history', this)">업데이트</button>
+            <button class="tab-btn" onclick="switchTab('updates', this)">업데이트 내역</button>
         </div>
 
         <div id="dashboard" class="tab-content active">
+            <div class="idx-wrap">
+                <h3>글로벌 마켓 실시간 지표</h3>
+                <div class="idx-grid" id="market-indices">
+                    <div class="idx-loading">지표 대기 중...</div>
+                </div>
+            </div>
             <div class="metrics">
-                <div class="m-box" style="border-left-color: #ffd700;"><h4>수익률 1위</h4><p class="val-main" id="dash-top">-</p></div>
-                <div class="m-box profit"><h4>일일 최고 상승</h4><p class="val-main" id="dash-best">-</p></div>
-                <div class="m-box loss"><h4>일일 최고 하락</h4><p class="val-main" id="dash-worst">-</p></div>
+                <div class="m-box gold"><h4>오늘의 수익 왕</h4><p id="dash-top">-</p></div>
+                <div class="m-box red"><h4>일일 최대 상승 주식</h4><p id="dash-best" class="profit">-</p></div>
+                <div class="m-box blue"><h4>일일 최대 하락 주식</h4><p id="dash-worst" class="loss">-</p></div>
             </div>
             <div class="card">
+                <h3>인원별 오버뷰 (원화 환산)</h3>
                 <div class="tbl-wrap">
                     <table>
-                        <thead><tr><th>이름</th><th>투자 원금</th><th>평가 자산</th><th>미실현 손익</th><th>확정 수익</th><th>수익률</th></tr></thead>
+                        <thead><tr><th>이름</th><th>투자 원금</th><th>현재 평가액</th><th>미실현 수익</th><th>실현 수익</th><th>총 수익률</th></tr></thead>
                         <tbody id="dash-body"></tbody>
                     </table>
                 </div>
@@ -113,258 +208,864 @@
 
         <div id="opinions" class="tab-content">
             <div class="card">
-                <h3 style="margin-top:0; font-size:16px;">의견 및 관심종목 기록</h3>
-                <div class="form-grid">
-                    <div class="f-grp"><label>작성자</label>
-                        <select id="op-user"><option value="김태호">김태호</option><option value="이용우">이용우</option><option value="이형주">이형주</option></select>
+                <h3>의견 및 매매 기록 공유</h3>
+                <div class="form-grid" style="grid-template-columns: 1fr;">
+                    <div class="f-grp" style="max-width: 200px;">
+                        <label>작성자</label>
+                        <select id="op-user">
+                            <option value="김태호">김태호</option>
+                            <option value="이용우">이용우</option>
+                            <option value="이형주">이형주</option>
+                        </select>
                     </div>
-                    <div class="f-grp"><label>티커 (관심종목 시 입력)</label>
-                        <input type="text" id="op-tk" placeholder="AAPL, 005930" onchange="handleOpTk()">
+                    <div class="f-grp">
+                        <label>내용 (시장 방향성, 관심 종목, 매매 이유 등)</label>
+                        <textarea id="op-text" rows="4" placeholder="자유롭게 의견을 작성해 주세요..."></textarea>
                     </div>
-                    <div class="f-grp"><label>종목명 (자동)</label>
-                        <input type="text" id="op-nm" disabled>
+                    <div class="btn-grp" style="max-width: 200px;">
+                        <button class="p-btn" onclick="saveOpinion()">의견 등록</button>
                     </div>
                 </div>
-                <div class="form-grid" style="margin-top:10px;">
-                    <div class="f-grp"><label>52주 최저</label><input type="number" id="op-low" step="0.01"></div>
-                    <div class="f-grp"><label>52주 최고</label><input type="number" id="op-high" step="0.01"></div>
-                    <div class="f-grp"><label>기록 시점 현재가</label><input type="number" id="op-cur" step="0.01"></div>
-                </div>
-                <div class="f-grp" style="margin-top:10px;">
-                    <label>내용</label>
-                    <textarea id="op-text" rows="3" placeholder="관점 공유 또는 종목 기록 이유..."></textarea>
-                </div>
-                <button class="p-btn" style="margin-top:10px; width:100%" onclick="saveOpinion()">기록 저장</button>
             </div>
-            <div id="opinions-timeline"></div>
+            <div class="card">
+                <h3>타임라인</h3>
+                <div id="opinions-timeline" style="display:flex; flex-direction:column;">
+                    <div class="idx-loading">의견을 불러오는 중...</div>
+                </div>
+            </div>
         </div>
 
-        <div id="history" class="tab-content">
+        <div id="updates" class="tab-content">
             <div class="card">
-                <h3>업데이트 내역</h3>
-                <ul style="line-height:1.8; font-size:14px; color:#444;">
-                    <li><strong>V1.6:</strong> 개인별 자산 요약에 원금 대비 수익금(₩) 및 수익률(%) 상세 수치 표시 추가, 의견 탭 관심종목 티커 자동완성 및 52주 고/저가 기록 기능 추가</li>
-                    <li><strong>V1.5:</strong> 개인별 페이지 자산 요약(전체/국내/해외) 추가, 미국 주식 달러/원화 표시 토글 적용</li>
-                    <li><strong>V1.0~1.4:</strong> 야후 파이낸스 프록시 엔진 적용, Firebase 실시간 연동, UI 레이아웃 개편</li>
+                <h3>버전별 업데이트 내역</h3>
+                <ul style="line-height: 1.8; color: #444; font-size: 15px;">
+                    <li><strong>V1.5:</strong> 개인별 페이지 자산 요약(전체/국내/해외) 추가, 미국 주식 달러/원화 표시 토글 기능 적용, 업데이트 내역 탭 신설</li>
+                    <li><strong>V1.4:</strong> 야후 파이낸스/네이버 금융 3중 우회 프록시 엔진 적용 (IP 차단 방지)</li>
+                    <li><strong>V1.3:</strong> 서버리스 프론트엔드 데이터 수집 자동화 및 Firebase 실시간 연동 강화</li>
+                    <li><strong>V1.2:</strong> 국내 주식 네이버 금융 실시간 API 적용 (시간외 거래 지원)</li>
+                    <li><strong>V1.1:</strong> UI 레이아웃 1열 개편 및 포트폴리오 수익금(₩) 표시 추가</li>
+                    <li><strong>V1.0:</strong> 주식 스터디 대시보드 초기 구축 (통합 뷰, 개인별 포트폴리오, 매매 일지)</li>
                 </ul>
             </div>
         </div>
-
+        
         <div id="pages-container"></div>
     </div>
 </div>
 
 <script>
-    const CONFIG = {
-        users: ['김태호', '이용우', '이형주'],
-        firebase: {
-            apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
-            databaseURL: "https://howooju-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "howooju"
+    // --- 로그인 로직 ---
+    window.checkPwd = function() {
+        const pwd = document.getElementById('pwd-input').value;
+        if (pwd === 'richguys') {
+            sessionStorage.setItem('isLogged', 'true');
+            startApp();
+        } else {
+            alert('비밀번호가 올바르지 않습니다.');
         }
     };
 
-    let db;
-    let state = { trades: {}, opinions: [], market: { exKRW: 1350, cache: {} } };
-    let currMode = {};
+    document.getElementById('pwd-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') checkPwd();
+    });
+    document.getElementById('login-btn').addEventListener('click', checkPwd);
 
-    function checkPwd() {
-        if (document.getElementById('pwd-input').value === 'richguys') {
-            sessionStorage.setItem('isLogged', 'true');
-            startApp();
-        } else { alert('비밀번호 오류'); }
+    // --- 글로벌 변수 ---
+    const users = ['김태호', '이용우', '이형주'];
+    let exKRW = 1350; 
+    let previousPrices = {}; 
+    const sortStates = {};
+    users.forEach(u => sortStates[u] = { key: 'vKw', asc: false }); 
+
+    // 통화 모드 상태 관리
+    const currMode = {};
+    users.forEach(u => currMode[u] = 'KRW');
+    window.setCurrency = function(u, mode) {
+        currMode[u] = mode;
+        updateAll();
+    };
+
+    const tMap = {
+        'AAPL':'Apple', 'MSFT':'Microsoft', 'TSLA':'Tesla', 'NVDA':'NVIDIA',
+        'GOOGL':'Alphabet', 'AMZN':'Amazon', 'META':'Meta', 'BRK-B':'Berkshire Hathaway',
+        '005930':'삼성전자', '000660':'SK하이닉스', '373220':'LG에너지솔루션',
+        '207940':'삼성바이오로직스', '005380':'현대차', '035420':'NAVER', '035720':'카카오'
+    };
+
+    const mSym = {
+        'KRW=X': '원달러환율', '^IXIC': '나스닥', '^GSPC': 'S&P 500', 
+        '^KS11': 'KOSPI', '^KQ11': '코스닥', '^VIX': 'VIX', 'CL=F': 'WTI 유가'
+    };
+    let cache = {};
+    const state = { trades: {}, opinions: [], charts: {} };
+    users.forEach(u => state.trades[u] = []);
+
+    function safeKey(key) {
+        return key.replace(/[.#$\[\]]/g, '_');
     }
+
+    // Firebase 접속 설정
+    const firebaseConfig = {
+        apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
+        authDomain: "howooju.firebaseapp.com",
+        databaseURL: "https://howooju-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "howooju",
+        storageBucket: "howooju.firebasestorage.app",
+        messagingSenderId: "252732591437",
+        appId: "1:252732591437:web:961c790c34b8269cb7bb04",
+        measurementId: "G-3GEWPQ2G00"
+    };
+
+    let db = null;
+
+    window.onload = () => {
+        if (sessionStorage.getItem('isLogged') === 'true') {
+            startApp();
+        }
+    };
 
     function startApp() {
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('main-app').style.display = 'block';
-        firebase.initializeApp(CONFIG.firebase);
-        db = firebase.database();
-        CONFIG.users.forEach(u => { state.trades[u] = []; currMode[u] = 'KRW'; });
-        initUI();
-        listenData();
-    }
 
-    function listenData() {
-        db.ref('trades').on('value', snap => {
-            const data = snap.val() || {};
-            CONFIG.users.forEach(u => state.trades[u] = []);
-            Object.keys(data).forEach(id => {
-                const item = data[id]; item.id = id;
-                if(state.trades[item.user]) state.trades[item.user].push(item);
-            });
-            updateAll();
-        });
-
-        db.ref('marketData').on('value', snap => {
-            const data = snap.val();
-            if(data) {
-                state.market = data;
-                document.getElementById('exchange-rate-display').innerText = `환율 1$ = ${data.exKRW.toLocaleString()}원`;
-                updateAll();
+        try {
+            if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.database();
+            } else if (typeof firebase !== 'undefined' && firebase.apps.length) {
+                db = firebase.database();
             }
-        });
+        } catch (e) { console.error("Firebase 초기화 에러:", e); }
 
-        db.ref('opinions').on('value', snap => {
-            const data = snap.val() || {};
-            state.opinions = Object.keys(data).map(id => ({...data[id], id})).reverse();
-            renderOpinions();
-        });
-    }
-
-    function initUI() {
-        const container = document.getElementById('pages-container');
-        CONFIG.users.forEach(u => {
-            container.innerHTML += `
-                <div id="u-${u}" class="tab-content">
-                    <div class="metrics">
-                        <div class="m-box" style="border-left-color: #9b59b6;">
-                            <h4>전체 합계 자산</h4>
-                            <p class="val-main" id="tot-val-${u}">0원</p>
-                            <span class="val-sub" id="tot-stat-${u}">0 (0%)</span>
-                        </div>
-                        <div class="m-box" style="border-left-color: #3498db;">
-                            <h4>국내 주식 (₩)</h4>
-                            <p class="val-main" id="dom-val-${u}">0원</p>
-                            <span class="val-sub" id="dom-stat-${u}">0 (0%)</span>
-                        </div>
-                        <div class="m-box" style="border-left-color: #e67e22;">
-                            <div style="position:absolute; top:12px; right:12px;">
-                                <button class="curr-btn active" id="btn-krw-${u}" onclick="setCurrency('${u}','KRW')">₩</button>
-                                <button class="curr-btn" id="btn-usd-${u}" onclick="setCurrency('${u}','USD')">$</button>
-                            </div>
-                            <h4>해외 주식</h4>
-                            <p class="val-main" id="ovs-val-${u}">0원</p>
-                            <span class="val-sub" id="ovs-stat-${u}">0 (0%)</span>
-                        </div>
-                    </div>
-                    <div class="card">
-                        <div class="tbl-wrap"><table><tbody id="port-${u}"></tbody></table></div>
-                    </div>
-                </div>
-            `;
-        });
-    }
-
-    window.setCurrency = function(user, mode) {
-        currMode[user] = mode;
-        document.getElementById(`btn-krw-${user}`).classList.toggle('active', mode === 'KRW');
-        document.getElementById(`btn-usd-${user}`).classList.toggle('active', mode === 'USD');
-        updateAll();
-    };
-
-    function updateAll() {
-        const ex = state.market.exKRW || 1350;
-        let dashSummary = [];
-
-        CONFIG.users.forEach(u => {
-            let port = {}; let realized = 0;
-            state.trades[u].sort((a,b)=>new Date(a.date)-new Date(b.date)).forEach(t => {
-                if(!port[t.ticker]) port[t.ticker] = { n: t.name, q: 0, c: 0, cr: t.currency };
-                let p = port[t.ticker];
-                if(t.type==='buy'){ p.c=(p.q*p.c + t.qty*t.price)/(p.q+t.qty); p.q+=t.qty; }
-                else { realized+=(t.price-p.c)*t.qty*(t.cr==='USD'?ex:1); p.q-=t.qty; }
+        initUI(); 
+        
+        if (db) {
+            db.ref('trades').on('value', (snapshot) => {
+                const data = snapshot.val() || {};
+                users.forEach(u => state.trades[u] = []);
+                Object.keys(data).forEach(key => {
+                    const t = data[key];
+                    t.id = key;
+                    if(state.trades[t.user]) state.trades[t.user].push(t);
+                });
+                updateAll();
             });
 
-            let tInv=0, tVal=0, dInv=0, dVal=0, oInv=0, oVal=0;
-            Object.keys(port).forEach(tk => {
-                const p = port[tk]; if(p.qty <= 0) return;
-                const live = state.market.cache[tk.replace(/[.#$\[\]]/g,'_')] || {price:p.c};
-                const isUsd = p.cr==='USD';
-                const curCostKw = p.qty*p.c*(isUsd?ex:1);
-                const curValKw = p.qty*live.price*(isUsd?ex:1);
-                tInv += curCostKw; tVal += curValKw;
-                if(isUsd) { oInv += curCostKw; oVal += curValKw; }
-                else { dInv += curCostKw; dVal += curValKw; }
+            db.ref('opinions').on('value', (snapshot) => {
+                const data = snapshot.val() || {};
+                state.opinions = [];
+                Object.keys(data).forEach(key => {
+                    const op = data[key];
+                    op.id = key;
+                    state.opinions.push(op);
+                });
+                renderOpinions();
             });
 
-            // 개인 섹션 요약 업데이트
-            renderUserSummary(u, tInv, tVal, dInv, dVal, oInv, oVal, ex);
-            dashSummary.push({ user: u, inv: tInv, val: tVal, real: realized });
-        });
-
-        renderDashTable(dashSummary);
-    }
-
-    function renderUserSummary(u, tI, tV, dI, dV, oI, oV, ex) {
-        const set = (id, val, inv) => {
-            const elV = document.getElementById(`${id}-val-${u}`);
-            const elS = document.getElementById(`${id}-stat-${u}`);
-            const diff = val - inv;
-            const pct = inv > 0 ? (diff/inv*100) : 0;
-            const sym = (id==='ovs' && currMode[u]==='USD') ? '$' : '₩';
-            const rate = (id==='ovs' && currMode[u]==='USD') ? ex : 1;
-            
-            elV.innerText = `${sym}${(val/rate).toLocaleString(undefined,{maximumFractionDigits:0})}`;
-            elS.innerText = `${diff>=0?'+':''}${(diff/rate).toLocaleString(undefined,{maximumFractionDigits:0})} (${pct.toFixed(2)}%)`;
-            elS.className = `val-sub ${diff>=0?'profit':'loss'}`;
-        };
-        set('tot', tV, tI); set('dom', dV, dI); set('ovs', oV, oI);
-    }
-
-    function renderDashTable(summary) {
-        document.getElementById('dash-body').innerHTML = summary.map(s => {
-            const ret = s.inv > 0 ? ((s.val-s.inv)/s.inv*100) : 0;
-            return `<tr><td><b>${s.user}</b></td><td>₩${s.inv.toLocaleString()}</td><td>₩${s.val.toLocaleString()}</td>
-            <td class="${s.val>=s.inv?'profit':'loss'}">₩${(s.val-s.inv).toLocaleString()}</td>
-            <td class="${s.real>=0?'profit':'loss'}">₩${s.real.toLocaleString()}</td>
-            <td class="${ret>=0?'profit':'loss'}"><b>${ret.toFixed(2)}%</b></td></tr>`;
-        }).join('');
-    }
-
-    async function handleOpTk() {
-        const tk = document.getElementById('op-tk').value.toUpperCase();
-        if(!tk) return;
-        document.getElementById('op-nm').value = "검색 중...";
-        const mKey = tk.replace(/[.#$\[\]]/g,'_');
-        const info = state.market.cache[mKey];
-        if(info) {
-            document.getElementById('op-nm').value = info.name;
-            document.getElementById('op-cur').value = info.price;
+            db.ref('marketData').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if(data && data.cache) {
+                    exKRW = data.exKRW || 1350;
+                    Object.assign(cache, data.cache || {});
+                    
+                    if (data.lastUpdated) {
+                        const d = new Date(data.lastUpdated);
+                        document.getElementById('last-update-display').innerText = `최근 갱신: ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+                        
+                        const CACHE_LIFETIME = 15 * 60 * 1000;
+                        if (Date.now() - data.lastUpdated > CACHE_LIFETIME) {
+                            syncMarketDataToFirebase(false);
+                        }
+                    }
+                    document.getElementById('exchange-rate-display').innerText = `적용 환율: 1 USD = ${exKRW.toLocaleString(undefined, {maximumFractionDigits: 2})} KRW`;
+                    
+                    renderIdx();
+                    updateAll();
+                } else {
+                    document.getElementById('last-update-display').innerText = "최초 데이터 수집 중...";
+                    syncMarketDataToFirebase(false);
+                }
+            });
         }
     }
 
+    function toggleLd(show, txt = "처리 중...") {
+        const loader = document.getElementById('loader');
+        const loaderTxt = document.getElementById('loader-txt');
+        if(loaderTxt) loaderTxt.innerText = txt;
+        if(loader) loader.style.display = show ? 'flex' : 'none';
+    }
+
+    async function fetchProxy(url) {
+        const proxies = [
+            'https://api.allorigins.win/raw?url=',
+            'https://api.codetabs.com/v1/proxy/?quest=',
+            'https://corsproxy.io/?'
+        ];
+        for (let i = 0; i < proxies.length; i++) {
+            try {
+                let reqUrl = proxies[i] + encodeURIComponent(url);
+                let res = await fetch(reqUrl, { cache: 'no-store' });
+                if (res.ok) {
+                    let json = await res.json();
+                    if (json) return json;
+                }
+            } catch(e) { } 
+        }
+        return null;
+    }
+
+    async function getStk(tk, force = false) {
+        if (!tk) return null;
+        const fbKey = safeKey(tk);
+        if (!force && cache[fbKey] && cache[fbKey].price > 0) return cache[fbKey];
+        
+        const isKorean = /^\d{6}$/.test(tk);
+        
+        if (isKorean) {
+            try {
+                const naverUrl = `https://m.stock.naver.com/api/stock/${tk}/integration`;
+                const nData = await fetchProxy(naverUrl);
+                if (nData && nData.dealInfo && nData.dealInfo.closePrice) {
+                    const price = parseFloat(nData.dealInfo.closePrice.replace(/,/g,''));
+                    const change = parseFloat(nData.dealInfo.fluctuationRate || "0");
+                    if (price > 0) return { price, change, name: nData.stockName || tk, curr: 'KRW' };
+                }
+            } catch(e) {}
+        }
+        
+        const qTks = isKorean ? [tk+'.KS', tk+'.KQ'] : [mSym[tk] || tk];
+        for (let q of qTks) {
+            try {
+                const yUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(q)}?interval=1d&_=${Date.now()}`;
+                const yData = await fetchProxy(yUrl);
+                if (yData && yData.chart && yData.chart.result && yData.chart.result.length > 0) {
+                    const meta = yData.chart.result[0].meta;
+                    const price = meta.regularMarketPrice || 0;
+                    const prev = meta.chartPreviousClose || price;
+                    const change = prev > 0 ? ((price - prev) / prev) * 100 : 0;
+                    if (price > 0) return { price, change, name: meta.shortName || meta.longName || tMap[tk] || tk, curr: meta.currency==='KRW'?'KRW':'USD' };
+                }
+            } catch(e) {}
+        }
+        return null;
+    }
+
+    window.isFetchingMarketData = false;
+    async function syncMarketDataToFirebase(isManual = false) {
+        if (!db) return;
+        if (window.isFetchingMarketData) return;
+        window.isFetchingMarketData = true;
+
+        if (isManual) toggleLd(true, "우회 서버를 통해 최신 시세 수집 중...");
+
+        try {
+            let newExKRW = exKRW;
+            try {
+                const r = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
+                const d = await r.json();
+                if (d?.usd?.krw) newExKRW = d.usd.krw;
+            } catch(e) {}
+
+            let activeTickers = new Set(Object.keys(mSym));
+            users.forEach(u => state.trades[u].forEach(t => activeTickers.add(t.ticker)));
+
+            let newCache = {};
+            const promises = Array.from(activeTickers).map(async tk => {
+                const fbKey = safeKey(tk);
+                const info = await getStk(tk, true);
+                
+                if (info && info.price > 0) {
+                    newCache[fbKey] = info;
+                    if (cache[fbKey] && info.price !== cache[fbKey].price) {
+                        previousPrices[tk] = cache[fbKey].price;
+                    }
+                } else if (cache[fbKey]) {
+                    newCache[fbKey] = cache[fbKey]; 
+                }
+            });
+
+            await Promise.all(promises);
+
+            await db.ref('marketData').set({
+                lastUpdated: Date.now(),
+                exKRW: newExKRW,
+                cache: newCache
+            });
+
+        } catch (e) {
+            console.error(e);
+            if (isManual) alert("업데이트 중 오류 발생: " + e.message);
+        }
+
+        window.isFetchingMarketData = false;
+        if (isManual) toggleLd(false);
+    }
+
+    let pendingDelete = null;
+    function openDelModal(id, mode = 'trade') { 
+        pendingDelete = { id, mode }; 
+        document.getElementById('del-modal').classList.add('open'); 
+    }
+    function closeDelModal() { 
+        pendingDelete = null; 
+        document.getElementById('del-modal').classList.remove('open'); 
+    }
+    
+    document.getElementById('del-confirm-btn').addEventListener('click', async function() {
+        if (!pendingDelete || !db) return;
+        const { id, mode } = pendingDelete;
+        const node = mode === 'opinion' ? 'opinions' : 'trades';
+        closeDelModal();
+        toggleLd(true, "삭제 중...");
+        try { await db.ref(`${node}/${id}`).remove(); } catch(e) { alert("삭제 실패"); }
+        toggleLd(false);
+    });
+    document.getElementById('del-modal').addEventListener('click', function(e) { if (e.target === this) closeDelModal(); });
+
+    function getSortArrow(u, key) {
+        if (sortStates[u].key !== key) return '↕';
+        return sortStates[u].asc ? '▲' : '▼';
+    }
+
+    function sortPort(u, key) {
+        if (sortStates[u].key === key) sortStates[u].asc = !sortStates[u].asc;
+        else { sortStates[u].key = key; sortStates[u].asc = (key === 'fn') ? true : false; }
+        updateAll();
+    }
+
+    function initUI() {
+        const con = document.getElementById('pages-container');
+        if (!con) return;
+        con.innerHTML = '';
+        
+        users.forEach(u => {
+            const html = `
+                <div id="u-${u}" class="tab-content">
+                    
+                    <div class="metrics" style="margin-bottom: 20px;">
+                        <div class="m-box" style="border-left-color: #9b59b6;">
+                            <h4>전체 자산 (KRW)</h4>
+                            <p id="tot-val-${u}">0원</p>
+                            <div id="tot-ret-${u}" style="font-size:14px; font-weight:bold; margin-top:5px;">0%</div>
+                        </div>
+                        <div class="m-box" style="border-left-color: #3498db;">
+                            <h4>국내 주식 (KRW)</h4>
+                            <p id="dom-val-${u}">0원</p>
+                            <div id="dom-ret-${u}" style="font-size:14px; font-weight:bold; margin-top:5px;">0%</div>
+                        </div>
+                        <div class="m-box" style="border-left-color: #e67e22; position: relative;">
+                            <h4>해외 주식</h4>
+                            <div style="position: absolute; top: 15px; right: 15px; display: flex; gap: 4px;">
+                                <button class="curr-btn active" id="btn-krw-${u}" onclick="setCurrency('${u}', 'KRW')">₩</button>
+                                <button class="curr-btn" id="btn-usd-${u}" onclick="setCurrency('${u}', 'USD')">＄</button>
+                            </div>
+                            <p id="ovs-val-${u}">0원</p>
+                            <div id="ovs-ret-${u}" style="font-size:14px; font-weight:bold; margin-top:5px;">0%</div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>현재 포트폴리오 (실시간 연동)</h3>
+                        <div class="tbl-wrap">
+                            <table>
+                                <thead id="thead-${u}"></thead>
+                                <tbody id="port-${u}"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <h3>비중 차트</h3>
+                        <div class="chart"><canvas id="ch-${u}"></canvas></div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>매매 입력/수정</h3>
+                            <div class="realized-badge">누적 확정 수익금: <span id="rp-${u}">0</span>원</div>
+                        </div>
+                        <div class="form-grid">
+                            <input type="hidden" id="eid-${u}">
+                            <div class="f-grp"><label>날짜</label><input type="date" id="dt-${u}"></div>
+                            <div class="f-grp"><label>티커 (입력 후 바깥 클릭)</label><input type="text" id="tk-${u}" onchange="handleTk('${u}')" placeholder="AAPL, 005930"></div>
+                            <div class="f-grp"><label>종목명 (자동)</label><input type="text" id="nm-${u}" disabled placeholder="자동 입력"></div>
+                            <div class="f-grp"><label>유형</label><select id="ty-${u}"><option value="buy">매수</option><option value="sell">매도</option></select></div>
+                            <div class="f-grp"><label>통화 (자동)</label><select id="cr-${u}" disabled><option value="USD">USD</option><option value="KRW">KRW</option></select></div>
+                            <div class="f-grp"><label>가격</label><input type="number" step="0.01" id="pr-${u}"></div>
+                            <div class="f-grp"><label>수량</label><input type="number" step="0.0001" id="qt-${u}"></div>
+                            <div class="f-grp btn-grp" style="grid-column: span 1;">
+                                <button class="p-btn" id="btn-${u}" onclick="saveTr('${u}')">저장</button>
+                                <button class="c-btn" id="cbtn-${u}" onclick="cancelEd('${u}')">취소</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>매매 일지</h3>
+                        <div class="filter-bar">
+                            <span class="filter-label">필터:</span>
+                            <input type="date" id="f-dt-s-${u}" onchange="updateAll()">
+                            <span>~</span>
+                            <input type="date" id="f-dt-e-${u}" onchange="updateAll()">
+                            <input type="text" id="f-txt-${u}" placeholder="종목/티커 검색" oninput="updateAll()">
+                            <select id="f-ty-${u}" onchange="updateAll()">
+                                <option value="all">유형 전체</option>
+                                <option value="buy">매수</option>
+                                <option value="sell">매도</option>
+                            </select>
+                        </div>
+                        <div class="tbl-wrap">
+                            <table>
+                                <thead><tr><th>날짜</th><th>종목</th><th>유형</th><th>가격</th><th>수량</th><th>관리</th></tr></thead>
+                                <tbody id="log-${u}"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>`;
+            con.insertAdjacentHTML('beforeend', html);
+            
+            const dtInput = document.getElementById(`dt-${u}`);
+            if (dtInput) dtInput.value = new Date().toISOString().substring(0, 10);
+        });
+    }
+
+    function switchTab(targetId, btn) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        
+        const targetEl = document.getElementById(targetId);
+        if (targetEl) targetEl.classList.add('active');
+        if (btn) btn.classList.add('active');
+    }
+
     async function saveOpinion() {
-        const data = {
-            user: document.getElementById('op-user').value,
-            tk: document.getElementById('op-tk').value.toUpperCase(),
-            nm: document.getElementById('op-nm').value,
-            low: document.getElementById('op-low').value,
-            high: document.getElementById('op-high').value,
-            cur: document.getElementById('op-cur').value,
-            text: document.getElementById('op-text').value,
-            ts: Date.now()
-        };
-        if(!data.text && !data.tk) return alert("내용을 입력하세요.");
-        await db.ref('opinions').push(data);
-        ['op-tk','op-nm','op-low','op-high','op-cur','op-text'].forEach(id=>document.getElementById(id).value='');
+        if (!db) return alert("DB 미연결");
+        const user = document.getElementById('op-user').value;
+        const text = document.getElementById('op-text').value.trim();
+        
+        if (!text) return alert("내용을 입력해 주세요.");
+
+        toggleLd(true, "의견 등록 중...");
+        try {
+            await db.ref('opinions').push({
+                user: user,
+                text: text,
+                timestamp: Date.now()
+            });
+            document.getElementById('op-text').value = '';
+        } catch(e) { alert("등록 실패"); }
+        toggleLd(false);
     }
 
     function renderOpinions() {
-        document.getElementById('opinions-timeline').innerHTML = state.opinions.map(op => `
-            <div class="op-item">
-                <div style="display:flex; justify-content:space-between; font-size:12px; color:#666; margin-bottom:5px;">
-                    <b>${op.user}</b> <span>${new Date(op.ts).toLocaleString()}</span>
+        const container = document.getElementById('opinions-timeline');
+        if (!container) return;
+        
+        const arr = [...state.opinions].sort((a,b) => b.timestamp - a.timestamp);
+        
+        if (arr.length === 0) {
+            container.innerHTML = '<div style="text-align:center; color:#aaa; padding:20px;">아직 등록된 의견이 없습니다.</div>';
+            return;
+        }
+
+        container.innerHTML = arr.map(op => {
+            const d = new Date(op.timestamp);
+            const dateStr = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            return `
+                <div class="op-item">
+                    <div class="op-header">
+                        <span class="op-author">${op.user}</span>
+                        <div>
+                            <span>${dateStr}</span>
+                            <button class="op-del" style="margin-left:10px;" onclick="openDelModal('${op.id}', 'opinion')">삭제</button>
+                        </div>
+                    </div>
+                    <div class="op-content">${op.text}</div>
                 </div>
-                <div style="white-space:pre-wrap;">${op.text}</div>
-                ${op.tk ? `
-                <div class="watchlist-badge">
-                    <div><b>종목:</b> ${op.nm} (${op.tk})</div>
-                    <div><b>기록가:</b> ${op.cur || '-'}</div>
-                    <div><b>52주 최저:</b> ${op.low || '-'}</div>
-                    <div><b>52주 최고:</b> ${op.high || '-'}</div>
-                </div>` : ''}
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
-    function switchTab(id, btn) {
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById(id).classList.add('active'); btn.classList.add('active');
+    async function saveTr(u) {
+        if (!db) return alert("데이터베이스에 연결되지 않았습니다.");
+        
+        const eid = document.getElementById(`eid-${u}`).value;
+        const tk  = document.getElementById(`tk-${u}`).value.toUpperCase();
+        const data = {
+            user:     u,
+            date:     document.getElementById(`dt-${u}`).value,
+            ticker:   tk,
+            name:     document.getElementById(`nm-${u}`).value || tk,
+            type:     document.getElementById(`ty-${u}`).value,
+            currency: document.getElementById(`cr-${u}`).value,
+            price:    parseFloat(document.getElementById(`pr-${u}`).value),
+            qty:      parseFloat(document.getElementById(`qt-${u}`).value)
+        };
+        if (!data.ticker || isNaN(data.price) || isNaN(data.qty)) return alert("입력값을 확인해 주세요.");
+
+        toggleLd(true, "저장 중...");
+        try {
+            if (eid) await db.ref(`trades/${eid}`).update(data);
+            else await db.ref('trades').push(data);
+            cancelEd(u);
+            syncMarketDataToFirebase(false); 
+        } catch(e) { alert("저장 실패: " + e.message); }
+        toggleLd(false);
     }
 
-    window.onload = () => { if(sessionStorage.getItem('isLogged')==='true') startApp(); };
+    function editTr(u, id) {
+        const tr = state.trades[u].find(t => String(t.id) === String(id));
+        if (!tr) return;
+        document.getElementById(`eid-${u}`).value  = tr.id;
+        document.getElementById(`dt-${u}`).value   = tr.date;
+        document.getElementById(`tk-${u}`).value   = tr.ticker;
+        document.getElementById(`nm-${u}`).value   = tr.name;
+        document.getElementById(`ty-${u}`).value   = tr.type;
+        document.getElementById(`cr-${u}`).value   = tr.currency;
+        document.getElementById(`pr-${u}`).value   = tr.price;
+        document.getElementById(`qt-${u}`).value   = tr.qty;
+        document.getElementById(`btn-${u}`).innerText = "수정 완료";
+        document.getElementById(`cbtn-${u}`).style.display = "block";
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function cancelEd(u) {
+        document.getElementById(`eid-${u}`).value = "";
+        ['tk','nm','pr','qt'].forEach(id => {
+            const el = document.getElementById(`${id}-${u}`);
+            if(el) el.value = '';
+        });
+        document.getElementById(`dt-${u}`).value = new Date().toISOString().substring(0, 10);
+        document.getElementById(`btn-${u}`).innerText = "저장";
+        document.getElementById(`cbtn-${u}`).style.display = "none";
+    }
+
+    function renderIdx() {
+        const grid = document.getElementById('market-indices');
+        if(!grid) return;
+        const html = Object.entries(mSym).map(([sym, lbl]) => {
+            const fbKey = safeKey(sym);
+            const info = cache[fbKey];
+            let priceStr = '-';
+            let changeHtml = '<span class="pct" style="color:#aaa">데이터 없음</span>';
+
+            if (info && info.price > 0) {
+                priceStr = info.price.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                const pct = info.change;
+                const cls  = pct > 0 ? 'profit' : (pct < 0 ? 'loss' : '');
+                const sign = pct > 0 ? '+' : '';
+                changeHtml = `<span class="pct ${cls}">(${sign}${pct.toFixed(2)}%)</span>`;
+            }
+            return `<div class="idx-item"><div class="val">${priceStr} ${changeHtml}</div><div class="key">${lbl}</div></div>`;
+        }).join('');
+        grid.innerHTML = html;
+    }
+
+    async function handleTk(u) {
+        const tkIn = document.getElementById(`tk-${u}`);
+        const nmIn = document.getElementById(`nm-${u}`);
+        const prIn = document.getElementById(`pr-${u}`);
+        const crSel = document.getElementById(`cr-${u}`);
+
+        const tk = tkIn.value.trim().toUpperCase();
+        if (!tk) { nmIn.value = ''; return; }
+
+        tkIn.value = tk;
+        const isKorean = /^\d{6}$/.test(tk);
+        const fbKey = safeKey(tk);
+        const instantName = tMap[tk] || (cache[fbKey] ? cache[fbKey].name : "");
+        
+        crSel.value = isKorean ? 'KRW' : 'USD';
+        
+        if (instantName) {
+            nmIn.value = instantName;
+        } else {
+            nmIn.value = "";
+            nmIn.placeholder = "API 검색 중...";
+        }
+
+        const info = await getStk(tk, true);
+        if (info) {
+            if (!nmIn.value) nmIn.value = info.name;
+            if (info.price > 0 && !prIn.value) prIn.value = info.price;
+        } else {
+            if (!nmIn.value) nmIn.placeholder = "직접 입력";
+        }
+    }
+
+    function updateAll() {
+        try {
+            let stats = [], hlds = [];
+            let allDailyChanges = [];
+
+            for (const u of users) {
+                let port = {}, real = 0, tInv = 0, tVal = 0, cLbl = [], cDat = [];
+                let portArray = [];
+                
+                let tDomInvKw = 0, tDomValKw = 0;
+                let tOvsInvUsd = 0, tOvsValUsd = 0;
+
+                state.trades[u].sort((a,b) => new Date(a.date)-new Date(b.date)).forEach(t => {
+                    if (!port[t.ticker]) port[t.ticker] = { n: t.name, q: 0, c: 0, cr: t.currency };
+                    let p = port[t.ticker];
+                    if (t.type === 'buy') {
+                        const totalQty = p.q + t.qty;
+                        p.c = totalQty > 0 ? (p.q*p.c + t.qty*t.price) / totalQty : 0;
+                        p.q += t.qty;
+                    } else {
+                        real += (t.price - p.c) * t.qty * (t.currency==='USD' ? exKRW : 1);
+                        p.q  -= t.qty;
+                    }
+                });
+
+                const rpSpan = document.getElementById(`rp-${u}`);
+                if(rpSpan) {
+                    rpSpan.innerText = real.toLocaleString('ko-KR', {maximumFractionDigits: 0});
+                    rpSpan.className = real > 0 ? 'profit' : (real < 0 ? 'loss' : '');
+                }
+
+                const mode = currMode[u]; // USD or KRW
+
+                for (const [tk, p] of Object.entries(port)) {
+                    if (p.q <= 0) continue;
+                    const fbKey = safeKey(tk);
+                    const info  = cache[fbKey] || { price: 0, name: p.n, change: 0 };
+                    
+                    const isUsd = p.cr === 'USD';
+                    const xr = isUsd ? exKRW : 1;
+                    const isLoaded = info.price > 0;
+                    const curPr = isLoaded ? info.price : p.c; 
+                    
+                    const iBase = p.q * p.c;
+                    const vBase = isLoaded ? p.q * curPr : iBase;
+
+                    if (isUsd) {
+                        tOvsInvUsd += iBase;
+                        tOvsValUsd += vBase;
+                    } else {
+                        tDomInvKw += iBase;
+                        tDomValKw += vBase;
+                    }
+
+                    // 전체 요약용 원화 합산
+                    tInv += iBase * xr;
+                    tVal += vBase * xr;
+
+                    // 표에 보여줄 값 결정 (토글 모드 반영)
+                    let dispSym, dispInv, dispVal;
+                    if (isUsd) {
+                        if (mode === 'USD') {
+                            dispSym = '$';
+                            dispInv = iBase;
+                            dispVal = vBase;
+                        } else {
+                            dispSym = '₩';
+                            dispInv = iBase * exKRW;
+                            dispVal = vBase * exKRW;
+                        }
+                    } else {
+                        dispSym = '₩';
+                        dispInv = iBase;
+                        dispVal = vBase;
+                    }
+
+                    const ret = isLoaded && iBase > 0 ? ((vBase - iBase)/iBase)*100 : 0;
+                    const profitAmt = dispVal - dispInv;
+
+                    portArray.push({
+                        tk: tk, fn: info.name || p.n || tk, q: p.q, c: p.c, curPr: curPr,
+                        vKw: vBase * xr, // vKw는 차트 및 정렬용 절대 기준 (원화)
+                        dispSym: dispSym, dispVal: dispVal, dispProfit: profitAmt,
+                        ret: ret, isLoaded: isLoaded
+                    });
+
+                    if (isLoaded) {
+                        allDailyChanges.push({ n: info.name || p.n || tk, change: Number(info.change || 0) });
+                    }
+                }
+
+                // --- V1.5 개인별 자산 요약 업데이트 ---
+                // 전체
+                const tTotRet = tInv > 0 ? ((tVal - tInv)/tInv)*100 : 0;
+                document.getElementById(`tot-val-${u}`).innerText = `₩${tVal.toLocaleString('ko-KR',{maximumFractionDigits:0})}`;
+                const elTotRet = document.getElementById(`tot-ret-${u}`);
+                elTotRet.innerText = `${tTotRet>0?'+':''}${tTotRet.toFixed(2)}%`;
+                elTotRet.className = tTotRet > 0 ? 'profit' : (tTotRet < 0 ? 'loss' : '');
+
+                // 국내
+                const tDomRet = tDomInvKw > 0 ? ((tDomValKw - tDomInvKw)/tDomInvKw)*100 : 0;
+                document.getElementById(`dom-val-${u}`).innerText = `₩${tDomValKw.toLocaleString('ko-KR',{maximumFractionDigits:0})}`;
+                const elDomRet = document.getElementById(`dom-ret-${u}`);
+                elDomRet.innerText = `${tDomRet>0?'+':''}${tDomRet.toFixed(2)}%`;
+                elDomRet.className = tDomRet > 0 ? 'profit' : (tDomRet < 0 ? 'loss' : '');
+
+                // 해외
+                const ovsInvDisp = mode === 'USD' ? tOvsInvUsd : tOvsInvUsd * exKRW;
+                const ovsValDisp = mode === 'USD' ? tOvsValUsd : tOvsValUsd * exKRW;
+                const ovsRet = tOvsInvUsd > 0 ? ((tOvsValUsd - tOvsInvUsd)/tOvsInvUsd)*100 : 0;
+                const ovsSym = mode === 'USD' ? '$' : '₩';
+                document.getElementById(`ovs-val-${u}`).innerText = `${ovsSym}${ovsValDisp.toLocaleString('ko-KR',{maximumFractionDigits:mode==='USD'?2:0})}`;
+                const elOvsRet = document.getElementById(`ovs-ret-${u}`);
+                elOvsRet.innerText = `${ovsRet>0?'+':''}${ovsRet.toFixed(2)}%`;
+                elOvsRet.className = ovsRet > 0 ? 'profit' : (ovsRet < 0 ? 'loss' : '');
+
+                // 토글 버튼 UI
+                const btnKrw = document.getElementById(`btn-krw-${u}`);
+                const btnUsd = document.getElementById(`btn-usd-${u}`);
+                if(btnKrw) btnKrw.className = `curr-btn ${mode === 'KRW' ? 'active' : ''}`;
+                if(btnUsd) btnUsd.className = `curr-btn ${mode === 'USD' ? 'active' : ''}`;
+
+                // --- 정렬 적용 ---
+                const s = sortStates[u];
+                portArray.sort((a, b) => {
+                    let valA = a[s.key] ?? '';
+                    let valB = b[s.key] ?? '';
+                    if (s.key === 'vKw') { valA = a.vKw; valB = b.vKw; } // 평가액은 원화 기준으로 정렬 통일
+                    
+                    if (typeof valA === 'string') return s.asc ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA));
+                    return s.asc ? (Number(valA) - Number(valB)) : (Number(valB) - Number(valA));
+                });
+
+                const theadEl = document.getElementById(`thead-${u}`);
+                if (theadEl) {
+                    theadEl.innerHTML = `<tr>
+                        <th onclick="sortPort('${u}', 'fn')">종목 ${getSortArrow(u, 'fn')}</th>
+                        <th onclick="sortPort('${u}', 'q')">수량 ${getSortArrow(u, 'q')}</th>
+                        <th onclick="sortPort('${u}', 'c')">평단가 ${getSortArrow(u, 'c')}</th>
+                        <th onclick="sortPort('${u}', 'curPr')">현재가 ${getSortArrow(u, 'curPr')}</th>
+                        <th onclick="sortPort('${u}', 'vKw')">평가액 (수익금) ${getSortArrow(u, 'vKw')}</th>
+                        <th onclick="sortPort('${u}', 'ret')">수익률 ${getSortArrow(u, 'ret')}</th>
+                    </tr>`;
+                }
+
+                let ptHtml = '';
+                portArray.forEach(item => {
+                    const cls  = item.isLoaded ? (item.ret > 0 ? 'profit' : (item.ret < 0 ? 'loss' : '')) : '';
+                    const sign = item.isLoaded && item.ret > 0 ? '+' : '';
+                    const sym = (item.tk && !/^\d{6}$/.test(item.tk)) ? '$' : '₩'; // 원본 화폐기호
+                    const displayCurPr = item.isLoaded ? `${sym}${item.curPr.toLocaleString(undefined,{maximumFractionDigits:2})}` : `<span style="color:#aaa;font-size:12px;">데이터 없음</span>`;
+                    const displayRet = item.isLoaded ? `${sign}${item.ret.toFixed(2)}%` : `<span style="color:#aaa;">-</span>`;
+                    
+                    const pSign = item.dispProfit > 0 ? '+' : '';
+                    const pCls = item.dispProfit > 0 ? 'profit' : (item.dispProfit < 0 ? 'loss' : '');
+                    const maxFrac = item.dispSym === '$' ? 2 : 0;
+                    const profitStr = item.isLoaded ? `<span class="${pCls}">(${pSign}${item.dispSym}${Math.abs(item.dispProfit).toLocaleString(item.dispSym==='$'?'en-US':'ko-KR',{maximumFractionDigits:maxFrac})})</span>` : '';
+
+                    ptHtml += `<tr>
+                        <td>${item.fn}<br><small style="color:#888">${item.tk}</small></td>
+                        <td>${item.q.toLocaleString(undefined,{maximumFractionDigits:4})}</td>
+                        <td>${sym}${item.c.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
+                        <td>${displayCurPr}</td>
+                        <td>${item.dispSym}${item.dispVal.toLocaleString(item.dispSym==='$'?'en-US':'ko-KR',{maximumFractionDigits:maxFrac})} <br><small>${profitStr}</small></td>
+                        <td class="${cls}">${displayRet}</td>
+                    </tr>`;
+
+                    cLbl.push(item.fn); cDat.push(item.vKw); 
+                });
+
+                const portTbody = document.getElementById(`port-${u}`);
+                if(portTbody) portTbody.innerHTML = ptHtml || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">종목 없음</td></tr>';
+
+                let logArr = [...state.trades[u]].sort((a,b) => new Date(b.date)-new Date(a.date));
+                const fDtS = document.getElementById(`f-dt-s-${u}`) ? document.getElementById(`f-dt-s-${u}`).value : '';
+                const fDtE = document.getElementById(`f-dt-e-${u}`) ? document.getElementById(`f-dt-e-${u}`).value : '';
+                const fTxt = document.getElementById(`f-txt-${u}`) ? document.getElementById(`f-txt-${u}`).value.toLowerCase() : '';
+                const fTy = document.getElementById(`f-ty-${u}`) ? document.getElementById(`f-ty-${u}`).value : 'all';
+
+                logArr = logArr.filter(t => {
+                    if (fDtS && t.date < fDtS) return false;
+                    if (fDtE && t.date > fDtE) return false;
+                    if (fTy !== 'all' && t.type !== fTy) return false;
+                    if (fTxt && !t.name.toLowerCase().includes(fTxt) && !t.ticker.toLowerCase().includes(fTxt)) return false;
+                    return true;
+                });
+
+                const logTbody = document.getElementById(`log-${u}`);
+                if(logTbody) {
+                    logTbody.innerHTML = logArr.map(t => {
+                        const sym      = t.currency === 'USD' ? '$' : '₩';
+                        const typeCls  = t.type === 'buy' ? 'loss' : 'profit';
+                        const typeName = t.type === 'buy' ? '매수' : '매도';
+                        return `<tr>
+                            <td>${t.date}</td>
+                            <td>${t.name}</td>
+                            <td class="${typeCls}">${typeName}</td>
+                            <td>${sym}${t.price.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
+                            <td>${t.qty}</td>
+                            <td>
+                                <button class="a-btn edit-btn" data-u="${u}" data-id="${t.id}" onclick="editTr(this.dataset.u, this.dataset.id)">수정</button>
+                                <button class="a-btn del-btn"  onclick="openDelModal('${t.id}', 'trade')">삭제</button>
+                            </td>
+                        </tr>`;
+                    }).join('') || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">내역 없음</td></tr>';
+                }
+
+                try {
+                    const ctxEl = document.getElementById(`ch-${u}`);
+                    if(ctxEl && typeof Chart !== 'undefined') {
+                        if (state.charts[u]) state.charts[u].destroy();
+                        
+                        if (cDat.length > 0 && cDat.some(val => val > 0)) {
+                            state.charts[u] = new Chart(ctxEl.getContext('2d'), {
+                                type: 'doughnut',
+                                data: { labels: cLbl, datasets: [{ data: cDat, backgroundColor: ['#4e79a7','#f28e2c','#e15759','#76b7b2','#59a14f','#edc949'], borderWidth: 0 }] },
+                                options: { maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12 } } } }
+                            });
+                        }
+                    }
+                } catch(e) { console.error("차트 에러:", e); }
+
+                stats.push({ u, i: tInv, v: tVal, ur: tVal - tInv, r: real, rp: tInv > 0 ? ((tVal - tInv)/tInv)*100 : 0 });
+            }
+
+            const dashBody = document.getElementById('dash-body');
+            if(dashBody) {
+                dashBody.innerHTML = stats.map(s => {
+                    const urCls = s.ur > 0 ? 'profit' : (s.ur < 0 ? 'loss' : '');
+                    const rCls  = s.r  > 0 ? 'profit' : (s.r  < 0 ? 'loss' : '');
+                    const rpCls = s.rp > 0 ? 'profit' : (s.rp < 0 ? 'loss' : '');
+                    return `<tr>
+                        <td><strong>${s.u}</strong></td>
+                        <td>₩${s.i.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
+                        <td>₩${s.v.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
+                        <td class="${urCls}">₩${s.ur.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
+                        <td class="${rCls}">₩${s.r.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
+                        <td class="${rpCls}">${s.rp>0?'+':''}${s.rp.toFixed(2)}%</td>
+                    </tr>`;
+                }).join('');
+            }
+
+            const win = [...stats].sort((a,b) => b.rp - a.rp)[0];
+            const dashTop = document.getElementById('dash-top');
+            if(dashTop) dashTop.innerText = win && win.i > 0 ? `${win.u} (${win.rp>0?'+':''}${win.rp.toFixed(2)}%)` : '-';
+
+            const dashBest = document.getElementById('dash-best');
+            const dashWorst = document.getElementById('dash-worst');
+            
+            if (allDailyChanges.length > 0) {
+                const b = allDailyChanges.reduce((p,c) => p.change > c.change ? p : c, allDailyChanges[0]);
+                const w = allDailyChanges.reduce((p,c) => p.change < c.change ? p : c, allDailyChanges[0]);
+                
+                if(dashBest) {
+                    dashBest.innerText = `${b.n} (${b.change > 0 ? '+' : ''}${b.change.toFixed(2)}%)`;
+                    dashBest.className = b.change > 0 ? 'profit' : (b.change < 0 ? 'loss' : '');
+                }
+                if(dashWorst) {
+                    dashWorst.innerText = `${w.n} (${w.change > 0 ? '+' : ''}${w.change.toFixed(2)}%)`;
+                    dashWorst.className = w.change > 0 ? 'profit' : (w.change < 0 ? 'loss' : '');
+                }
+            } else {
+                if(dashBest) { dashBest.innerText = '-'; dashBest.className = ''; }
+                if(dashWorst) { dashWorst.innerText = '-'; dashWorst.className = ''; }
+            }
+            
+        } catch (error) {
+            console.error("데이터 렌더링 중 오류 발생:", error);
+        }
+    }
 </script>
 </body>
 </html>
+
+
