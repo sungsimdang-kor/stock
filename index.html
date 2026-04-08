@@ -9,6 +9,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
         :root { --bg: #f4f6f8; --card: #ffffff; --pri: #333333; --brd: #e0e0e0; --profit: #ff4d4f; --loss: #1890ff; }
+
         html { height: 100%; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 0; color: #333; height: 100%; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
 
@@ -61,6 +62,10 @@
         .m-box.blue { border-left-color: var(--loss); }
         .m-box h4 { margin: 0 0 10px 0; font-size: 13px; color: #666; }
         .m-box p { margin: 0; font-size: 22px; font-weight: bold; }
+
+        /* 통화 토글 버튼 */
+        .curr-btn { padding: 4px 10px; border: 1px solid #ccc; background: #f9fafc; cursor: pointer; border-radius: 4px; font-size: 12px; color: #555; transition: 0.2s; }
+        .curr-btn.active { background: var(--pri); color: #fff; font-weight: bold; border-color: var(--pri); }
 
         .tbl-wrap { width: 100%; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
         table { width: 100%; border-collapse: collapse; min-width: 700px; }
@@ -161,11 +166,11 @@
 
     <div class="container">
         <div class="top-info-bar">
-            <div class="version-tag">V1.4</div>
+            <div class="version-tag">V1.5</div>
             <div class="top-right-items">
                 <div class="exchange-info" id="last-update-display">서버 데이터 대기 중...</div>
                 <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
-                <button class="refresh-btn" onclick="manualRefreshPrices()">🔄 DB 동기화 확인</button>
+                <button class="refresh-btn" onclick="syncMarketDataToFirebase(true)">🔄 시세 갱신</button>
             </div>
         </div>
 
@@ -175,6 +180,7 @@
             <button class="tab-btn" onclick="switchTab('u-김태호', this)">김태호</button>
             <button class="tab-btn" onclick="switchTab('u-이용우', this)">이용우</button>
             <button class="tab-btn" onclick="switchTab('u-이형주', this)">이형주</button>
+            <button class="tab-btn" onclick="switchTab('updates', this)">업데이트 내역</button>
         </div>
 
         <div id="dashboard" class="tab-content active">
@@ -228,12 +234,27 @@
                 </div>
             </div>
         </div>
+
+        <div id="updates" class="tab-content">
+            <div class="card">
+                <h3>버전별 업데이트 내역</h3>
+                <ul style="line-height: 1.8; color: #444; font-size: 15px;">
+                    <li><strong>V1.5:</strong> 개인별 페이지 자산 요약(전체/국내/해외) 추가, 미국 주식 달러/원화 표시 토글 기능 적용, 업데이트 내역 탭 신설</li>
+                    <li><strong>V1.4:</strong> 야후 파이낸스/네이버 금융 3중 우회 프록시 엔진 적용 (IP 차단 방지)</li>
+                    <li><strong>V1.3:</strong> 서버리스 프론트엔드 데이터 수집 자동화 및 Firebase 실시간 연동 강화</li>
+                    <li><strong>V1.2:</strong> 국내 주식 네이버 금융 실시간 API 적용 (시간외 거래 지원)</li>
+                    <li><strong>V1.1:</strong> UI 레이아웃 1열 개편 및 포트폴리오 수익금(₩) 표시 추가</li>
+                    <li><strong>V1.0:</strong> 주식 스터디 대시보드 초기 구축 (통합 뷰, 개인별 포트폴리오, 매매 일지)</li>
+                </ul>
+            </div>
+        </div>
         
         <div id="pages-container"></div>
     </div>
 </div>
 
 <script>
+    // --- 로그인 로직 ---
     window.checkPwd = function() {
         const pwd = document.getElementById('pwd-input').value;
         if (pwd === 'richguys') {
@@ -249,11 +270,20 @@
     });
     document.getElementById('login-btn').addEventListener('click', checkPwd);
 
+    // --- 글로벌 변수 ---
     const users = ['김태호', '이용우', '이형주'];
     let exKRW = 1350; 
     let previousPrices = {}; 
     const sortStates = {};
     users.forEach(u => sortStates[u] = { key: 'vKw', asc: false }); 
+
+    // 통화 모드 상태 관리
+    const currMode = {};
+    users.forEach(u => currMode[u] = 'KRW');
+    window.setCurrency = function(u, mode) {
+        currMode[u] = mode;
+        updateAll();
+    };
 
     const tMap = {
         'AAPL':'Apple', 'MSFT':'Microsoft', 'TSLA':'Tesla', 'NVDA':'NVIDIA',
@@ -274,6 +304,7 @@
         return key.replace(/[.#$\[\]]/g, '_');
     }
 
+    // Firebase 접속 설정
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
         authDomain: "howooju.firebaseapp.com",
@@ -331,7 +362,6 @@
                 renderOpinions();
             });
 
-            // 프론트엔드에서는 읽기만 수행 (데이터 갱신은 구글 Apps Script 서버에서 처리)
             db.ref('marketData').on('value', (snapshot) => {
                 const data = snapshot.val();
                 if(data && data.cache) {
@@ -340,14 +370,20 @@
                     
                     if (data.lastUpdated) {
                         const d = new Date(data.lastUpdated);
-                        document.getElementById('last-update-display').innerText = `서버 최종 갱신: ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+                        document.getElementById('last-update-display').innerText = `최근 갱신: ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+                        
+                        const CACHE_LIFETIME = 15 * 60 * 1000;
+                        if (Date.now() - data.lastUpdated > CACHE_LIFETIME) {
+                            syncMarketDataToFirebase(false);
+                        }
                     }
                     document.getElementById('exchange-rate-display').innerText = `적용 환율: 1 USD = ${exKRW.toLocaleString(undefined, {maximumFractionDigits: 2})} KRW`;
                     
                     renderIdx();
                     updateAll();
                 } else {
-                    document.getElementById('last-update-display').innerText = "서버에서 데이터 긁어오는 중...";
+                    document.getElementById('last-update-display').innerText = "최초 데이터 수집 중...";
+                    syncMarketDataToFirebase(false);
                 }
             });
         }
@@ -360,23 +396,110 @@
         if(loader) loader.style.display = show ? 'flex' : 'none';
     }
 
-    // 갱신 버튼 클릭 시 강제 호출 방지 (서버가 알아서 하도록 유도)
-    function manualRefreshPrices() {
+    async function fetchProxy(url) {
+        const proxies = [
+            'https://api.allorigins.win/raw?url=',
+            'https://api.codetabs.com/v1/proxy/?quest=',
+            'https://corsproxy.io/?'
+        ];
+        for (let i = 0; i < proxies.length; i++) {
+            try {
+                let reqUrl = proxies[i] + encodeURIComponent(url);
+                let res = await fetch(reqUrl, { cache: 'no-store' });
+                if (res.ok) {
+                    let json = await res.json();
+                    if (json) return json;
+                }
+            } catch(e) { } 
+        }
+        return null;
+    }
+
+    async function getStk(tk, force = false) {
+        if (!tk) return null;
+        const fbKey = safeKey(tk);
+        if (!force && cache[fbKey] && cache[fbKey].price > 0) return cache[fbKey];
+        
+        const isKorean = /^\d{6}$/.test(tk);
+        
+        if (isKorean) {
+            try {
+                const naverUrl = `https://m.stock.naver.com/api/stock/${tk}/integration`;
+                const nData = await fetchProxy(naverUrl);
+                if (nData && nData.dealInfo && nData.dealInfo.closePrice) {
+                    const price = parseFloat(nData.dealInfo.closePrice.replace(/,/g,''));
+                    const change = parseFloat(nData.dealInfo.fluctuationRate || "0");
+                    if (price > 0) return { price, change, name: nData.stockName || tk, curr: 'KRW' };
+                }
+            } catch(e) {}
+        }
+        
+        const qTks = isKorean ? [tk+'.KS', tk+'.KQ'] : [mSym[tk] || tk];
+        for (let q of qTks) {
+            try {
+                const yUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(q)}?interval=1d&_=${Date.now()}`;
+                const yData = await fetchProxy(yUrl);
+                if (yData && yData.chart && yData.chart.result && yData.chart.result.length > 0) {
+                    const meta = yData.chart.result[0].meta;
+                    const price = meta.regularMarketPrice || 0;
+                    const prev = meta.chartPreviousClose || price;
+                    const change = prev > 0 ? ((price - prev) / prev) * 100 : 0;
+                    if (price > 0) return { price, change, name: meta.shortName || meta.longName || tMap[tk] || tk, curr: meta.currency==='KRW'?'KRW':'USD' };
+                }
+            } catch(e) {}
+        }
+        return null;
+    }
+
+    window.isFetchingMarketData = false;
+    async function syncMarketDataToFirebase(isManual = false) {
         if (!db) return;
-        toggleLd(true, "Firebase DB와 동기화 확인 중...");
-        db.ref('marketData').once('value').then(snapshot => {
-            const data = snapshot.val();
-            if (data && data.cache) {
-                exKRW = data.exKRW || 1350;
-                Object.assign(cache, data.cache || {});
-                renderIdx();
-                updateAll();
-            }
-            toggleLd(false);
-            alert("서버의 최신 데이터 상태입니다.\n실제 시세 갱신은 백그라운드 서버(Apps Script)에서 15분마다 진행됩니다.");
-        }).catch(e => {
-            toggleLd(false);
-        });
+        if (window.isFetchingMarketData) return;
+        window.isFetchingMarketData = true;
+
+        if (isManual) toggleLd(true, "우회 서버를 통해 최신 시세 수집 중...");
+
+        try {
+            let newExKRW = exKRW;
+            try {
+                const r = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
+                const d = await r.json();
+                if (d?.usd?.krw) newExKRW = d.usd.krw;
+            } catch(e) {}
+
+            let activeTickers = new Set(Object.keys(mSym));
+            users.forEach(u => state.trades[u].forEach(t => activeTickers.add(t.ticker)));
+
+            let newCache = {};
+            const promises = Array.from(activeTickers).map(async tk => {
+                const fbKey = safeKey(tk);
+                const info = await getStk(tk, true);
+                
+                if (info && info.price > 0) {
+                    newCache[fbKey] = info;
+                    if (cache[fbKey] && info.price !== cache[fbKey].price) {
+                        previousPrices[tk] = cache[fbKey].price;
+                    }
+                } else if (cache[fbKey]) {
+                    newCache[fbKey] = cache[fbKey]; 
+                }
+            });
+
+            await Promise.all(promises);
+
+            await db.ref('marketData').set({
+                lastUpdated: Date.now(),
+                exKRW: newExKRW,
+                cache: newCache
+            });
+
+        } catch (e) {
+            console.error(e);
+            if (isManual) alert("업데이트 중 오류 발생: " + e.message);
+        }
+
+        window.isFetchingMarketData = false;
+        if (isManual) toggleLd(false);
     }
 
     let pendingDelete = null;
@@ -419,6 +542,29 @@
         users.forEach(u => {
             const html = `
                 <div id="u-${u}" class="tab-content">
+                    
+                    <div class="metrics" style="margin-bottom: 20px;">
+                        <div class="m-box" style="border-left-color: #9b59b6;">
+                            <h4>전체 자산 (KRW)</h4>
+                            <p id="tot-val-${u}">0원</p>
+                            <div id="tot-ret-${u}" style="font-size:14px; font-weight:bold; margin-top:5px;">0%</div>
+                        </div>
+                        <div class="m-box" style="border-left-color: #3498db;">
+                            <h4>국내 주식 (KRW)</h4>
+                            <p id="dom-val-${u}">0원</p>
+                            <div id="dom-ret-${u}" style="font-size:14px; font-weight:bold; margin-top:5px;">0%</div>
+                        </div>
+                        <div class="m-box" style="border-left-color: #e67e22; position: relative;">
+                            <h4>해외 주식</h4>
+                            <div style="position: absolute; top: 15px; right: 15px; display: flex; gap: 4px;">
+                                <button class="curr-btn active" id="btn-krw-${u}" onclick="setCurrency('${u}', 'KRW')">₩</button>
+                                <button class="curr-btn" id="btn-usd-${u}" onclick="setCurrency('${u}', 'USD')">＄</button>
+                            </div>
+                            <p id="ovs-val-${u}">0원</p>
+                            <div id="ovs-ret-${u}" style="font-size:14px; font-weight:bold; margin-top:5px;">0%</div>
+                        </div>
+                    </div>
+
                     <div class="card">
                         <h3>현재 포트폴리오 (실시간 연동)</h3>
                         <div class="tbl-wrap">
@@ -462,7 +608,7 @@
                             <input type="date" id="f-dt-s-${u}" onchange="updateAll()">
                             <span>~</span>
                             <input type="date" id="f-dt-e-${u}" onchange="updateAll()">
-                            <input type="text" id="f-txt-${u}" placeholder="종목 검색" oninput="updateAll()">
+                            <input type="text" id="f-txt-${u}" placeholder="종목/티커 검색" oninput="updateAll()">
                             <select id="f-ty-${u}" onchange="updateAll()">
                                 <option value="all">유형 전체</option>
                                 <option value="buy">매수</option>
@@ -563,6 +709,7 @@
             if (eid) await db.ref(`trades/${eid}`).update(data);
             else await db.ref('trades').push(data);
             cancelEd(u);
+            syncMarketDataToFirebase(false); 
         } catch(e) { alert("저장 실패: " + e.message); }
         toggleLd(false);
     }
@@ -615,7 +762,6 @@
         grid.innerHTML = html;
     }
 
-    // 폼 입력 시 실시간 조회 기능 (저장 X)
     async function handleTk(u) {
         const tkIn = document.getElementById(`tk-${u}`);
         const nmIn = document.getElementById(`nm-${u}`);
@@ -639,15 +785,11 @@
             nmIn.placeholder = "API 검색 중...";
         }
 
-        // 보조 조회
-        try {
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${isKorean ? tk+'.KS' : tk}?interval=1d`)}`;
-            const res = await fetch(proxyUrl);
-            const data = await res.json();
-            const meta = data.chart.result[0].meta;
-            if (!nmIn.value) nmIn.value = meta.shortName || meta.longName || tk;
-            if (meta.regularMarketPrice > 0 && !prIn.value) prIn.value = meta.regularMarketPrice;
-        } catch(e) {
+        const info = await getStk(tk, true);
+        if (info) {
+            if (!nmIn.value) nmIn.value = info.name;
+            if (info.price > 0 && !prIn.value) prIn.value = info.price;
+        } else {
             if (!nmIn.value) nmIn.placeholder = "직접 입력";
         }
     }
@@ -660,6 +802,9 @@
             for (const u of users) {
                 let port = {}, real = 0, tInv = 0, tVal = 0, cLbl = [], cDat = [];
                 let portArray = [];
+                
+                let tDomInvKw = 0, tDomValKw = 0;
+                let tOvsInvUsd = 0, tOvsValUsd = 0;
 
                 state.trades[u].sort((a,b) => new Date(a.date)-new Date(b.date)).forEach(t => {
                     if (!port[t.ticker]) port[t.ticker] = { n: t.name, q: 0, c: 0, cr: t.currency };
@@ -680,26 +825,59 @@
                     rpSpan.className = real > 0 ? 'profit' : (real < 0 ? 'loss' : '');
                 }
 
+                const mode = currMode[u]; // USD or KRW
+
                 for (const [tk, p] of Object.entries(port)) {
                     if (p.q <= 0) continue;
                     const fbKey = safeKey(tk);
                     const info  = cache[fbKey] || { price: 0, name: p.n, change: 0 };
-                    const xr    = p.cr === 'USD' ? exKRW : 1;
-
-                    const iKw = p.q * p.c * xr;
+                    
+                    const isUsd = p.cr === 'USD';
+                    const xr = isUsd ? exKRW : 1;
                     const isLoaded = info.price > 0;
                     const curPr = isLoaded ? info.price : p.c; 
-                    const vKw = isLoaded ? (p.q * curPr * xr) : iKw;
                     
-                    tInv += iKw; 
-                    tVal += vKw;
+                    const iBase = p.q * p.c;
+                    const vBase = isLoaded ? p.q * curPr : iBase;
 
-                    const ret  = isLoaded && iKw > 0 ? ((vKw - iKw)/iKw)*100 : 0;
-                    const profitAmt = vKw - iKw; 
+                    if (isUsd) {
+                        tOvsInvUsd += iBase;
+                        tOvsValUsd += vBase;
+                    } else {
+                        tDomInvKw += iBase;
+                        tDomValKw += vBase;
+                    }
+
+                    // 전체 요약용 원화 합산
+                    tInv += iBase * xr;
+                    tVal += vBase * xr;
+
+                    // 표에 보여줄 값 결정 (토글 모드 반영)
+                    let dispSym, dispInv, dispVal;
+                    if (isUsd) {
+                        if (mode === 'USD') {
+                            dispSym = '$';
+                            dispInv = iBase;
+                            dispVal = vBase;
+                        } else {
+                            dispSym = '₩';
+                            dispInv = iBase * exKRW;
+                            dispVal = vBase * exKRW;
+                        }
+                    } else {
+                        dispSym = '₩';
+                        dispInv = iBase;
+                        dispVal = vBase;
+                    }
+
+                    const ret = isLoaded && iBase > 0 ? ((vBase - iBase)/iBase)*100 : 0;
+                    const profitAmt = dispVal - dispInv;
 
                     portArray.push({
                         tk: tk, fn: info.name || p.n || tk, q: p.q, c: p.c, curPr: curPr,
-                        vKw: vKw, ret: ret, profitAmt: profitAmt, isLoaded: isLoaded, sym: p.cr === 'USD' ? '$' : '₩'
+                        vKw: vBase * xr, // vKw는 차트 및 정렬용 절대 기준 (원화)
+                        dispSym: dispSym, dispVal: dispVal, dispProfit: profitAmt,
+                        ret: ret, isLoaded: isLoaded
                     });
 
                     if (isLoaded) {
@@ -707,10 +885,44 @@
                     }
                 }
 
+                // --- V1.5 개인별 자산 요약 업데이트 ---
+                // 전체
+                const tTotRet = tInv > 0 ? ((tVal - tInv)/tInv)*100 : 0;
+                document.getElementById(`tot-val-${u}`).innerText = `₩${tVal.toLocaleString('ko-KR',{maximumFractionDigits:0})}`;
+                const elTotRet = document.getElementById(`tot-ret-${u}`);
+                elTotRet.innerText = `${tTotRet>0?'+':''}${tTotRet.toFixed(2)}%`;
+                elTotRet.className = tTotRet > 0 ? 'profit' : (tTotRet < 0 ? 'loss' : '');
+
+                // 국내
+                const tDomRet = tDomInvKw > 0 ? ((tDomValKw - tDomInvKw)/tDomInvKw)*100 : 0;
+                document.getElementById(`dom-val-${u}`).innerText = `₩${tDomValKw.toLocaleString('ko-KR',{maximumFractionDigits:0})}`;
+                const elDomRet = document.getElementById(`dom-ret-${u}`);
+                elDomRet.innerText = `${tDomRet>0?'+':''}${tDomRet.toFixed(2)}%`;
+                elDomRet.className = tDomRet > 0 ? 'profit' : (tDomRet < 0 ? 'loss' : '');
+
+                // 해외
+                const ovsInvDisp = mode === 'USD' ? tOvsInvUsd : tOvsInvUsd * exKRW;
+                const ovsValDisp = mode === 'USD' ? tOvsValUsd : tOvsValUsd * exKRW;
+                const ovsRet = tOvsInvUsd > 0 ? ((tOvsValUsd - tOvsInvUsd)/tOvsInvUsd)*100 : 0;
+                const ovsSym = mode === 'USD' ? '$' : '₩';
+                document.getElementById(`ovs-val-${u}`).innerText = `${ovsSym}${ovsValDisp.toLocaleString('ko-KR',{maximumFractionDigits:mode==='USD'?2:0})}`;
+                const elOvsRet = document.getElementById(`ovs-ret-${u}`);
+                elOvsRet.innerText = `${ovsRet>0?'+':''}${ovsRet.toFixed(2)}%`;
+                elOvsRet.className = ovsRet > 0 ? 'profit' : (ovsRet < 0 ? 'loss' : '');
+
+                // 토글 버튼 UI
+                const btnKrw = document.getElementById(`btn-krw-${u}`);
+                const btnUsd = document.getElementById(`btn-usd-${u}`);
+                if(btnKrw) btnKrw.className = `curr-btn ${mode === 'KRW' ? 'active' : ''}`;
+                if(btnUsd) btnUsd.className = `curr-btn ${mode === 'USD' ? 'active' : ''}`;
+
+                // --- 정렬 적용 ---
                 const s = sortStates[u];
                 portArray.sort((a, b) => {
                     let valA = a[s.key] ?? '';
                     let valB = b[s.key] ?? '';
+                    if (s.key === 'vKw') { valA = a.vKw; valB = b.vKw; } // 평가액은 원화 기준으로 정렬 통일
+                    
                     if (typeof valA === 'string') return s.asc ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA));
                     return s.asc ? (Number(valA) - Number(valB)) : (Number(valB) - Number(valA));
                 });
@@ -731,19 +943,21 @@
                 portArray.forEach(item => {
                     const cls  = item.isLoaded ? (item.ret > 0 ? 'profit' : (item.ret < 0 ? 'loss' : '')) : '';
                     const sign = item.isLoaded && item.ret > 0 ? '+' : '';
-                    const displayCurPr = item.isLoaded ? `${item.sym}${item.curPr.toLocaleString(undefined,{maximumFractionDigits:2})}` : `<span style="color:#aaa;font-size:12px;">데이터 없음</span>`;
+                    const sym = (item.tk && !/^\d{6}$/.test(item.tk)) ? '$' : '₩'; // 원본 화폐기호
+                    const displayCurPr = item.isLoaded ? `${sym}${item.curPr.toLocaleString(undefined,{maximumFractionDigits:2})}` : `<span style="color:#aaa;font-size:12px;">데이터 없음</span>`;
                     const displayRet = item.isLoaded ? `${sign}${item.ret.toFixed(2)}%` : `<span style="color:#aaa;">-</span>`;
                     
-                    const pSign = item.profitAmt > 0 ? '+' : '';
-                    const pCls = item.profitAmt > 0 ? 'profit' : (item.profitAmt < 0 ? 'loss' : '');
-                    const profitStr = item.isLoaded ? `<span class="${pCls}">(${pSign}₩${Math.abs(item.profitAmt).toLocaleString('ko-KR',{maximumFractionDigits:0})})</span>` : '';
+                    const pSign = item.dispProfit > 0 ? '+' : '';
+                    const pCls = item.dispProfit > 0 ? 'profit' : (item.dispProfit < 0 ? 'loss' : '');
+                    const maxFrac = item.dispSym === '$' ? 2 : 0;
+                    const profitStr = item.isLoaded ? `<span class="${pCls}">(${pSign}${item.dispSym}${Math.abs(item.dispProfit).toLocaleString(item.dispSym==='$'?'en-US':'ko-KR',{maximumFractionDigits:maxFrac})})</span>` : '';
 
                     ptHtml += `<tr>
                         <td>${item.fn}<br><small style="color:#888">${item.tk}</small></td>
                         <td>${item.q.toLocaleString(undefined,{maximumFractionDigits:4})}</td>
-                        <td>${item.sym}${item.c.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
+                        <td>${sym}${item.c.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
                         <td>${displayCurPr}</td>
-                        <td>₩${item.vKw.toLocaleString('ko-KR',{maximumFractionDigits:0})} <br><small>${profitStr}</small></td>
+                        <td>${item.dispSym}${item.dispVal.toLocaleString(item.dispSym==='$'?'en-US':'ko-KR',{maximumFractionDigits:maxFrac})} <br><small>${profitStr}</small></td>
                         <td class="${cls}">${displayRet}</td>
                     </tr>`;
 
@@ -792,7 +1006,6 @@
                     if(ctxEl && typeof Chart !== 'undefined') {
                         if (state.charts[u]) state.charts[u].destroy();
                         
-                        // 데이터가 없으면 차트 렌더링 스킵 (에러 방지)
                         if (cDat.length > 0 && cDat.some(val => val > 0)) {
                             state.charts[u] = new Chart(ctxEl.getContext('2d'), {
                                 type: 'doughnut',
@@ -803,9 +1016,7 @@
                     }
                 } catch(e) { console.error("차트 에러:", e); }
 
-                const ur = tVal - tInv;
-                const rp = tInv > 0 ? (ur/tInv)*100 : 0;
-                stats.push({ u, i: tInv, v: tVal, ur, r: real, rp });
+                stats.push({ u, i: tInv, v: tVal, ur: tVal - tInv, r: real, rp: tInv > 0 ? ((tVal - tInv)/tInv)*100 : 0 });
             }
 
             const dashBody = document.getElementById('dash-body');
