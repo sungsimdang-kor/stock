@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>주식 스터디 대시보드</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -106,6 +106,9 @@
         .op-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; color: #666; align-items: center; }
         .op-author { font-weight: bold; color: var(--pri); font-size: 14px; }
         .op-content { font-size: 14px; line-height: 1.5; white-space: pre-wrap; color: #333; }
+        .op-watch-card { margin-top:12px; padding:12px; background:#fff; border:1px solid var(--brd); border-radius:6px; font-size:13px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .op-watch-card strong { color: var(--pri); font-size: 14px; }
+        .op-watch-details { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 8px; color: #555; }
         .op-del { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 12px; padding: 0; }
         .op-del:hover { text-decoration: underline; background: none; }
 
@@ -123,6 +126,9 @@
         .del-modal-btns button { flex: 1; padding: 12px; border-radius: 8px; font-size: 15px; }
         #del-confirm-btn { background: #e74c3c; color: white; }
         #del-cancel-btn  { background: #f0f0f0; color: #333; }
+
+        .port-item-name { cursor: pointer; transition: color 0.2s; }
+        .port-item-name:hover { color: var(--pri); text-decoration: underline; }
 
         @media (max-width: 600px) {
             .container { padding: 10px; }
@@ -166,7 +172,7 @@
 
     <div class="container">
         <div class="top-info-bar">
-            <div class="version-tag">V1.5</div>
+            <div class="version-tag">V1.6</div>
             <div class="top-right-items">
                 <div class="exchange-info" id="last-update-display">서버 데이터 대기 중...</div>
                 <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
@@ -222,7 +228,20 @@
                         <label>내용 (시장 방향성, 관심 종목, 매매 이유 등)</label>
                         <textarea id="op-text" rows="4" placeholder="자유롭게 의견을 작성해 주세요..."></textarea>
                     </div>
-                    <div class="btn-grp" style="max-width: 200px;">
+                    
+                    <h4 style="margin:10px 0 5px 0; font-size:14px; border-bottom:1px solid var(--brd); padding-bottom:5px;">관심 종목 추가 (선택사항)</h4>
+                    <div class="form-grid">
+                        <div class="f-grp">
+                            <label>티커 (입력 시 자동조회)</label>
+                            <input type="text" id="op-watch-tk" onchange="handleOpWatchTk()" placeholder="AAPL">
+                        </div>
+                        <div class="f-grp"><label>종목명</label><input type="text" id="op-watch-nm"></div>
+                        <div class="f-grp"><label>현재가</label><input type="number" step="0.01" id="op-watch-pr"></div>
+                        <div class="f-grp"><label>52주 최저가</label><input type="number" step="0.01" id="op-watch-low"></div>
+                        <div class="f-grp"><label>52주 최고가</label><input type="number" step="0.01" id="op-watch-high"></div>
+                    </div>
+
+                    <div class="btn-grp" style="max-width: 200px; margin-top: 10px;">
                         <button class="p-btn" onclick="saveOpinion()">의견 등록</button>
                     </div>
                 </div>
@@ -239,6 +258,7 @@
             <div class="card">
                 <h3>버전별 업데이트 내역</h3>
                 <ul style="line-height: 1.8; color: #444; font-size: 15px;">
+                    <li><strong>V1.6:</strong> 개인별 자산 요약 원금 대비 손익액 및 수익률 추가, 관심종목 52주 데이터 자동화, 매매일지 티커 표시, 포트폴리오 원클릭 매매연동</li>
                     <li><strong>V1.5:</strong> 개인별 페이지 자산 요약(전체/국내/해외) 추가, 미국 주식 달러/원화 표시 토글 기능 적용, 업데이트 내역 탭 신설</li>
                     <li><strong>V1.4:</strong> 야후 파이낸스/네이버 금융 3중 우회 프록시 엔진 적용 (IP 차단 방지)</li>
                     <li><strong>V1.3:</strong> 서버리스 프론트엔드 데이터 수집 자동화 및 Firebase 실시간 연동 강화</li>
@@ -415,40 +435,38 @@
         return null;
     }
 
+    // 52주 최저/최고가를 포함한 데이터 동시 수집 지원
+    async function fetchBulkStockPrices(tickers) {
+        if (!tickers || tickers.length === 0) return;
+        const toFetch = tickers; 
+
+        const queries = toFetch.map(t => /^\d{6}$/.test(t) ? t + '.KS' : t).join(',');
+        const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${queries}`;
+        const data = await fetchProxy(url);
+
+        if (data && data.quoteResponse && data.quoteResponse.result) {
+            data.quoteResponse.result.forEach(item => {
+                const originalTicker = item.symbol.replace('.KS', '');
+                const fbKey = safeKey(originalTicker);
+                cache[fbKey] = {
+                    price: item.regularMarketPrice || 0,
+                    change: item.regularMarketChangePercent || 0,
+                    low52: item.fiftyTwoWeekLow || 0,
+                    high52: item.fiftyTwoWeekHigh || 0,
+                    name: item.shortName || item.longName || mSym[originalTicker] || tMap[originalTicker] || originalTicker,
+                    curr: item.currency === 'KRW' ? 'KRW' : 'USD'
+                };
+            });
+        }
+    }
+
     async function getStk(tk, force = false) {
         if (!tk) return null;
         const fbKey = safeKey(tk);
         if (!force && cache[fbKey] && cache[fbKey].price > 0) return cache[fbKey];
         
-        const isKorean = /^\d{6}$/.test(tk);
-        
-        if (isKorean) {
-            try {
-                const naverUrl = `https://m.stock.naver.com/api/stock/${tk}/integration`;
-                const nData = await fetchProxy(naverUrl);
-                if (nData && nData.dealInfo && nData.dealInfo.closePrice) {
-                    const price = parseFloat(nData.dealInfo.closePrice.replace(/,/g,''));
-                    const change = parseFloat(nData.dealInfo.fluctuationRate || "0");
-                    if (price > 0) return { price, change, name: nData.stockName || tk, curr: 'KRW' };
-                }
-            } catch(e) {}
-        }
-        
-        const qTks = isKorean ? [tk+'.KS', tk+'.KQ'] : [mSym[tk] || tk];
-        for (let q of qTks) {
-            try {
-                const yUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(q)}?interval=1d&_=${Date.now()}`;
-                const yData = await fetchProxy(yUrl);
-                if (yData && yData.chart && yData.chart.result && yData.chart.result.length > 0) {
-                    const meta = yData.chart.result[0].meta;
-                    const price = meta.regularMarketPrice || 0;
-                    const prev = meta.chartPreviousClose || price;
-                    const change = prev > 0 ? ((price - prev) / prev) * 100 : 0;
-                    if (price > 0) return { price, change, name: meta.shortName || meta.longName || tMap[tk] || tk, curr: meta.currency==='KRW'?'KRW':'USD' };
-                }
-            } catch(e) {}
-        }
-        return null;
+        await fetchBulkStockPrices([tk]);
+        return cache[fbKey];
     }
 
     window.isFetchingMarketData = false;
@@ -470,22 +488,15 @@
             let activeTickers = new Set(Object.keys(mSym));
             users.forEach(u => state.trades[u].forEach(t => activeTickers.add(t.ticker)));
 
+            await fetchBulkStockPrices(Array.from(activeTickers));
+
             let newCache = {};
-            const promises = Array.from(activeTickers).map(async tk => {
+            Array.from(activeTickers).forEach(tk => {
                 const fbKey = safeKey(tk);
-                const info = await getStk(tk, true);
-                
-                if (info && info.price > 0) {
-                    newCache[fbKey] = info;
-                    if (cache[fbKey] && info.price !== cache[fbKey].price) {
-                        previousPrices[tk] = cache[fbKey].price;
-                    }
-                } else if (cache[fbKey]) {
-                    newCache[fbKey] = cache[fbKey]; 
+                if (cache[fbKey]) {
+                    newCache[fbKey] = cache[fbKey];
                 }
             });
-
-            await Promise.all(promises);
 
             await db.ref('marketData').set({
                 lastUpdated: Date.now(),
@@ -507,10 +518,13 @@
         pendingDelete = { id, mode }; 
         document.getElementById('del-modal').classList.add('open'); 
     }
+    window.openDelModal = openDelModal;
+
     function closeDelModal() { 
         pendingDelete = null; 
         document.getElementById('del-modal').classList.remove('open'); 
     }
+    window.closeDelModal = closeDelModal;
     
     document.getElementById('del-confirm-btn').addEventListener('click', async function() {
         if (!pendingDelete || !db) return;
@@ -528,10 +542,16 @@
         return sortStates[u].asc ? '▲' : '▼';
     }
 
-    function sortPort(u, key) {
+    window.sortPort = function(u, key) {
         if (sortStates[u].key === key) sortStates[u].asc = !sortStates[u].asc;
         else { sortStates[u].key = key; sortStates[u].asc = (key === 'fn') ? true : false; }
         updateAll();
+    }
+
+    window.fillTradeForm = function(u, tk) {
+        document.getElementById(`tk-${u}`).value = tk;
+        handleTk(u);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function initUI() {
@@ -545,23 +565,23 @@
                     
                     <div class="metrics" style="margin-bottom: 20px;">
                         <div class="m-box" style="border-left-color: #9b59b6;">
-                            <h4>전체 자산 (KRW)</h4>
+                            <h4>전체 자산 손익 (KRW)</h4>
                             <p id="tot-val-${u}">0원</p>
-                            <div id="tot-ret-${u}" style="font-size:14px; font-weight:bold; margin-top:5px;">0%</div>
+                            <div id="tot-ret-${u}" style="font-size:15px; font-weight:bold; margin-top:5px;">0%</div>
                         </div>
                         <div class="m-box" style="border-left-color: #3498db;">
-                            <h4>국내 주식 (KRW)</h4>
+                            <h4>국내 주식 손익 (KRW)</h4>
                             <p id="dom-val-${u}">0원</p>
-                            <div id="dom-ret-${u}" style="font-size:14px; font-weight:bold; margin-top:5px;">0%</div>
+                            <div id="dom-ret-${u}" style="font-size:15px; font-weight:bold; margin-top:5px;">0%</div>
                         </div>
                         <div class="m-box" style="border-left-color: #e67e22; position: relative;">
-                            <h4>해외 주식</h4>
+                            <h4>해외 주식 손익</h4>
                             <div style="position: absolute; top: 15px; right: 15px; display: flex; gap: 4px;">
                                 <button class="curr-btn active" id="btn-krw-${u}" onclick="setCurrency('${u}', 'KRW')">₩</button>
                                 <button class="curr-btn" id="btn-usd-${u}" onclick="setCurrency('${u}', 'USD')">＄</button>
                             </div>
                             <p id="ovs-val-${u}">0원</p>
-                            <div id="ovs-ret-${u}" style="font-size:14px; font-weight:bold; margin-top:5px;">0%</div>
+                            <div id="ovs-ret-${u}" style="font-size:15px; font-weight:bold; margin-top:5px;">0%</div>
                         </div>
                     </div>
 
@@ -630,7 +650,7 @@
         });
     }
 
-    function switchTab(targetId, btn) {
+    window.switchTab = function(targetId, btn) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
         
@@ -639,10 +659,37 @@
         if (btn) btn.classList.add('active');
     }
 
-    async function saveOpinion() {
+    window.handleOpWatchTk = async function() {
+        const tkIn = document.getElementById('op-watch-tk');
+        const tk = tkIn.value.trim().toUpperCase();
+        if (!tk) return;
+        tkIn.value = tk;
+        
+        document.getElementById('op-watch-nm').placeholder = "조회 중...";
+        await fetchBulkStockPrices([tk]);
+        
+        const fbKey = safeKey(tk);
+        const info = cache[fbKey];
+        
+        if (info) {
+            document.getElementById('op-watch-nm').value = info.name || '';
+            document.getElementById('op-watch-pr').value = info.price || '';
+            document.getElementById('op-watch-low').value = info.low52 || '';
+            document.getElementById('op-watch-high').value = info.high52 || '';
+        }
+        document.getElementById('op-watch-nm').placeholder = "";
+    }
+
+    window.saveOpinion = async function() {
         if (!db) return alert("DB 미연결");
         const user = document.getElementById('op-user').value;
         const text = document.getElementById('op-text').value.trim();
+        
+        const wTk = document.getElementById('op-watch-tk').value.trim().toUpperCase();
+        const wNm = document.getElementById('op-watch-nm').value.trim();
+        const wPr = document.getElementById('op-watch-pr').value;
+        const wLow = document.getElementById('op-watch-low').value;
+        const wHigh = document.getElementById('op-watch-high').value;
         
         if (!text) return alert("내용을 입력해 주세요.");
 
@@ -651,9 +698,19 @@
             await db.ref('opinions').push({
                 user: user,
                 text: text,
+                watchTicker: wTk,
+                watchName: wNm,
+                watchPrice: wPr,
+                watchLow: wLow,
+                watchHigh: wHigh,
                 timestamp: Date.now()
             });
             document.getElementById('op-text').value = '';
+            document.getElementById('op-watch-tk').value = '';
+            document.getElementById('op-watch-nm').value = '';
+            document.getElementById('op-watch-pr').value = '';
+            document.getElementById('op-watch-low').value = '';
+            document.getElementById('op-watch-high').value = '';
         } catch(e) { alert("등록 실패"); }
         toggleLd(false);
     }
@@ -672,6 +729,21 @@
         container.innerHTML = arr.map(op => {
             const d = new Date(op.timestamp);
             const dateStr = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            
+            let watchHtml = '';
+            if (op.watchTicker) {
+                watchHtml = `
+                    <div class="op-watch-card">
+                        <strong>💡 관심 종목: ${op.watchName} (${op.watchTicker})</strong>
+                        <div class="op-watch-details">
+                            <span>현재가(기록시점): ${op.watchPrice || '-'}</span>
+                            <span>52주 최저: ${op.watchLow || '-'}</span>
+                            <span>52주 최고: ${op.watchHigh || '-'}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
             return `
                 <div class="op-item">
                     <div class="op-header">
@@ -682,12 +754,13 @@
                         </div>
                     </div>
                     <div class="op-content">${op.text}</div>
+                    ${watchHtml}
                 </div>
             `;
         }).join('');
     }
 
-    async function saveTr(u) {
+    window.saveTr = async function(u) {
         if (!db) return alert("데이터베이스에 연결되지 않았습니다.");
         
         const eid = document.getElementById(`eid-${u}`).value;
@@ -714,7 +787,7 @@
         toggleLd(false);
     }
 
-    function editTr(u, id) {
+    window.editTr = function(u, id) {
         const tr = state.trades[u].find(t => String(t.id) === String(id));
         if (!tr) return;
         document.getElementById(`eid-${u}`).value  = tr.id;
@@ -730,7 +803,7 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function cancelEd(u) {
+    window.cancelEd = function(u) {
         document.getElementById(`eid-${u}`).value = "";
         ['tk','nm','pr','qt'].forEach(id => {
             const el = document.getElementById(`${id}-${u}`);
@@ -762,7 +835,7 @@
         grid.innerHTML = html;
     }
 
-    async function handleTk(u) {
+    window.handleTk = async function(u) {
         const tkIn = document.getElementById(`tk-${u}`);
         const nmIn = document.getElementById(`nm-${u}`);
         const prIn = document.getElementById(`pr-${u}`);
@@ -794,7 +867,7 @@
         }
     }
 
-    function updateAll() {
+    window.updateAll = function() {
         try {
             let stats = [], hlds = [];
             let allDailyChanges = [];
@@ -825,7 +898,7 @@
                     rpSpan.className = real > 0 ? 'profit' : (real < 0 ? 'loss' : '');
                 }
 
-                const mode = currMode[u]; // USD or KRW
+                const mode = currMode[u]; 
 
                 for (const [tk, p] of Object.entries(port)) {
                     if (p.q <= 0) continue;
@@ -848,11 +921,9 @@
                         tDomValKw += vBase;
                     }
 
-                    // 전체 요약용 원화 합산
                     tInv += iBase * xr;
                     tVal += vBase * xr;
 
-                    // 표에 보여줄 값 결정 (토글 모드 반영)
                     let dispSym, dispInv, dispVal;
                     if (isUsd) {
                         if (mode === 'USD') {
@@ -875,7 +946,7 @@
 
                     portArray.push({
                         tk: tk, fn: info.name || p.n || tk, q: p.q, c: p.c, curPr: curPr,
-                        vKw: vBase * xr, // vKw는 차트 및 정렬용 절대 기준 (원화)
+                        vKw: vBase * xr, 
                         dispSym: dispSym, dispVal: dispVal, dispProfit: profitAmt,
                         ret: ret, isLoaded: isLoaded
                     });
@@ -885,43 +956,55 @@
                     }
                 }
 
-                // --- V1.5 개인별 자산 요약 업데이트 ---
-                // 전체
-                const tTotRet = tInv > 0 ? ((tVal - tInv)/tInv)*100 : 0;
-                document.getElementById(`tot-val-${u}`).innerText = `₩${tVal.toLocaleString('ko-KR',{maximumFractionDigits:0})}`;
+                // 전체 요약
+                const tTotAmt = tVal - tInv;
+                const tTotRet = tInv > 0 ? (tTotAmt/tInv)*100 : 0;
+                const totValEl = document.getElementById(`tot-val-${u}`);
+                if(totValEl) totValEl.innerText = `₩${tVal.toLocaleString('ko-KR',{maximumFractionDigits:0})}`;
                 const elTotRet = document.getElementById(`tot-ret-${u}`);
-                elTotRet.innerText = `${tTotRet>0?'+':''}${tTotRet.toFixed(2)}%`;
-                elTotRet.className = tTotRet > 0 ? 'profit' : (tTotRet < 0 ? 'loss' : '');
+                if(elTotRet){
+                    const signTot = tTotAmt > 0 ? '+' : '';
+                    elTotRet.innerText = `${signTot}₩${Math.abs(tTotAmt).toLocaleString('ko-KR',{maximumFractionDigits:0})} (${signTot}${tTotRet.toFixed(2)}%)`;
+                    elTotRet.className = tTotAmt > 0 ? 'profit' : (tTotAmt < 0 ? 'loss' : '');
+                }
 
-                // 국내
-                const tDomRet = tDomInvKw > 0 ? ((tDomValKw - tDomInvKw)/tDomInvKw)*100 : 0;
-                document.getElementById(`dom-val-${u}`).innerText = `₩${tDomValKw.toLocaleString('ko-KR',{maximumFractionDigits:0})}`;
+                // 국내 요약
+                const tDomAmt = tDomValKw - tDomInvKw;
+                const tDomRet = tDomInvKw > 0 ? (tDomAmt/tDomInvKw)*100 : 0;
+                const domValEl = document.getElementById(`dom-val-${u}`);
+                if(domValEl) domValEl.innerText = `₩${tDomValKw.toLocaleString('ko-KR',{maximumFractionDigits:0})}`;
                 const elDomRet = document.getElementById(`dom-ret-${u}`);
-                elDomRet.innerText = `${tDomRet>0?'+':''}${tDomRet.toFixed(2)}%`;
-                elDomRet.className = tDomRet > 0 ? 'profit' : (tDomRet < 0 ? 'loss' : '');
+                if(elDomRet){
+                    const signDom = tDomAmt > 0 ? '+' : '';
+                    elDomRet.innerText = `${signDom}₩${Math.abs(tDomAmt).toLocaleString('ko-KR',{maximumFractionDigits:0})} (${signDom}${tDomRet.toFixed(2)}%)`;
+                    elDomRet.className = tDomAmt > 0 ? 'profit' : (tDomAmt < 0 ? 'loss' : '');
+                }
 
-                // 해외
+                // 해외 요약
                 const ovsInvDisp = mode === 'USD' ? tOvsInvUsd : tOvsInvUsd * exKRW;
                 const ovsValDisp = mode === 'USD' ? tOvsValUsd : tOvsValUsd * exKRW;
+                const ovsAmt = ovsValDisp - ovsInvDisp;
                 const ovsRet = tOvsInvUsd > 0 ? ((tOvsValUsd - tOvsInvUsd)/tOvsInvUsd)*100 : 0;
                 const ovsSym = mode === 'USD' ? '$' : '₩';
-                document.getElementById(`ovs-val-${u}`).innerText = `${ovsSym}${ovsValDisp.toLocaleString('ko-KR',{maximumFractionDigits:mode==='USD'?2:0})}`;
+                const ovsValEl = document.getElementById(`ovs-val-${u}`);
+                if(ovsValEl) ovsValEl.innerText = `${ovsSym}${ovsValDisp.toLocaleString('ko-KR',{maximumFractionDigits:mode==='USD'?2:0})}`;
                 const elOvsRet = document.getElementById(`ovs-ret-${u}`);
-                elOvsRet.innerText = `${ovsRet>0?'+':''}${ovsRet.toFixed(2)}%`;
-                elOvsRet.className = ovsRet > 0 ? 'profit' : (ovsRet < 0 ? 'loss' : '');
+                if(elOvsRet){
+                    const signOvs = ovsAmt > 0 ? '+' : '';
+                    elOvsRet.innerText = `${signOvs}${ovsSym}${Math.abs(ovsAmt).toLocaleString(ovsSym==='$'?'en-US':'ko-KR',{maximumFractionDigits:mode==='USD'?2:0})} (${signOvs}${ovsRet.toFixed(2)}%)`;
+                    elOvsRet.className = ovsAmt > 0 ? 'profit' : (ovsAmt < 0 ? 'loss' : '');
+                }
 
-                // 토글 버튼 UI
                 const btnKrw = document.getElementById(`btn-krw-${u}`);
                 const btnUsd = document.getElementById(`btn-usd-${u}`);
                 if(btnKrw) btnKrw.className = `curr-btn ${mode === 'KRW' ? 'active' : ''}`;
                 if(btnUsd) btnUsd.className = `curr-btn ${mode === 'USD' ? 'active' : ''}`;
 
-                // --- 정렬 적용 ---
                 const s = sortStates[u];
                 portArray.sort((a, b) => {
                     let valA = a[s.key] ?? '';
                     let valB = b[s.key] ?? '';
-                    if (s.key === 'vKw') { valA = a.vKw; valB = b.vKw; } // 평가액은 원화 기준으로 정렬 통일
+                    if (s.key === 'vKw') { valA = a.vKw; valB = b.vKw; } 
                     
                     if (typeof valA === 'string') return s.asc ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA));
                     return s.asc ? (Number(valA) - Number(valB)) : (Number(valB) - Number(valA));
@@ -943,7 +1026,7 @@
                 portArray.forEach(item => {
                     const cls  = item.isLoaded ? (item.ret > 0 ? 'profit' : (item.ret < 0 ? 'loss' : '')) : '';
                     const sign = item.isLoaded && item.ret > 0 ? '+' : '';
-                    const sym = (item.tk && !/^\d{6}$/.test(item.tk)) ? '$' : '₩'; // 원본 화폐기호
+                    const sym = (item.tk && !/^\d{6}$/.test(item.tk)) ? '$' : '₩'; 
                     const displayCurPr = item.isLoaded ? `${sym}${item.curPr.toLocaleString(undefined,{maximumFractionDigits:2})}` : `<span style="color:#aaa;font-size:12px;">데이터 없음</span>`;
                     const displayRet = item.isLoaded ? `${sign}${item.ret.toFixed(2)}%` : `<span style="color:#aaa;">-</span>`;
                     
@@ -953,7 +1036,7 @@
                     const profitStr = item.isLoaded ? `<span class="${pCls}">(${pSign}${item.dispSym}${Math.abs(item.dispProfit).toLocaleString(item.dispSym==='$'?'en-US':'ko-KR',{maximumFractionDigits:maxFrac})})</span>` : '';
 
                     ptHtml += `<tr>
-                        <td>${item.fn}<br><small style="color:#888">${item.tk}</small></td>
+                        <td class="port-item-name" onclick="fillTradeForm('${u}','${item.tk}')" title="클릭하여 매매 입력">${item.fn}<br><small style="color:#888">${item.tk}</small></td>
                         <td>${item.q.toLocaleString(undefined,{maximumFractionDigits:4})}</td>
                         <td>${sym}${item.c.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
                         <td>${displayCurPr}</td>
@@ -989,7 +1072,7 @@
                         const typeName = t.type === 'buy' ? '매수' : '매도';
                         return `<tr>
                             <td>${t.date}</td>
-                            <td>${t.name}</td>
+                            <td>${t.name}<br><small style="color:#888">${t.ticker}</small></td>
                             <td class="${typeCls}">${typeName}</td>
                             <td>${sym}${t.price.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
                             <td>${t.qty}</td>
@@ -1036,16 +1119,19 @@
                 }).join('');
             }
 
-            const win = [...stats].sort((a,b) => b.rp - a.rp)[0];
-            const dashTop = document.getElementById('dash-top');
-            if(dashTop) dashTop.innerText = win && win.i > 0 ? `${win.u} (${win.rp>0?'+':''}${win.rp.toFixed(2)}%)` : '-';
+            let allDailyChangesArray = [];
+            for (const [tk, info] of Object.entries(cache)) {
+                if (info && info.change && !mSym[tk]) {
+                    allDailyChangesArray.push({ n: info.name, change: info.change });
+                }
+            }
 
             const dashBest = document.getElementById('dash-best');
             const dashWorst = document.getElementById('dash-worst');
             
-            if (allDailyChanges.length > 0) {
-                const b = allDailyChanges.reduce((p,c) => p.change > c.change ? p : c, allDailyChanges[0]);
-                const w = allDailyChanges.reduce((p,c) => p.change < c.change ? p : c, allDailyChanges[0]);
+            if (allDailyChangesArray.length > 0) {
+                const b = allDailyChangesArray.reduce((p,c) => p.change > c.change ? p : c, allDailyChangesArray[0]);
+                const w = allDailyChangesArray.reduce((p,c) => p.change < c.change ? p : c, allDailyChangesArray[0]);
                 
                 if(dashBest) {
                     dashBest.innerText = `${b.n} (${b.change > 0 ? '+' : ''}${b.change.toFixed(2)}%)`;
@@ -1067,5 +1153,3 @@
 </script>
 </body>
 </html>
-
-
