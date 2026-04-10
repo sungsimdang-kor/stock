@@ -63,7 +63,6 @@
         .m-box h4 { margin: 0 0 10px 0; font-size: 13px; color: #666; }
         .m-box p { margin: 0; font-size: 22px; font-weight: bold; }
 
-        /* 통화 토글 버튼 */
         .curr-btn { padding: 4px 10px; border: 1px solid #ccc; background: #f9fafc; cursor: pointer; border-radius: 4px; font-size: 12px; color: #555; transition: 0.2s; }
         .curr-btn.active { background: var(--pri); color: #fff; font-weight: bold; border-color: var(--pri); }
 
@@ -74,11 +73,6 @@
         th:hover { background: #eef2f5; }
         th:first-child, td:first-child { text-align: left; }
         
-        .price-up { animation: flash-up 1s ease-out; }
-        .price-down { animation: flash-down 1s ease-out; }
-        @keyframes flash-up { 0% { background-color: rgba(255, 77, 79, 0.2); } 100% { background-color: transparent; } }
-        @keyframes flash-down { 0% { background-color: rgba(24, 144, 255, 0.2); } 100% { background-color: transparent; } }
-
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; align-items: end; }
         .f-grp { display: flex; flex-direction: column; font-size: 12px; }
         .f-grp label { margin-bottom: 4px; color: #555; }
@@ -111,6 +105,28 @@
         .op-watch-details { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 8px; color: #555; }
         .op-del { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 12px; padding: 0; }
         .op-del:hover { text-decoration: underline; background: none; }
+
+        /* 동향 리포트 스타일 */
+        .trend-card { background: #fff; border: 1px solid var(--brd); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .trend-author { font-size: 18px; font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        .trend-section { margin-bottom: 15px; }
+        .trend-section h5 { margin: 0 0 10px 0; font-size: 14px; color: #666; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .trend-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+        .trend-tag { padding: 5px 10px; border-radius: 20px; font-size: 13px; font-weight: bold; }
+        .tag-new { background: #ffeaea; color: #d63031; }
+        .tag-add { background: #fff4e6; color: #e67e22; }
+        .tag-part { background: #e3f2fd; color: #2980b9; }
+        .tag-full { background: #eaecf0; color: #555; }
+        .tag-keep { background: #f9fafc; color: #999; border: 1px solid #ddd; }
+        
+        .trend-comments { margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--brd); }
+        .comment-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+        .comment-item { font-size: 13px; background: #f9fafc; padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; }
+        .comment-item strong { color: var(--pri); margin-right: 5px; }
+        .comment-input-area { display: flex; gap: 8px; }
+        .comment-input-area input { flex: 1; padding: 8px; border: 1px solid var(--brd); border-radius: 4px; font-size: 13px; }
+        .comment-input-area select { padding: 8px; border: 1px solid var(--brd); border-radius: 4px; font-size: 13px; }
+        .comment-input-area button { padding: 8px 15px; background: var(--pri); color: #fff; font-size: 13px; }
 
         #loader { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; justify-content: center; align-items: center; font-weight: bold; flex-direction: column; gap: 15px; }
         .spin { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--pri); border-radius: 50%; animation: sp 1s linear infinite; }
@@ -172,7 +188,7 @@
 
     <div class="container">
         <div class="top-info-bar">
-            <div class="version-tag">V1.6</div>
+            <div class="version-tag">V1.7</div>
             <div class="top-right-items">
                 <div class="exchange-info" id="last-update-display">서버 데이터 대기 중...</div>
                 <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
@@ -182,6 +198,7 @@
 
         <div class="tabs" id="tab-menu">
             <button class="tab-btn active" onclick="switchTab('dashboard', this)">통합 뷰</button>
+            <button class="tab-btn" onclick="switchTab('trends', this)">개인별 동향</button>
             <button class="tab-btn" onclick="switchTab('opinions', this)">개인별 의견 (공유)</button>
             <button class="tab-btn" onclick="switchTab('u-김태호', this)">김태호</button>
             <button class="tab-btn" onclick="switchTab('u-이용우', this)">이용우</button>
@@ -212,6 +229,21 @@
             </div>
         </div>
 
+        <div id="trends" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h3>개인별 동향 리포트</h3>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <select id="trend-date-selector" onchange="renderTrends()"></select>
+                        <button class="refresh-btn" onclick="generateDailyTrend(true)">수동 리포트 생성(오늘)</button>
+                    </div>
+                </div>
+                <div id="trends-container">
+                    <div style="text-align:center; padding:30px; color:#aaa;">조회된 리포트가 없습니다. 매일 21시 이후 자동 생성됩니다.</div>
+                </div>
+            </div>
+        </div>
+
         <div id="opinions" class="tab-content">
             <div class="card">
                 <h3>의견 및 매매 기록 공유</h3>
@@ -225,7 +257,7 @@
                         </select>
                     </div>
                     <div class="f-grp">
-                        <label>내용 (시장 방향성, 관심 종목, 매매 이유 등)</label>
+                        <label>내용 (시장 방향성, 매매 이유 등)</label>
                         <textarea id="op-text" rows="4" placeholder="자유롭게 의견을 작성해 주세요..."></textarea>
                     </div>
                     
@@ -258,13 +290,14 @@
             <div class="card">
                 <h3>버전별 업데이트 내역</h3>
                 <ul style="line-height: 1.8; color: #444; font-size: 15px;">
-                    <li><strong>V1.6:</strong> 개인별 자산 요약 원금 대비 손익액 및 수익률 추가, 관심종목 52주 데이터 자동화, 매매일지 티커 표시, 포트폴리오 원클릭 매매연동</li>
-                    <li><strong>V1.5:</strong> 개인별 페이지 자산 요약(전체/국내/해외) 추가, 미국 주식 달러/원화 표시 토글 기능 적용, 업데이트 내역 탭 신설</li>
+                    <li><strong>V1.7:</strong> 자동 일일 동향(21시 생성), 비중 확대/축소 분석 및 댓글 시스템 도입</li>
+                    <li><strong>V1.6:</strong> 자산 요약 원금 대비 손익액 및 수익률 추가, 관심종목 52주 데이터 자동화, 포트폴리오 원클릭 매매연동</li>
+                    <li><strong>V1.5:</strong> 미국 주식 달러/원화 토글 기능 적용</li>
                     <li><strong>V1.4:</strong> 야후 파이낸스/네이버 금융 3중 우회 프록시 엔진 적용 (IP 차단 방지)</li>
                     <li><strong>V1.3:</strong> 서버리스 프론트엔드 데이터 수집 자동화 및 Firebase 실시간 연동 강화</li>
-                    <li><strong>V1.2:</strong> 국내 주식 네이버 금융 실시간 API 적용 (시간외 거래 지원)</li>
-                    <li><strong>V1.1:</strong> UI 레이아웃 1열 개편 및 포트폴리오 수익금(₩) 표시 추가</li>
-                    <li><strong>V1.0:</strong> 주식 스터디 대시보드 초기 구축 (통합 뷰, 개인별 포트폴리오, 매매 일지)</li>
+                    <li><strong>V1.2:</strong> 국내 주식 네이버 금융 실시간 API 적용</li>
+                    <li><strong>V1.1:</strong> UI 레이아웃 개편 및 포트폴리오 수익금(₩) 표시</li>
+                    <li><strong>V1.0:</strong> 초기 구축</li>
                 </ul>
             </div>
         </div>
@@ -297,7 +330,6 @@
     const sortStates = {};
     users.forEach(u => sortStates[u] = { key: 'vKw', asc: false }); 
 
-    // 통화 모드 상태 관리
     const currMode = {};
     users.forEach(u => currMode[u] = 'KRW');
     window.setCurrency = function(u, mode) {
@@ -317,14 +349,14 @@
         '^KS11': 'KOSPI', '^KQ11': '코스닥', '^VIX': 'VIX', 'CL=F': 'WTI 유가'
     };
     let cache = {};
-    const state = { trades: {}, opinions: [], charts: {} };
+    const state = { trades: {}, opinions: [], charts: {}, trends: {}, trendComments: {} };
+    let allDailyChanges = []; 
     users.forEach(u => state.trades[u] = []);
 
     function safeKey(key) {
         return key.replace(/[.#$\[\]]/g, '_');
     }
 
-    // Firebase 접속 설정
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
         authDomain: "howooju.firebaseapp.com",
@@ -332,8 +364,7 @@
         projectId: "howooju",
         storageBucket: "howooju.firebasestorage.app",
         messagingSenderId: "252732591437",
-        appId: "1:252732591437:web:961c790c34b8269cb7bb04",
-        measurementId: "G-3GEWPQ2G00"
+        appId: "1:252732591437:web:961c790c34b8269cb7bb04"
     };
 
     let db = null;
@@ -355,7 +386,7 @@
             } else if (typeof firebase !== 'undefined' && firebase.apps.length) {
                 db = firebase.database();
             }
-        } catch (e) { console.error("Firebase 초기화 에러:", e); }
+        } catch (e) { console.error("Firebase 에러:", e); }
 
         initUI(); 
         
@@ -369,6 +400,7 @@
                     if(state.trades[t.user]) state.trades[t.user].push(t);
                 });
                 updateAll();
+                checkAndGenerateDailyTrend(); 
             });
 
             db.ref('opinions').on('value', (snapshot) => {
@@ -380,6 +412,17 @@
                     state.opinions.push(op);
                 });
                 renderOpinions();
+            });
+
+            db.ref('trends').on('value', (snapshot) => {
+                state.trends = snapshot.val() || {};
+                updateTrendDateSelector();
+                renderTrends();
+            });
+
+            db.ref('trendComments').on('value', (snapshot) => {
+                state.trendComments = snapshot.val() || {};
+                renderTrends();
             });
 
             db.ref('marketData').on('value', (snapshot) => {
@@ -435,12 +478,9 @@
         return null;
     }
 
-    // 52주 최저/최고가를 포함한 데이터 동시 수집 지원
     async function fetchBulkStockPrices(tickers) {
         if (!tickers || tickers.length === 0) return;
-        const toFetch = tickers; 
-
-        const queries = toFetch.map(t => /^\d{6}$/.test(t) ? t + '.KS' : t).join(',');
+        const queries = tickers.map(t => /^\d{6}$/.test(t) ? t + '.KS' : t).join(',');
         const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${queries}`;
         const data = await fetchProxy(url);
 
@@ -512,6 +552,179 @@
         window.isFetchingMarketData = false;
         if (isManual) toggleLd(false);
     }
+
+    // --- 동향 리포트 로직 ---
+    function getTodayDateStr() {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    }
+
+    async function checkAndGenerateDailyTrend() {
+        const now = new Date();
+        if (now.getHours() < 21) return; 
+
+        const dateStr = getTodayDateStr();
+        if (!db || state.trends[dateStr]) return; 
+
+        await generateDailyTrend(false);
+    }
+
+    window.generateDailyTrend = async function(isManual = false) {
+        const dateStr = getTodayDateStr();
+        if (!db) return;
+        
+        if (isManual) toggleLd(true, "동향 리포트 생성 중...");
+
+        const report = { timestamp: Date.now(), users: {} };
+        const EPSILON = 0.000001;
+
+        users.forEach(u => {
+            let portYest = {};
+            let portToday = {};
+            
+            state.trades[u].forEach(t => {
+                const isKRW = t.currency === 'KRW';
+                const tkName = t.name || t.ticker;
+                
+                if (t.date < dateStr) {
+                    if(!portYest[t.ticker]) portYest[t.ticker] = { q: 0, n: tkName, krw: isKRW };
+                    if(t.type === 'buy') portYest[t.ticker].q += t.qty;
+                    else portYest[t.ticker].q -= t.qty;
+                }
+                
+                if (t.date <= dateStr) {
+                    if(!portToday[t.ticker]) portToday[t.ticker] = { q: 0, n: tkName, krw: isKRW };
+                    if(t.type === 'buy') portToday[t.ticker].q += t.qty;
+                    else portToday[t.ticker].q -= t.qty;
+                }
+            });
+
+            report.users[u] = { KRW: { newBuy: [], addBuy: [], partSell: [], fullSell: [], keep: [] }, USD: { newBuy: [], addBuy: [], partSell: [], fullSell: [], keep: [] } };
+            
+            const allTickers = new Set([...Object.keys(portYest), ...Object.keys(portToday)]);
+            allTickers.forEach(tk => {
+                const qY = portYest[tk] ? portYest[tk].q : 0;
+                const qT = portToday[tk] ? portToday[tk].q : 0;
+                const refObj = portToday[tk] || portYest[tk];
+                const typeObj = refObj.krw ? report.users[u].KRW : report.users[u].USD;
+                const n = refObj.n;
+
+                if (qY < EPSILON && qT > EPSILON) typeObj.newBuy.push(n);
+                else if (qY > EPSILON && qT > qY + EPSILON) typeObj.addBuy.push(n);
+                else if (qY > EPSILON && qT < qY - EPSILON && qT > EPSILON) typeObj.partSell.push(n);
+                else if (qY > EPSILON && qT < EPSILON) typeObj.fullSell.push(n);
+                else if (qY > EPSILON && Math.abs(qT - qY) < EPSILON) typeObj.keep.push(n);
+            });
+        });
+
+        try {
+            await db.ref(`trends/${dateStr}`).set(report);
+            if (isManual) alert(`${dateStr} 리포트가 성공적으로 생성되었습니다.`);
+        } catch(e) {
+            if (isManual) alert("생성 실패");
+        }
+        if (isManual) toggleLd(false);
+    }
+
+    function updateTrendDateSelector() {
+        const selector = document.getElementById('trend-date-selector');
+        if (!selector) return;
+        
+        const dates = Object.keys(state.trends).sort((a,b) => new Date(b) - new Date(a));
+        selector.innerHTML = dates.map(d => `<option value="${d}">${d}</option>`).join('');
+    }
+
+    window.renderTrends = function() {
+        const selector = document.getElementById('trend-date-selector');
+        const container = document.getElementById('trends-container');
+        if (!selector || !container) return;
+
+        const selDate = selector.value;
+        if (!selDate || !state.trends[selDate]) {
+            container.innerHTML = '<div style="text-align:center; padding:30px; color:#aaa;">해당 날짜의 리포트가 없습니다.</div>';
+            return;
+        }
+
+        const report = state.trends[selDate];
+        let html = '';
+
+        users.forEach(u => {
+            const data = report.users[u];
+            if (!data) return;
+
+            const renderTags = (arr, cls) => arr.map(item => `<span class="trend-tag ${cls}">${item}</span>`).join('');
+            
+            const buildSection = (title, r) => {
+                if(!r) return '';
+                const tags = [
+                    renderTags(r.newBuy || [], 'tag-new'),
+                    renderTags(r.addBuy || [], 'tag-add'),
+                    renderTags(r.partSell || [], 'tag-part'),
+                    renderTags(r.fullSell || [], 'tag-full'),
+                    renderTags(r.keep || [], 'tag-keep')
+                ].filter(Boolean).join('');
+                
+                if(!tags) return `<div class="trend-section"><h5>${title}</h5><div class="trend-tags"><span class="trend-tag tag-keep">변화 없음</span></div></div>`;
+                return `<div class="trend-section"><h5>${title}</h5><div class="trend-tags">${tags}</div></div>`;
+            };
+
+            // Comments
+            const cmtKey = `${selDate}_${u}`;
+            const commentsObj = state.trendComments[cmtKey] || {};
+            const commentsHtml = Object.keys(commentsObj).map(k => {
+                const c = commentsObj[k];
+                const d = new Date(c.timestamp);
+                const timeStr = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                return `<div class="comment-item"><div><strong>${c.author}</strong> ${c.text}</div><div style="color:#aaa; font-size:11px;">${timeStr} <button class="op-del" style="margin-left:5px" onclick="delTrendComment('${cmtKey}', '${k}')">x</button></div></div>`;
+            }).join('');
+
+            html += `
+                <div class="trend-card">
+                    <div class="trend-author">👤 ${u}의 포트폴리오 동향</div>
+                    ${buildSection('🇺🇸 미국 주식 (USD)', data.USD)}
+                    ${buildSection('🇰🇷 국내 주식 (KRW)', data.KRW)}
+                    
+                    <div class="trend-comments">
+                        <div class="comment-list">${commentsHtml}</div>
+                        <div class="comment-input-area">
+                            <select id="tc-author-${u}" style="width:100px;">
+                                <option value="김태호">김태호</option>
+                                <option value="이용우">이용우</option>
+                                <option value="이형주">이형주</option>
+                            </select>
+                            <input type="text" id="tc-text-${u}" placeholder="동향에 대한 코멘트를 남겨보세요..." onkeypress="if(event.key==='Enter') addTrendComment('${selDate}', '${u}')">
+                            <button onclick="addTrendComment('${selDate}', '${u}')">등록</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    window.addTrendComment = async function(dateStr, targetUser) {
+        if (!db) return;
+        const author = document.getElementById(`tc-author-${targetUser}`).value;
+        const text = document.getElementById(`tc-text-${targetUser}`).value.trim();
+        if (!text) return;
+
+        const refKey = `${dateStr}_${targetUser}`;
+        try {
+            await db.ref(`trendComments/${refKey}`).push({
+                author: author, text: text, timestamp: Date.now()
+            });
+            document.getElementById(`tc-text-${targetUser}`).value = '';
+        } catch(e) { alert("댓글 등록 실패"); }
+    }
+
+    window.delTrendComment = async function(cmtKey, commentId) {
+        if (!db || !confirm("댓글을 삭제하시겠습니까?")) return;
+        try {
+            await db.ref(`trendComments/${cmtKey}/${commentId}`).remove();
+        } catch(e) { alert("삭제 실패"); }
+    }
+
 
     let pendingDelete = null;
     function openDelModal(id, mode = 'trade') { 
@@ -870,7 +1083,7 @@
     window.updateAll = function() {
         try {
             let stats = [], hlds = [];
-            let allDailyChanges = [];
+            allDailyChanges = [];
 
             for (const u of users) {
                 let port = {}, real = 0, tInv = 0, tVal = 0, cLbl = [], cDat = [];
