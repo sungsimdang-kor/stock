@@ -95,6 +95,17 @@
         .profit { color: var(--profit); font-weight: bold; }
         .loss   { color: var(--loss);   font-weight: bold; }
 
+        /* 타임라인 스타일 */
+        .op-item { background: #f9fafc; padding: 15px; border-radius: 8px; border-left: 4px solid var(--pri); margin-bottom: 15px; }
+        .op-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; color: #666; align-items: center; }
+        .op-author { font-weight: bold; color: var(--pri); font-size: 14px; }
+        .op-content { font-size: 14px; line-height: 1.5; white-space: pre-wrap; color: #333; }
+        .op-watch-card { margin-top:12px; padding:12px; background:#fff; border:1px solid var(--brd); border-radius:6px; font-size:13px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .op-watch-card strong { color: var(--pri); font-size: 14px; }
+        .op-watch-details { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 8px; color: #555; }
+        .op-del { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 12px; padding: 0; }
+        .op-del:hover { text-decoration: underline; background: none; }
+
         /* 동향 리포트 스타일 */
         .trend-card { background: #fff; border: 1px solid var(--brd); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
         .trend-author { font-size: 18px; font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
@@ -247,14 +258,57 @@
             </div>
         </div>
 
+        <div id="opinions" class="tab-content">
+            <div class="card">
+                <h3>의견 및 매매 기록 공유</h3>
+                <div class="form-grid" style="grid-template-columns: 1fr;">
+                    <div class="f-grp" style="max-width: 200px;">
+                        <label>작성자</label>
+                        <select id="op-user">
+                            <option value="김태호">김태호</option>
+                            <option value="이용우">이용우</option>
+                            <option value="이형주">이형주</option>
+                        </select>
+                    </div>
+                    <div class="f-grp">
+                        <label>내용 (시장 방향성, 매매 이유 등)</label>
+                        <textarea id="op-text" rows="4" placeholder="자유롭게 의견을 작성해 주세요..."></textarea>
+                    </div>
+                    
+                    <h4 style="margin:10px 0 5px 0; font-size:14px; border-bottom:1px solid var(--brd); padding-bottom:5px;">관심 종목 추가 (선택사항)</h4>
+                    <div class="form-grid">
+                        <div class="f-grp">
+                            <label>티커 (입력 시 자동조회)</label>
+                            <input type="text" id="op-watch-tk" onchange="handleOpWatchTk()" placeholder="AAPL">
+                        </div>
+                        <div class="f-grp"><label>종목명</label><input type="text" id="op-watch-nm"></div>
+                        <div class="f-grp"><label>현재가</label><input type="number" step="0.01" id="op-watch-pr"></div>
+                        <div class="f-grp"><label>52주 최저가</label><input type="number" step="0.01" id="op-watch-low"></div>
+                        <div class="f-grp"><label>52주 최고가</label><input type="number" step="0.01" id="op-watch-high"></div>
+                    </div>
+
+                    <div class="btn-grp" style="max-width: 200px; margin-top: 10px;">
+                        <button class="p-btn" onclick="saveOpinion()">의견 등록</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h3>타임라인</h3>
+                <div id="opinions-timeline" style="display:flex; flex-direction:column;">
+                    <div class="idx-loading">의견을 불러오는 중...</div>
+                </div>
+            </div>
+        </div>
+
         <div id="updates" class="tab-content">
             <div class="card">
                 <h3>버전별 업데이트 내역</h3>
                 <ul style="line-height: 1.8; color: #444; font-size: 15px;">
-                    <li><strong>V2.3:</strong> 자동 일일 동향 생성 시간을 23시 59분으로 변경, 매매 변동 사항이 있는 경우에만 리포트 생성하도록 로직 최적화</li>
+                    <li><strong>V2.3:</strong> 자동 일일 동향 생성 기준을 23시 59분으로 명시, 매매 변동 내역이 존재하는 경우에만 동향 리포트를 업데이트하도록 조건부 로직 개선, 전체 UI/데이터 스크립트 온전하게 복구.</li>
                     <li><strong>V2.2:</strong> 매매 입력창 '변경 사유' 제거, 개인별 동향 탭 내 각 종목 하단에 비중 '변경 사유' 직접 입력 기능 추가</li>
                     <li><strong>V2.1:</strong> 개인별 매매 저장/수정 로직 복구, 개인별 동향 '변경 사유' 입력 및 출력 기능 추가</li>
-                    <li><strong>V2.0:</strong> 개인별 동향 사용자 필터 추가, 변동 없는 유지 항목 제거, 수익왕 로직 개선</li>
+                    <li><strong>V2.0:</strong> 개인별 동향 사용자 필터 추가, 변동 없는 유지 항목 제거, 오늘의 수익왕 로직(전일 대비 미실현 수익액 기준) 변경</li>
+                    <li><strong>V1.9:</strong> 통합뷰 지표 에러 완벽 해결(구글시트 백업 적용), 개인별 동향 기간설정 및 매매일지 기준 일자별 상세 분석(비중/수량) 추가, 차트 비중(%) 표시 최적화</li>
                 </ul>
             </div>
         </div>
@@ -264,15 +318,55 @@
 </div>
 
 <script>
-    // --- 로그인 및 Firebase 초기화 (기본 설정 동일) ---
+    window.checkPwd = function() {
+        const pwd = document.getElementById('pwd-input').value;
+        if (pwd === 'richguys') {
+            sessionStorage.setItem('isLogged', 'true');
+            startApp();
+        } else {
+            alert('비밀번호가 올바르지 않습니다.');
+        }
+    };
+
+    document.getElementById('pwd-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') checkPwd();
+    });
+    document.getElementById('login-btn').addEventListener('click', checkPwd);
+
     const users = ['김태호', '이용우', '이형주'];
     let exKRW = 1350; 
+    let previousPrices = {}; 
+    const sortStates = {};
+    users.forEach(u => sortStates[u] = { key: 'vKw', asc: false }); 
+
+    const currMode = {};
+    users.forEach(u => currMode[u] = 'KRW');
+    window.setCurrency = function(u, mode) {
+        currMode[u] = mode;
+        updateAll();
+    };
+
+    const tMap = {
+        'AAPL':'Apple', 'MSFT':'Microsoft', 'TSLA':'Tesla', 'NVDA':'NVIDIA',
+        'GOOGL':'Alphabet', 'AMZN':'Amazon', 'META':'Meta', 'BRK-B':'Berkshire Hathaway',
+        '005930':'삼성전자', '000660':'SK하이닉스', '373220':'LG에너지솔루션',
+        '207940':'삼성바이오로직스', '005380':'현대차', '035420':'NAVER', '035720':'카카오'
+    };
+
+    const mSym = {
+        'KRW=X': '원달러환율', '^IXIC': '나스닥', '^GSPC': 'S&P 500', 
+        '^KS11': 'KOSPI', '^KQ11': '코스닥', '^VIX': 'VIX', 'CL=F': 'WTI 유가'
+    };
+    
     let cache = {};
+    let sheetIndices = {}; 
     const state = { trades: {}, opinions: [], charts: {}, trends: {}, trendComments: {}, trendItemReasons: {} };
+    let allDailyChanges = []; 
     users.forEach(u => state.trades[u] = []);
 
-    // [중략: Firebase 및 공통 UI 로직은 이전 버전 유지]
-    // ... (Firebase 초기화, fetchData, syncMarketData 로직 동일) ...
+    function safeKey(key) {
+        return key.replace(/[.#$\[\]]/g, '_');
+    }
 
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
@@ -287,34 +381,350 @@
     let db = null;
     const API_URL = 'https://script.google.com/macros/s/AKfycbws0zNCaNdxg-OcjUk5Hi2vQ6anfSmbgjOEryJuDmp8tsDnz1HG0oyG4WOYVwJbjiZu/exec';
 
+    window.onload = () => {
+        if (sessionStorage.getItem('isLogged') === 'true') {
+            startApp();
+        }
+        
+        const today = new Date();
+        const aWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        document.getElementById('trend-start').value = aWeekAgo.toISOString().substring(0, 10);
+        document.getElementById('trend-end').value = today.toISOString().substring(0, 10);
+    };
+
     function startApp() {
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('main-app').style.display = 'block';
+
         try {
             if (typeof firebase !== 'undefined' && !firebase.apps.length) {
                 firebase.initializeApp(firebaseConfig);
                 db = firebase.database();
+            } else if (typeof firebase !== 'undefined' && firebase.apps.length) {
+                db = firebase.database();
             }
-            initUI(); 
-            setupListeners();
         } catch (e) { console.error("Firebase 에러:", e); }
-    }
 
-    function setupListeners() {
-        db.ref('trades').on('value', (snap) => {
-            const data = snap.val() || {};
-            users.forEach(u => state.trades[u] = []);
-            Object.keys(data).forEach(key => {
-                const t = data[key]; t.id = key;
-                if(state.trades[t.user]) state.trades[t.user].push(t);
+        initUI(); 
+        
+        if (db) {
+            db.ref('trades').on('value', (snapshot) => {
+                const data = snapshot.val() || {};
+                users.forEach(u => state.trades[u] = []);
+                Object.keys(data).forEach(key => {
+                    const t = data[key];
+                    t.id = key;
+                    if(state.trades[t.user]) state.trades[t.user].push(t);
+                });
+                updateAll();
             });
-            updateAll();
-        });
-        db.ref('trends').on('value', (snap) => { state.trends = snap.val() || {}; updateTrendDateSelector(); renderTrends(); });
-        db.ref('trendItemReasons').on('value', (snap) => { state.trendItemReasons = snap.val() || {}; renderTrends(); });
+
+            db.ref('opinions').on('value', (snapshot) => {
+                const data = snapshot.val() || {};
+                state.opinions = [];
+                Object.keys(data).forEach(key => {
+                    const op = data[key];
+                    op.id = key;
+                    state.opinions.push(op);
+                });
+                renderOpinions();
+            });
+
+            db.ref('trends').on('value', (snapshot) => {
+                state.trends = snapshot.val() || {};
+                updateTrendDateSelector();
+                renderTrends();
+            });
+
+            db.ref('trendComments').on('value', (snapshot) => {
+                state.trendComments = snapshot.val() || {};
+                renderTrends();
+            });
+
+            db.ref('trendItemReasons').on('value', (snapshot) => {
+                state.trendItemReasons = snapshot.val() || {};
+                renderTrends();
+            });
+
+            db.ref('marketData').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if(data && data.cache) {
+                    exKRW = data.exKRW || 1350;
+                    Object.assign(cache, data.cache || {});
+                    
+                    if (data.lastUpdated) {
+                        const d = new Date(data.lastUpdated);
+                        document.getElementById('last-update-display').innerText = `최근 갱신: ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+                        
+                        const CACHE_LIFETIME = 15 * 60 * 1000;
+                        if (Date.now() - data.lastUpdated > CACHE_LIFETIME) {
+                            syncMarketDataToFirebase(false);
+                        }
+                    }
+                    document.getElementById('exchange-rate-display').innerText = `적용 환율: 1 USD = ${exKRW.toLocaleString(undefined, {maximumFractionDigits: 2})} KRW`;
+                    
+                    fetchSheetBackup(); 
+                } else {
+                    document.getElementById('last-update-display').innerText = "최초 데이터 수집 중...";
+                    syncMarketDataToFirebase(false);
+                    fetchSheetBackup();
+                }
+            });
+        } else {
+            fetchSheetBackup();
+        }
     }
 
-    // --- 동향 리포트 생성 로직 (V2.3 핵심 수정사항) ---
+    function toggleLd(show, txt = "처리 중...") {
+        const loader = document.getElementById('loader');
+        const loaderTxt = document.getElementById('loader-txt');
+        if(loaderTxt) loaderTxt.innerText = txt;
+        if(loader) loader.style.display = show ? 'flex' : 'none';
+    }
+
+    async function fetchProxy(url) {
+        const proxies = [
+            'https://api.allorigins.win/raw?url=',
+            'https://api.codetabs.com/v1/proxy/?quest=',
+            'https://corsproxy.io/?'
+        ];
+        for (let i = 0; i < proxies.length; i++) {
+            try {
+                let reqUrl = proxies[i] + encodeURIComponent(url);
+                let res = await fetch(reqUrl, { cache: 'no-store' });
+                if (res.ok) {
+                    let json = await res.json();
+                    if (json) return json;
+                }
+            } catch(e) { } 
+        }
+        return null;
+    }
+
+    async function fetchSheetBackup() {
+        try {
+            const res = await fetch(API_URL);
+            const data = await res.json();
+            if (data.indices) {
+                const entries = Object.entries(data.indices);
+                const isMissingNames = entries.length > 0 && entries.every(([k, v]) => !v || v === '-');
+                if (isMissingNames) {
+                    const defaultLabels = ['원달러환율', '나스닥', 'S&P 500', 'KOSPI', '코스닥', 'VIX', 'WTI 유가'];
+                    entries.forEach(([k, v], i) => { sheetIndices[defaultLabels[i] || `지표 ${i+1}`] = k; });
+                } else {
+                    Object.assign(sheetIndices, data.indices);
+                }
+            }
+        } catch(e) { console.warn("시트 백업 지표 로드 실패", e); }
+        renderIdx();
+        updateAll();
+    }
+
+    async function fetchBulkStockPrices(tickers) {
+        if (!tickers || tickers.length === 0) return;
+        const queries = tickers.map(t => /^\d{6}$/.test(t) ? t + '.KS' : t).join(',');
+        const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${queries}`;
+        const data = await fetchProxy(url);
+
+        if (data && data.quoteResponse && data.quoteResponse.result) {
+            data.quoteResponse.result.forEach(item => {
+                const originalTicker = item.symbol.replace('.KS', '');
+                const fbKey = safeKey(originalTicker);
+                cache[fbKey] = {
+                    price: item.regularMarketPrice || 0,
+                    change: item.regularMarketChangePercent || 0,
+                    low52: item.fiftyTwoWeekLow || 0,
+                    high52: item.fiftyTwoWeekHigh || 0,
+                    name: item.shortName || item.longName || mSym[originalTicker] || tMap[originalTicker] || originalTicker,
+                    curr: item.currency === 'KRW' ? 'KRW' : 'USD'
+                };
+            });
+        }
+    }
+
+    async function getStk(tk, force = false) {
+        if (!tk) return null;
+        const fbKey = safeKey(tk);
+        if (!force && cache[fbKey] && cache[fbKey].price > 0) return cache[fbKey];
+        
+        await fetchBulkStockPrices([tk]);
+        return cache[fbKey];
+    }
+
+    window.isFetchingMarketData = false;
+    async function syncMarketDataToFirebase(isManual = false) {
+        if (!db) return;
+        if (window.isFetchingMarketData) return;
+        window.isFetchingMarketData = true;
+
+        if (isManual) toggleLd(true, "우회 서버를 통해 최신 시세 수집 중...");
+
+        try {
+            let newExKRW = exKRW;
+            try {
+                const r = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
+                const d = await r.json();
+                if (d?.usd?.krw) newExKRW = d.usd.krw;
+            } catch(e) {}
+
+            let activeTickers = new Set(Object.keys(mSym));
+            users.forEach(u => state.trades[u].forEach(t => activeTickers.add(t.ticker)));
+
+            await fetchBulkStockPrices(Array.from(activeTickers));
+
+            let newCache = {};
+            Array.from(activeTickers).forEach(tk => {
+                const fbKey = safeKey(tk);
+                if (cache[fbKey]) {
+                    newCache[fbKey] = cache[fbKey];
+                }
+            });
+
+            await db.ref('marketData').set({
+                lastUpdated: Date.now(),
+                exKRW: newExKRW,
+                cache: newCache
+            });
+
+        } catch (e) {
+            console.error(e);
+            if (isManual) alert("업데이트 중 오류 발생: " + e.message);
+        }
+
+        window.isFetchingMarketData = false;
+        if (isManual) toggleLd(false);
+        fetchSheetBackup();
+    }
+
+    window.saveTr = async function(u) {
+        if (!db) return alert("데이터베이스 연결 오류");
+        const dt = document.getElementById(`dt-${u}`).value;
+        const tk = document.getElementById(`tk-${u}`).value.trim().toUpperCase();
+        const nm = document.getElementById(`nm-${u}`).value;
+        const ty = document.getElementById(`ty-${u}`).value;
+        const cr = document.getElementById(`cr-${u}`).value;
+        const pr = parseFloat(document.getElementById(`pr-${u}`).value);
+        const qt = parseFloat(document.getElementById(`qt-${u}`).value);
+
+        if (!dt || !tk || isNaN(pr) || isNaN(qt)) return alert("입력값을 정확히 확인해주세요.");
+
+        const eid = document.getElementById(`eid-${u}`).value;
+        const data = { user: u, date: dt, ticker: tk, name: nm || tk, type: ty, currency: cr, price: pr, qty: qt };
+
+        toggleLd(true, "저장 중...");
+        try {
+            if (eid) {
+                await db.ref(`trades/${eid}`).update(data);
+            } else {
+                await db.ref('trades').push(data);
+            }
+            cancelEd(u);
+        } catch(e) {
+            alert("저장 실패");
+        }
+        toggleLd(false);
+    };
+
+    window.editTr = function(u, id) {
+        const t = state.trades[u].find(x => x.id === id);
+        if (!t) return;
+        document.getElementById(`eid-${u}`).value = t.id;
+        document.getElementById(`dt-${u}`).value = t.date;
+        document.getElementById(`tk-${u}`).value = t.ticker;
+        document.getElementById(`nm-${u}`).value = t.name;
+        document.getElementById(`ty-${u}`).value = t.type;
+        document.getElementById(`cr-${u}`).value = t.currency;
+        document.getElementById(`pr-${u}`).value = t.price;
+        document.getElementById(`qt-${u}`).value = t.qty;
+
+        document.getElementById(`btn-${u}`).innerText = "수정 완료";
+        document.getElementById(`cbtn-${u}`).style.display = "block";
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    window.cancelEd = function(u) {
+        document.getElementById(`eid-${u}`).value = '';
+        document.getElementById(`tk-${u}`).value = '';
+        document.getElementById(`nm-${u}`).value = '';
+        document.getElementById(`pr-${u}`).value = '';
+        document.getElementById(`qt-${u}`).value = '';
+        document.getElementById(`dt-${u}`).value = new Date().toISOString().substring(0, 10);
+        document.getElementById(`btn-${u}`).innerText = "저장";
+        document.getElementById(`cbtn-${u}`).style.display = "none";
+    };
+
+    window.handleOpWatchTk = async function() {
+        const tk = document.getElementById('op-watch-tk').value.trim().toUpperCase();
+        if(!tk) return;
+        document.getElementById('op-watch-tk').value = tk;
+        const info = await getStk(tk, true);
+        if(info) {
+            document.getElementById('op-watch-nm').value = info.name;
+            if(info.price) document.getElementById('op-watch-pr').value = info.price;
+            if(info.low52) document.getElementById('op-watch-low').value = info.low52;
+            if(info.high52) document.getElementById('op-watch-high').value = info.high52;
+        }
+    };
+
+    window.saveOpinion = async function() {
+        if(!db) return;
+        const user = document.getElementById('op-user').value;
+        const text = document.getElementById('op-text').value.trim();
+        if(!text) return alert('의견 내용을 입력해주세요.');
+        
+        const data = { author: user, text: text, timestamp: Date.now() };
+        const tk = document.getElementById('op-watch-tk').value.trim().toUpperCase();
+        if(tk) {
+            data.watch = {
+                tk,
+                nm: document.getElementById('op-watch-nm').value,
+                pr: document.getElementById('op-watch-pr').value,
+                low: document.getElementById('op-watch-low').value,
+                high: document.getElementById('op-watch-high').value
+            };
+        }
+        toggleLd(true, "의견 저장 중...");
+        try {
+            await db.ref('opinions').push(data);
+            document.getElementById('op-text').value = '';
+            document.getElementById('op-watch-tk').value = '';
+            document.getElementById('op-watch-nm').value = '';
+            document.getElementById('op-watch-pr').value = '';
+            document.getElementById('op-watch-low').value = '';
+            document.getElementById('op-watch-high').value = '';
+        } catch(e) { alert('저장 실패'); }
+        toggleLd(false);
+    };
+
+    window.renderOpinions = function() {
+        const container = document.getElementById('opinions-timeline');
+        if(!container) return;
+        let html = state.opinions.sort((a,b) => b.timestamp - a.timestamp).map(op => {
+            const d = new Date(op.timestamp);
+            const timeStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            let watchHtml = '';
+            if(op.watch && op.watch.tk) {
+                watchHtml = `<div class="op-watch-card">
+                    <strong>관심 종목: ${op.watch.nm} (${op.watch.tk})</strong>
+                    <div class="op-watch-details">
+                        <span>현재가: ${op.watch.pr}</span>
+                        <span>52주 최저: ${op.watch.low}</span>
+                        <span>52주 최고: ${op.watch.high}</span>
+                    </div>
+                </div>`;
+            }
+            return `<div class="op-item">
+                <div class="op-header">
+                    <span class="op-author">${op.author}</span>
+                    <span>${timeStr} <button class="op-del" onclick="openDelModal('${op.id}', 'opinion')">삭제</button></span>
+                </div>
+                <div class="op-content">${op.text}</div>
+                ${watchHtml}
+            </div>`;
+        }).join('');
+        container.innerHTML = html || '<div style="text-align:center;color:#aaa;padding:20px;">등록된 의견이 없습니다.</div>';
+    };
+
     window.generatePeriodTrend = async function() {
         if (!db) return;
         const sDate = document.getElementById('trend-start').value;
@@ -322,44 +732,73 @@
         
         if (!sDate || !eDate || sDate > eDate) return alert("올바른 기간을 설정해주세요.");
 
-        toggleLd(true, "변동 내역 분석 중...");
+        toggleLd(true, "리포트 생성 중...");
 
         const reportKey = `${sDate}_to_${eDate}`;
         const report = { timestamp: Date.now(), title: `${sDate} ~ ${eDate} 기간 동향`, users: {} };
         const EPSILON = 0.000001;
-        
-        let totalChangeCount = 0; // 전체 변동 건수 체크용
+
+        let totalChangeCount = 0;
 
         users.forEach(u => {
             report.users[u] = { daily: {} };
+            
             let tradeDates = new Set();
-            state.trades[u].forEach(t => { if (t.date >= sDate && t.date <= eDate) tradeDates.add(t.date); });
+            state.trades[u].forEach(t => {
+                if (t.date >= sDate && t.date <= eDate) tradeDates.add(t.date);
+            });
             let sortedDates = Array.from(tradeDates).sort();
 
             sortedDates.forEach(dStr => {
-                let portPrev = {}, portCurr = {};
+                let portPrev = {};
+                let portCurr = {};
+                
                 state.trades[u].forEach(t => {
+                    const tkName = t.name || t.ticker;
                     const xr = t.currency === 'KRW' ? 1 : exKRW;
+                    
                     if (t.date < dStr) {
-                        if(!portPrev[t.ticker]) portPrev[t.ticker] = { q: 0, n: t.name, xr };
-                        if(t.type === 'buy') portPrev[t.ticker].q += t.qty; else portPrev[t.ticker].q -= t.qty;
+                        if(!portPrev[t.ticker]) portPrev[t.ticker] = { q: 0, n: tkName, xr };
+                        if(t.type === 'buy') portPrev[t.ticker].q += t.qty;
+                        else portPrev[t.ticker].q -= t.qty;
                     }
                     if (t.date <= dStr) {
-                        if(!portCurr[t.ticker]) portCurr[t.ticker] = { q: 0, n: t.name, xr };
-                        if(t.type === 'buy') portCurr[t.ticker].q += t.qty; else portCurr[t.ticker].q -= t.qty;
+                        if(!portCurr[t.ticker]) portCurr[t.ticker] = { q: 0, n: tkName, xr };
+                        if(t.type === 'buy') portCurr[t.ticker].q += t.qty;
+                        else portCurr[t.ticker].q -= t.qty;
                     }
                 });
 
-                let dayRes = { inc:[], dec:[] };
+                let totalValPrev = 0; let totalValCurr = 0;
+                const getPrice = (tk) => {
+                    const fbKey = safeKey(tk);
+                    return (cache[fbKey] && cache[fbKey].price) ? cache[fbKey].price : 0;
+                };
+
+                for(let tk in portPrev) if(portPrev[tk].q > 0) totalValPrev += portPrev[tk].q * getPrice(tk) * portPrev[tk].xr;
+                for(let tk in portCurr) if(portCurr[tk].q > 0) totalValCurr += portCurr[tk].q * getPrice(tk) * portCurr[tk].xr;
+
+                let dayRes = { inc:[], dec:[] }; 
                 const allTks = new Set([...Object.keys(portPrev), ...Object.keys(portCurr)]);
                 
                 allTks.forEach(tk => {
-                    const qP = portPrev[tk]?.q || 0;
-                    const qC = portCurr[tk]?.q || 0;
-                    if (Math.abs(qP - qC) < EPSILON) return; // 변동 없음
+                    const qP = portPrev[tk] ? portPrev[tk].q : 0;
+                    const qC = portCurr[tk] ? portCurr[tk].q : 0;
+                    if (Math.abs(qP - qC) < EPSILON) return; 
 
-                    const n = portCurr[tk]?.n || portPrev[tk]?.n;
-                    let detail = `수량: ${qP.toLocaleString()} → ${qC.toLocaleString()}`;
+                    const xr = portCurr[tk] ? portCurr[tk].xr : portPrev[tk].xr;
+                    const n = portCurr[tk] ? portCurr[tk].n : portPrev[tk].n;
+                    const price = getPrice(tk);
+
+                    const wP = totalValPrev > 0 ? (qP * price * xr / totalValPrev) * 100 : 0;
+                    const wC = totalValCurr > 0 ? (qC * price * xr / totalValCurr) * 100 : 0;
+
+                    let qP_str = qP.toLocaleString(undefined,{maximumFractionDigits:4});
+                    let qC_str = qC.toLocaleString(undefined,{maximumFractionDigits:4});
+                    let wP_str = wP.toFixed(1);
+                    let wC_str = wC.toFixed(1);
+
+                    let detail = `수량: ${qP_str} → ${qC_str} | 비중: ${wP_str}% → ${wC_str}%`;
 
                     if (qP < EPSILON && qC > EPSILON) dayRes.inc.push({ tk, n, type: '신규 매수', detail });
                     else if (qP > EPSILON && qC > qP + EPSILON) dayRes.inc.push({ tk, n, type: '추가 매수', detail });
@@ -369,55 +808,688 @@
 
                 if(dayRes.inc.length > 0 || dayRes.dec.length > 0) {
                     report.users[u].daily[dStr] = dayRes;
-                    totalChangeCount++; // 변동 발생 카운트 증가
+                    totalChangeCount++;
                 }
             });
         });
 
         if (totalChangeCount === 0) {
             toggleLd(false);
-            alert("해당 기간 동안 매매 변동 사항이 없어 리포트가 업데이트되지 않았습니다.");
+            alert("해당 기간에 매매 변동 사항이 없어 리포트를 생성/업데이트하지 않습니다.");
             return;
         }
 
         try {
             await db.ref(`trends/${reportKey}`).set(report);
-            alert("변동 사항이 확인되어 동향 리포트가 업데이트되었습니다.");
-            updateTrendDateSelector();
-            document.getElementById('trend-date-selector').value = reportKey;
-            renderTrends();
-        } catch(e) { alert("리포트 저장 실패"); }
+            setTimeout(() => {
+                const sel = document.getElementById('trend-date-selector');
+                if(sel) { sel.value = reportKey; renderTrends(); }
+                alert("변동 사항이 확인되어 동향 리포트가 성공적으로 업데이트되었습니다.");
+            }, 500);
+        } catch(e) { alert("리포트 생성 실패"); }
         toggleLd(false);
-    };
+    }
 
-    // [이후 renderTrends, saveTrendItemReason 등 UI 보조 함수는 V2.2 유지]
-    // ... (기존 코드와 동일) ...
-    
     function updateTrendDateSelector() {
         const selector = document.getElementById('trend-date-selector');
         if (!selector) return;
-        const dates = Object.keys(state.trends).sort((a,b) => b.localeCompare(a));
-        selector.innerHTML = dates.map(d => `<option value="${d}">${state.trends[d].title || d}</option>`).join('');
-    }
-
-    function switchTab(id, btn) {
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-        btn.classList.add('active');
+        
+        const dates = Object.keys(state.trends).sort((a,b) => {
+            const dateA = a.split('_')[0];
+            const dateB = b.split('_')[0];
+            return new Date(dateB) - new Date(dateA);
+        });
+        selector.innerHTML = dates.map(d => {
+            const title = state.trends[d].title || d;
+            return `<option value="${d}">${title}</option>`;
+        }).join('');
     }
 
     window.saveTrendItemReason = async function(date, user, tk, val) {
         if (!db) return;
-        await db.ref(`trendItemReasons/${date}_${user}_${tk}`).set(val);
+        try {
+            await db.ref(`trendItemReasons/${date}_${user}_${tk}`).set(val);
+        } catch(e) {
+            console.error("사유 저장 실패", e);
+        }
     };
 
-    // 로그인 이벤트
-    document.getElementById('login-btn').addEventListener('click', () => {
-        if(document.getElementById('pwd-input').value === 'richguys') startApp();
-        else alert('비밀번호 오류');
-    });
+    window.renderTrends = function() {
+        const selector = document.getElementById('trend-date-selector');
+        const container = document.getElementById('trends-container');
+        const userFilter = document.getElementById('trend-user-filter');
+        
+        if (!selector || !container) return;
 
+        const selDate = selector.value;
+        const filterVal = userFilter ? userFilter.value : 'all';
+
+        if (!selDate || !state.trends[selDate]) {
+            container.innerHTML = '<div style="text-align:center; padding:30px; color:#aaa;">리포트를 생성해주세요.</div>';
+            return;
+        }
+
+        const report = state.trends[selDate];
+        let html = ``;
+
+        users.forEach(u => {
+            if (filterVal !== 'all' && u !== filterVal) return;
+
+            const data = report.users[u];
+            if (!data || !data.daily) return;
+
+            let dailyHtml = '';
+            const dates = Object.keys(data.daily).sort((a,b) => new Date(b) - new Date(a));
+            
+            if (dates.length === 0) {
+                dailyHtml = '<div style="color:#aaa; font-size:13px; padding:10px;">해당 기간에 매매 내역(변동)이 없습니다.</div>';
+            } else {
+                dates.forEach(d => {
+                    const day = data.daily[d];
+                    
+                    const renderItems = (arr, badgeCls) => {
+                        if(!arr || arr.length === 0) return '';
+                        return arr.map(i => {
+                            const rsnKey = `${d}_${u}_${i.tk}`;
+                            const rsnVal = state.trendItemReasons[rsnKey] || '';
+                            return `
+                            <div class="trend-detail-item">
+                                <div class="trend-detail-top">
+                                    <div class="trend-badge ${badgeCls}">${i.type}</div>
+                                    <div class="trend-text"><strong>${i.n} (${i.tk})</strong><br><span style="color:#666; font-size:12px;">${i.detail}</span></div>
+                                </div>
+                                <input type="text" class="trend-rsn-input" value="${rsnVal}" placeholder="비중 변경 사유를 입력하세요 (자동 저장)" onchange="saveTrendItemReason('${d}', '${u}', '${i.tk}', this.value)">
+                            </div>
+                            `;
+                        }).join('');
+                    };
+
+                    const incHtml = renderItems(day.inc?.filter(i=>i.type==='신규 매수'), 'badge-new') + renderItems(day.inc?.filter(i=>i.type==='추가 매수'), 'badge-add'); 
+                    const decHtml = renderItems(day.dec?.filter(i=>i.type==='일부 매도'), 'badge-part') + renderItems(day.dec?.filter(i=>i.type==='전체 매도'), 'badge-full');
+
+                    if (incHtml || decHtml) {
+                        dailyHtml += `
+                            <div class="trend-day-box">
+                                <div class="trend-day-title">📅 ${d} 매매 동향</div>
+                                ${incHtml ? `<div style="margin-bottom:10px;"><h5>📈 비중 확대</h5>${incHtml}</div>` : ''}
+                                ${decHtml ? `<div style="margin-bottom:10px;"><h5>📉 비중 축소</h5>${decHtml}</div>` : ''}
+                            </div>
+                        `;
+                    }
+                });
+            }
+
+            const cmtKey = `${selDate}_${u}`;
+            const commentsObj = state.trendComments[cmtKey] || {};
+            const commentsHtml = Object.keys(commentsObj).map(k => {
+                const c = commentsObj[k];
+                const d = new Date(c.timestamp);
+                const timeStr = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                return `<div class="comment-item"><div><strong>${c.author}</strong> ${c.text}</div><div style="color:#aaa; font-size:11px;">${timeStr} <button class="op-del" style="margin-left:5px" onclick="delTrendComment('${cmtKey}', '${k}')">x</button></div></div>`;
+            }).join('');
+
+            html += `
+                <div class="trend-card">
+                    <div class="trend-author">👤 ${u}의 포트폴리오 동향</div>
+                    ${dailyHtml}
+                    
+                    <div class="trend-comments">
+                        <div class="comment-list">${commentsHtml}</div>
+                        <div class="comment-input-area">
+                            <select id="tc-author-${u}" style="width:100px;">
+                                <option value="김태호">김태호</option>
+                                <option value="이용우">이용우</option>
+                                <option value="이형주">이형주</option>
+                            </select>
+                            <input type="text" id="tc-text-${u}" placeholder="동향에 대한 코멘트를 남겨보세요..." onkeypress="if(event.key==='Enter') addTrendComment('${selDate}', '${u}')">
+                            <button onclick="addTrendComment('${selDate}', '${u}')">등록</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        if (html === '') {
+            html = '<div style="text-align:center; padding:30px; color:#aaa;">해당 필터에 맞는 동향 데이터가 없습니다.</div>';
+        }
+
+        container.innerHTML = html;
+    }
+
+    window.addTrendComment = async function(dateStr, targetUser) {
+        if (!db) return;
+        const author = document.getElementById(`tc-author-${targetUser}`).value;
+        const text = document.getElementById(`tc-text-${targetUser}`).value.trim();
+        if (!text) return;
+
+        const refKey = `${dateStr}_${targetUser}`;
+        try {
+            await db.ref(`trendComments/${refKey}`).push({
+                author: author, text: text, timestamp: Date.now()
+            });
+            document.getElementById(`tc-text-${targetUser}`).value = '';
+        } catch(e) { alert("댓글 등록 실패"); }
+    }
+
+    window.delTrendComment = async function(cmtKey, commentId) {
+        if (!db || !confirm("댓글을 삭제하시겠습니까?")) return;
+        try {
+            await db.ref(`trendComments/${cmtKey}/${commentId}`).remove();
+        } catch(e) { alert("삭제 실패"); }
+    }
+
+    let pendingDelete = null;
+    function openDelModal(id, mode = 'trade') { 
+        pendingDelete = { id, mode }; 
+        document.getElementById('del-modal').classList.add('open'); 
+    }
+    window.openDelModal = openDelModal;
+
+    function closeDelModal() { 
+        pendingDelete = null; 
+        document.getElementById('del-modal').classList.remove('open'); 
+    }
+    window.closeDelModal = closeDelModal;
+    
+    document.getElementById('del-confirm-btn').addEventListener('click', async function() {
+        if (!pendingDelete || !db) return;
+        const { id, mode } = pendingDelete;
+        const node = mode === 'opinion' ? 'opinions' : 'trades';
+        closeDelModal();
+        toggleLd(true, "삭제 중...");
+        try { await db.ref(`${node}/${id}`).remove(); } catch(e) { alert("삭제 실패"); }
+        toggleLd(false);
+    });
+    document.getElementById('del-modal').addEventListener('click', function(e) { if (e.target === this) closeDelModal(); });
+
+    function getSortArrow(u, key) {
+        if (sortStates[u].key !== key) return '↕';
+        return sortStates[u].asc ? '▲' : '▼';
+    }
+
+    window.sortPort = function(u, key) {
+        if (sortStates[u].key === key) sortStates[u].asc = !sortStates[u].asc;
+        else { sortStates[u].key = key; sortStates[u].asc = (key === 'fn') ? true : false; }
+        updateAll();
+    }
+
+    window.fillTradeForm = function(u, tk) {
+        document.getElementById(`tk-${u}`).value = tk;
+        handleTk(u);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function initUI() {
+        const con = document.getElementById('pages-container');
+        if (!con) return;
+        con.innerHTML = '';
+        
+        users.forEach(u => {
+            const html = `
+                <div id="u-${u}" class="tab-content">
+                    
+                    <div class="metrics" style="margin-bottom: 20px;">
+                        <div class="m-box" style="border-left-color: #9b59b6;">
+                            <h4>전체 자산 손익 (KRW)</h4>
+                            <p id="tot-val-${u}">0원</p>
+                            <div id="tot-ret-${u}" style="font-size:15px; font-weight:bold; margin-top:5px;">0%</div>
+                        </div>
+                        <div class="m-box" style="border-left-color: #3498db;">
+                            <h4>국내 주식 손익 (KRW)</h4>
+                            <p id="dom-val-${u}">0원</p>
+                            <div id="dom-ret-${u}" style="font-size:15px; font-weight:bold; margin-top:5px;">0%</div>
+                        </div>
+                        <div class="m-box" style="border-left-color: #e67e22; position: relative;">
+                            <h4>해외 주식 손익</h4>
+                            <div style="position: absolute; top: 15px; right: 15px; display: flex; gap: 4px;">
+                                <button class="curr-btn active" id="btn-krw-${u}" onclick="setCurrency('${u}', 'KRW')">₩</button>
+                                <button class="curr-btn" id="btn-usd-${u}" onclick="setCurrency('${u}', 'USD')">＄</button>
+                            </div>
+                            <p id="ovs-val-${u}">0원</p>
+                            <div id="ovs-ret-${u}" style="font-size:15px; font-weight:bold; margin-top:5px;">0%</div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>현재 포트폴리오 (실시간 연동)</h3>
+                        <div class="tbl-wrap">
+                            <table>
+                                <thead id="thead-${u}"></thead>
+                                <tbody id="port-${u}"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <h3>비중 차트</h3>
+                        <div class="chart"><canvas id="ch-${u}"></canvas></div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>매매 입력/수정</h3>
+                            <div class="realized-badge">누적 확정 수익금: <span id="rp-${u}">0</span>원</div>
+                        </div>
+                        <div class="form-grid">
+                            <input type="hidden" id="eid-${u}">
+                            <div class="f-grp"><label>날짜</label><input type="date" id="dt-${u}"></div>
+                            <div class="f-grp"><label>티커 (입력 후 바깥 클릭)</label><input type="text" id="tk-${u}" onchange="handleTk('${u}')" placeholder="AAPL, 005930"></div>
+                            <div class="f-grp"><label>종목명 (자동)</label><input type="text" id="nm-${u}" disabled placeholder="자동 입력"></div>
+                            <div class="f-grp"><label>유형</label><select id="ty-${u}"><option value="buy">매수</option><option value="sell">매도</option></select></div>
+                            <div class="f-grp"><label>통화 (자동)</label><select id="cr-${u}" disabled><option value="USD">USD</option><option value="KRW">KRW</option></select></div>
+                            <div class="f-grp"><label>가격</label><input type="number" step="0.01" id="pr-${u}"></div>
+                            <div class="f-grp"><label>수량</label><input type="number" step="0.0001" id="qt-${u}"></div>
+                            <div class="f-grp btn-grp" style="grid-column: span 1;">
+                                <button class="p-btn" id="btn-${u}" onclick="saveTr('${u}')">저장</button>
+                                <button class="c-btn" id="cbtn-${u}" onclick="cancelEd('${u}')">취소</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>매매 일지</h3>
+                        <div class="filter-bar">
+                            <span class="filter-label">필터:</span>
+                            <input type="date" id="f-dt-s-${u}" onchange="updateAll()">
+                            <span>~</span>
+                            <input type="date" id="f-dt-e-${u}" onchange="updateAll()">
+                            <input type="text" id="f-txt-${u}" placeholder="종목/티커 검색" oninput="updateAll()">
+                            <select id="f-ty-${u}" onchange="updateAll()">
+                                <option value="all">유형 전체</option>
+                                <option value="buy">매수</option>
+                                <option value="sell">매도</option>
+                            </select>
+                        </div>
+                        <div class="tbl-wrap">
+                            <table>
+                                <thead><tr><th>날짜</th><th>종목</th><th>유형</th><th>가격</th><th>수량</th><th>관리</th></tr></thead>
+                                <tbody id="log-${u}"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>`;
+            con.insertAdjacentHTML('beforeend', html);
+            
+            const dtInput = document.getElementById(`dt-${u}`);
+            if (dtInput) dtInput.value = new Date().toISOString().substring(0, 10);
+        });
+    }
+
+    window.switchTab = function(targetId, btn) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        
+        const targetEl = document.getElementById(targetId);
+        if (targetEl) targetEl.classList.add('active');
+        if (btn) btn.classList.add('active');
+    }
+
+    function renderIdx() {
+        const grid = document.getElementById('market-indices');
+        if(!grid) return;
+        const html = Object.entries(mSym).map(([sym, lbl]) => {
+            const fbKey = safeKey(sym);
+            const info = cache[fbKey];
+            let priceStr = '-';
+            let changeHtml = '<span class="pct" style="color:#aaa">데이터 없음</span>';
+
+            if (info && info.price > 0) {
+                priceStr = info.price.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                const pct = info.change;
+                const cls  = pct > 0 ? 'profit' : (pct < 0 ? 'loss' : '');
+                const sign = pct > 0 ? '+' : '';
+                changeHtml = `<span class="pct ${cls}">(${sign}${pct.toFixed(2)}%)</span>`;
+            } else if (sheetIndices[lbl]) {
+                priceStr = parseFloat(String(sheetIndices[lbl]).replace(/,/g, '')).toLocaleString(undefined, { maximumFractionDigits: 2 });
+                changeHtml = ''; 
+            }
+            return `<div class="idx-item"><div class="val">${priceStr} ${changeHtml}</div><div class="key">${lbl}</div></div>`;
+        }).join('');
+        grid.innerHTML = html;
+    }
+
+    window.handleTk = async function(u) {
+        const tkIn = document.getElementById(`tk-${u}`);
+        const nmIn = document.getElementById(`nm-${u}`);
+        const prIn = document.getElementById(`pr-${u}`);
+        const crSel = document.getElementById(`cr-${u}`);
+
+        const tk = tkIn.value.trim().toUpperCase();
+        if (!tk) { nmIn.value = ''; return; }
+
+        tkIn.value = tk;
+        const isKorean = /^\d{6}$/.test(tk);
+        const fbKey = safeKey(tk);
+        const instantName = tMap[tk] || (cache[fbKey] ? cache[fbKey].name : "");
+        
+        crSel.value = isKorean ? 'KRW' : 'USD';
+        
+        if (instantName) {
+            nmIn.value = instantName;
+        } else {
+            nmIn.value = "";
+            nmIn.placeholder = "API 검색 중...";
+        }
+
+        const info = await getStk(tk, true);
+        if (info) {
+            if (!nmIn.value) nmIn.value = info.name;
+            if (info.price > 0 && !prIn.value) prIn.value = info.price;
+        } else {
+            if (!nmIn.value) nmIn.placeholder = "직접 입력";
+        }
+    }
+
+    window.updateAll = function() {
+        try {
+            let stats = [], hlds = [];
+            allDailyChanges = [];
+
+            for (const u of users) {
+                let port = {}, real = 0, tInv = 0, tVal = 0, cLbl = [], cDat = [];
+                let portArray = [];
+                
+                let tDomInvKw = 0, tDomValKw = 0;
+                let tOvsInvUsd = 0, tOvsValUsd = 0;
+                
+                let dailyAmtSum = 0;
+                let yestValSum = 0;
+
+                state.trades[u].sort((a,b) => new Date(a.date)-new Date(b.date)).forEach(t => {
+                    if (!port[t.ticker]) port[t.ticker] = { n: t.name, q: 0, c: 0, cr: t.currency };
+                    let p = port[t.ticker];
+                    if (t.type === 'buy') {
+                        const totalQty = p.q + t.qty;
+                        p.c = totalQty > 0 ? (p.q*p.c + t.qty*t.price) / totalQty : 0;
+                        p.q += t.qty;
+                    } else {
+                        real += (t.price - p.c) * t.qty * (t.currency==='USD' ? exKRW : 1);
+                        p.q  -= t.qty;
+                    }
+                });
+
+                const rpSpan = document.getElementById(`rp-${u}`);
+                if(rpSpan) {
+                    rpSpan.innerText = real.toLocaleString('ko-KR', {maximumFractionDigits: 0});
+                    rpSpan.className = real > 0 ? 'profit' : (real < 0 ? 'loss' : '');
+                }
+
+                const mode = currMode[u]; 
+
+                for (const [tk, p] of Object.entries(port)) {
+                    if (p.q <= 0) continue;
+                    const fbKey = safeKey(tk);
+                    const info  = cache[fbKey] || { price: 0, name: p.n, change: 0 };
+                    
+                    const isUsd = p.cr === 'USD';
+                    const xr = isUsd ? exKRW : 1;
+                    const isLoaded = info.price > 0;
+                    const curPr = isLoaded ? info.price : p.c; 
+                    const prevPr = isLoaded ? (curPr / (1 + (info.change / 100))) : p.c; 
+                    
+                    const iBase = p.q * p.c;
+                    const vBase = isLoaded ? p.q * curPr : iBase;
+
+                    // Daily PnL
+                    dailyAmtSum += (p.q * curPr * xr) - (p.q * prevPr * xr);
+                    yestValSum += (p.q * prevPr * xr);
+
+                    if (isUsd) {
+                        tOvsInvUsd += iBase;
+                        tOvsValUsd += vBase;
+                    } else {
+                        tDomInvKw += iBase;
+                        tDomValKw += vBase;
+                    }
+
+                    tInv += iBase * xr;
+                    tVal += vBase * xr;
+
+                    let dispSym, dispInv, dispVal;
+                    if (isUsd) {
+                        if (mode === 'USD') {
+                            dispSym = '$';
+                            dispInv = iBase;
+                            dispVal = vBase;
+                        } else {
+                            dispSym = '₩';
+                            dispInv = iBase * exKRW;
+                            dispVal = vBase * exKRW;
+                        }
+                    } else {
+                        dispSym = '₩';
+                        dispInv = iBase;
+                        dispVal = vBase;
+                    }
+
+                    const ret = isLoaded && iBase > 0 ? ((vBase - iBase)/iBase)*100 : 0;
+                    const profitAmt = dispVal - dispInv;
+
+                    portArray.push({
+                        tk: tk, fn: info.name || p.n || tk, q: p.q, c: p.c, curPr: curPr,
+                        vKw: vBase * xr, 
+                        dispSym: dispSym, dispVal: dispVal, dispProfit: profitAmt,
+                        ret: ret, isLoaded: isLoaded
+                    });
+
+                    if (isLoaded) {
+                        allDailyChanges.push({ n: info.name || p.n || tk, change: Number(info.change || 0) });
+                    }
+                }
+
+                // 전체 요약
+                const tTotAmt = tVal - tInv;
+                const tTotRet = tInv > 0 ? (tTotAmt/tInv)*100 : 0;
+                const totValEl = document.getElementById(`tot-val-${u}`);
+                if(totValEl) totValEl.innerText = `₩${tVal.toLocaleString('ko-KR',{maximumFractionDigits:0})}`;
+                const elTotRet = document.getElementById(`tot-ret-${u}`);
+                if(elTotRet){
+                    const signTot = tTotAmt > 0 ? '+' : '';
+                    elTotRet.innerText = `${signTot}₩${Math.abs(tTotAmt).toLocaleString('ko-KR',{maximumFractionDigits:0})} (${signTot}${tTotRet.toFixed(2)}%)`;
+                    elTotRet.className = tTotAmt > 0 ? 'profit' : (tTotAmt < 0 ? 'loss' : '');
+                }
+
+                // 국내 요약
+                const tDomAmt = tDomValKw - tDomInvKw;
+                const tDomRet = tDomInvKw > 0 ? (tDomAmt/tDomInvKw)*100 : 0;
+                const domValEl = document.getElementById(`dom-val-${u}`);
+                if(domValEl) domValEl.innerText = `₩${tDomValKw.toLocaleString('ko-KR',{maximumFractionDigits:0})}`;
+                const elDomRet = document.getElementById(`dom-ret-${u}`);
+                if(elDomRet){
+                    const signDom = tDomAmt > 0 ? '+' : '';
+                    elDomRet.innerText = `${signDom}₩${Math.abs(tDomAmt).toLocaleString('ko-KR',{maximumFractionDigits:0})} (${signDom}${tDomRet.toFixed(2)}%)`;
+                    elDomRet.className = tDomAmt > 0 ? 'profit' : (tDomAmt < 0 ? 'loss' : '');
+                }
+
+                // 해외 요약
+                const ovsInvDisp = mode === 'USD' ? tOvsInvUsd : tOvsInvUsd * exKRW;
+                const ovsValDisp = mode === 'USD' ? tOvsValUsd : tOvsValUsd * exKRW;
+                const ovsAmt = ovsValDisp - ovsInvDisp;
+                const ovsRet = tOvsInvUsd > 0 ? ((tOvsValUsd - tOvsInvUsd)/tOvsInvUsd)*100 : 0;
+                const ovsSym = mode === 'USD' ? '$' : '₩';
+                const ovsValEl = document.getElementById(`ovs-val-${u}`);
+                if(ovsValEl) ovsValEl.innerText = `${ovsSym}${ovsValDisp.toLocaleString('ko-KR',{maximumFractionDigits:mode==='USD'?2:0})}`;
+                const elOvsRet = document.getElementById(`ovs-ret-${u}`);
+                if(elOvsRet){
+                    const signOvs = ovsAmt > 0 ? '+' : '';
+                    elOvsRet.innerText = `${signOvs}${ovsSym}${Math.abs(ovsAmt).toLocaleString(ovsSym==='$'?'en-US':'ko-KR',{maximumFractionDigits:mode==='USD'?2:0})} (${signOvs}${ovsRet.toFixed(2)}%)`;
+                    elOvsRet.className = ovsAmt > 0 ? 'profit' : (ovsAmt < 0 ? 'loss' : '');
+                }
+
+                const btnKrw = document.getElementById(`btn-krw-${u}`);
+                const btnUsd = document.getElementById(`btn-usd-${u}`);
+                if(btnKrw) btnKrw.className = `curr-btn ${mode === 'KRW' ? 'active' : ''}`;
+                if(btnUsd) btnUsd.className = `curr-btn ${mode === 'USD' ? 'active' : ''}`;
+
+                const s = sortStates[u];
+                portArray.sort((a, b) => {
+                    let valA = a[s.key] ?? '';
+                    let valB = b[s.key] ?? '';
+                    if (s.key === 'vKw') { valA = a.vKw; valB = b.vKw; } 
+                    
+                    if (typeof valA === 'string') return s.asc ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA));
+                    return s.asc ? (Number(valA) - Number(valB)) : (Number(valB) - Number(valA));
+                });
+
+                const theadEl = document.getElementById(`thead-${u}`);
+                if (theadEl) {
+                    theadEl.innerHTML = `<tr>
+                        <th onclick="sortPort('${u}', 'fn')">종목 ${getSortArrow(u, 'fn')}</th>
+                        <th onclick="sortPort('${u}', 'q')">수량 ${getSortArrow(u, 'q')}</th>
+                        <th onclick="sortPort('${u}', 'c')">평단가 ${getSortArrow(u, 'c')}</th>
+                        <th onclick="sortPort('${u}', 'curPr')">현재가 ${getSortArrow(u, 'curPr')}</th>
+                        <th onclick="sortPort('${u}', 'vKw')">평가액 (수익금) ${getSortArrow(u, 'vKw')}</th>
+                        <th onclick="sortPort('${u}', 'ret')">수익률 ${getSortArrow(u, 'ret')}</th>
+                    </tr>`;
+                }
+
+                let ptHtml = '';
+                portArray.forEach(item => {
+                    const cls  = item.isLoaded ? (item.ret > 0 ? 'profit' : (item.ret < 0 ? 'loss' : '')) : '';
+                    const sign = item.isLoaded && item.ret > 0 ? '+' : '';
+                    const sym = (item.tk && !/^\d{6}$/.test(item.tk)) ? '$' : '₩'; 
+                    const displayCurPr = item.isLoaded ? `${sym}${item.curPr.toLocaleString(undefined,{maximumFractionDigits:2})}` : `<span style="color:#aaa;font-size:12px;">데이터 없음</span>`;
+                    const displayRet = item.isLoaded ? `${sign}${item.ret.toFixed(2)}%` : `<span style="color:#aaa;">-</span>`;
+                    
+                    const pSign = item.dispProfit > 0 ? '+' : '';
+                    const pCls = item.dispProfit > 0 ? 'profit' : (item.dispProfit < 0 ? 'loss' : '');
+                    const maxFrac = item.dispSym === '$' ? 2 : 0;
+                    const profitStr = item.isLoaded ? `<span class="${pCls}">(${pSign}${item.dispSym}${Math.abs(item.dispProfit).toLocaleString(item.dispSym==='$'?'en-US':'ko-KR',{maximumFractionDigits:maxFrac})})</span>` : '';
+
+                    ptHtml += `<tr>
+                        <td class="port-item-name" onclick="fillTradeForm('${u}','${item.tk}')" title="클릭하여 매매 입력">${item.fn}<br><small style="color:#888">${item.tk}</small></td>
+                        <td>${item.q.toLocaleString(undefined,{maximumFractionDigits:4})}</td>
+                        <td>${sym}${item.c.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
+                        <td>${displayCurPr}</td>
+                        <td>${item.dispSym}${item.dispVal.toLocaleString(item.dispSym==='$'?'en-US':'ko-KR',{maximumFractionDigits:maxFrac})} <br><small>${profitStr}</small></td>
+                        <td class="${cls}">${displayRet}</td>
+                    </tr>`;
+
+                    cLbl.push(item.fn); cDat.push(item.vKw); 
+                });
+
+                const portTbody = document.getElementById(`port-${u}`);
+                if(portTbody) portTbody.innerHTML = ptHtml || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">종목 없음</td></tr>';
+
+                let logArr = [...state.trades[u]].sort((a,b) => new Date(b.date)-new Date(a.date));
+                const fDtS = document.getElementById(`f-dt-s-${u}`) ? document.getElementById(`f-dt-s-${u}`).value : '';
+                const fDtE = document.getElementById(`f-dt-e-${u}`) ? document.getElementById(`f-dt-e-${u}`).value : '';
+                const fTxt = document.getElementById(`f-txt-${u}`) ? document.getElementById(`f-txt-${u}`).value.toLowerCase() : '';
+                const fTy = document.getElementById(`f-ty-${u}`) ? document.getElementById(`f-ty-${u}`).value : 'all';
+
+                logArr = logArr.filter(t => {
+                    if (fDtS && t.date < fDtS) return false;
+                    if (fDtE && t.date > fDtE) return false;
+                    if (fTy !== 'all' && t.type !== fTy) return false;
+                    if (fTxt && !t.name.toLowerCase().includes(fTxt) && !t.ticker.toLowerCase().includes(fTxt)) return false;
+                    return true;
+                });
+
+                const logTbody = document.getElementById(`log-${u}`);
+                if(logTbody) {
+                    logTbody.innerHTML = logArr.map(t => {
+                        const sym      = t.currency === 'USD' ? '$' : '₩';
+                        const typeCls  = t.type === 'buy' ? 'loss' : 'profit';
+                        const typeName = t.type === 'buy' ? '매수' : '매도';
+                        return `<tr>
+                            <td>${t.date}</td>
+                            <td>${t.name}<br><small style="color:#888">${t.ticker}</small></td>
+                            <td class="${typeCls}">${typeName}</td>
+                            <td>${sym}${t.price.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
+                            <td>${t.qty}</td>
+                            <td>
+                                <button class="a-btn edit-btn" data-u="${u}" data-id="${t.id}" onclick="editTr(this.dataset.u, this.dataset.id)">수정</button>
+                                <button class="a-btn del-btn"  onclick="openDelModal('${t.id}', 'trade')">삭제</button>
+                            </td>
+                        </tr>`;
+                    }).join('') || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">내역 없음</td></tr>';
+                }
+
+                try {
+                    const ctxEl = document.getElementById(`ch-${u}`);
+                    if(ctxEl && typeof Chart !== 'undefined') {
+                        if (state.charts[u]) state.charts[u].destroy();
+                        
+                        if (cDat.length > 0 && cDat.some(val => val > 0)) {
+                            const totalChartVal = cDat.reduce((a, b) => a + b, 0);
+                            const chartLabelsWithPct = cLbl.map((label, idx) => {
+                                const pct = totalChartVal > 0 ? ((cDat[idx] / totalChartVal) * 100).toFixed(1) : 0;
+                                return `${label} (${pct}%)`;
+                            });
+
+                            state.charts[u] = new Chart(ctxEl.getContext('2d'), {
+                                type: 'doughnut',
+                                data: { labels: chartLabelsWithPct, datasets: [{ data: cDat, backgroundColor: ['#4e79a7','#f28e2c','#e15759','#76b7b2','#59a14f','#edc949', '#af7aa1', '#ff9da7', '#9c755f', '#bab0ac'], borderWidth: 0 }] },
+                                options: { maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12 } } } }
+                            });
+                        }
+                    }
+                } catch(e) { console.error("차트 에러:", e); }
+
+                const userDailyPct = yestValSum > 0 ? (dailyAmtSum / yestValSum) * 100 : 0;
+                stats.push({ u, i: tInv, v: tVal, ur: tVal - tInv, r: real, rp: tInv > 0 ? ((tVal - tInv)/tInv)*100 : 0, dailyPct: userDailyPct, dailyAmt: dailyAmtSum });
+            }
+
+            const dashBody = document.getElementById('dash-body');
+            if(dashBody) {
+                dashBody.innerHTML = stats.map(s => {
+                    const urCls = s.ur > 0 ? 'profit' : (s.ur < 0 ? 'loss' : '');
+                    const rCls  = s.r  > 0 ? 'profit' : (s.r  < 0 ? 'loss' : '');
+                    const rpCls = s.rp > 0 ? 'profit' : (s.rp < 0 ? 'loss' : '');
+                    return `<tr>
+                        <td><strong>${s.u}</strong></td>
+                        <td>₩${s.i.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
+                        <td>₩${s.v.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
+                        <td class="${urCls}">₩${s.ur.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
+                        <td class="${rCls}">₩${s.r.toLocaleString('ko-KR',{maximumFractionDigits:0})}</td>
+                        <td class="${rpCls}">${s.rp>0?'+':''}${s.rp.toFixed(2)}%</td>
+                    </tr>`;
+                }).join('');
+            }
+
+            const win = [...stats].sort((a,b) => b.dailyPct - a.dailyPct)[0];
+            const dashTop = document.getElementById('dash-top');
+            if(dashTop) {
+                if (win && win.v > 0 && win.dailyPct !== 0) {
+                    dashTop.innerText = `${win.u} (${win.dailyPct>0?'+':''}${win.dailyPct.toFixed(2)}%)`;
+                    dashTop.className = win.dailyPct > 0 ? 'profit' : (win.dailyPct < 0 ? 'loss' : '');
+                } else {
+                    dashTop.innerText = '-';
+                    dashTop.className = '';
+                }
+            }
+
+            let allDailyChangesArray = [];
+            for (const [tk, info] of Object.entries(cache)) {
+                if (info && info.change && !mSym[tk]) {
+                    allDailyChangesArray.push({ n: info.name, change: info.change });
+                }
+            }
+
+            const dashBest = document.getElementById('dash-best');
+            const dashWorst = document.getElementById('dash-worst');
+            
+            if (allDailyChangesArray.length > 0) {
+                const b = allDailyChangesArray.reduce((p,c) => p.change > c.change ? p : c, allDailyChangesArray[0]);
+                const w = allDailyChangesArray.reduce((p,c) => p.change < c.change ? p : c, allDailyChangesArray[0]);
+                
+                if(dashBest) {
+                    dashBest.innerText = `${b.n} (${b.change > 0 ? '+' : ''}${b.change.toFixed(2)}%)`;
+                    dashBest.className = b.change > 0 ? 'profit' : (b.change < 0 ? 'loss' : '');
+                }
+                if(dashWorst) {
+                    dashWorst.innerText = `${w.n} (${w.change > 0 ? '+' : ''}${w.change.toFixed(2)}%)`;
+                    dashWorst.className = w.change > 0 ? 'profit' : (w.change < 0 ? 'loss' : '');
+                }
+            } else {
+                if(dashBest) { dashBest.innerText = '-'; dashBest.className = ''; }
+                if(dashWorst) { dashWorst.innerText = '-'; dashWorst.className = ''; }
+            }
+            
+        } catch (error) {
+            console.error("데이터 렌더링 중 오류 발생:", error);
+        }
+    }
 </script>
 </body>
 </html>
