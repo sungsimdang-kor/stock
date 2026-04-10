@@ -72,7 +72,7 @@
         th { background: #f9fafc; color: #555; font-size: 13px; cursor: pointer; user-select: none; transition: background 0.2s; }
         th:hover { background: #eef2f5; }
         th:first-child, td:first-child { text-align: left; }
-
+        
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; align-items: end; }
         .f-grp { display: flex; flex-direction: column; font-size: 12px; }
         .f-grp label { margin-bottom: 4px; color: #555; }
@@ -119,7 +119,6 @@
         .badge-add { background: #fff4e6; color: #e67e22; border-left-color: #e67e22; }
         .badge-part { background: #e3f2fd; color: #2980b9; border-left-color: #2980b9; }
         .badge-full { background: #eaecf0; color: #555; border-left-color: #555; }
-        .badge-keep { background: #f0f0f0; color: #7f8c8d; border-left-color: #7f8c8d; }
         .trend-text { color: #333; line-height: 1.5; flex: 1; }
         
         .trend-comments { margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--brd); }
@@ -191,7 +190,7 @@
 
     <div class="container">
         <div class="top-info-bar">
-            <div class="version-tag">V1.9</div>
+            <div class="version-tag">V2.0</div>
             <div class="top-right-items">
                 <div class="exchange-info" id="last-update-display">서버 데이터 대기 중...</div>
                 <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
@@ -242,6 +241,12 @@
                         <input type="date" id="trend-end" style="padding:6px; border:1px solid var(--brd); border-radius:4px;">
                         <button class="refresh-btn" onclick="generatePeriodTrend()">리포트 생성</button>
                         <select id="trend-date-selector" onchange="renderTrends()" style="padding:6px; border:1px solid var(--brd); border-radius:4px; margin-left:10px;"></select>
+                        <select id="trend-user-filter" onchange="renderTrends()" style="padding:6px; border:1px solid var(--brd); border-radius:4px;">
+                            <option value="all">전체 인원</option>
+                            <option value="김태호">김태호</option>
+                            <option value="이용우">이용우</option>
+                            <option value="이형주">이형주</option>
+                        </select>
                     </div>
                 </div>
                 <div id="trends-container">
@@ -296,6 +301,7 @@
             <div class="card">
                 <h3>버전별 업데이트 내역</h3>
                 <ul style="line-height: 1.8; color: #444; font-size: 15px;">
+                    <li><strong>V2.0:</strong> 개인별 동향 사용자 필터 추가, 변동 없는 유지 항목 제거, 오늘의 수익왕 로직(전일 대비 미실현 수익액 기준) 변경</li>
                     <li><strong>V1.9:</strong> 통합뷰 지표 에러 완벽 해결(구글시트 백업 적용), 개인별 동향 기간설정 및 매매일지 기준 일자별 상세 분석(비중/수량) 추가, 차트 비중(%) 표시 최적화</li>
                     <li><strong>V1.8.1:</strong> Firebase 과거 데이터 호환성 에러 긴급 수정</li>
                     <li><strong>V1.8:</strong> 자동 일일 동향(21시 생성), 비중 확대/축소 분석 및 댓글 시스템 도입</li>
@@ -352,7 +358,7 @@
     };
     
     let cache = {};
-    let sheetIndices = {}; // 구글 시트 백업 지표
+    let sheetIndices = {}; 
     const state = { trades: {}, opinions: [], charts: {}, trends: {}, trendComments: {} };
     let allDailyChanges = []; 
     users.forEach(u => state.trades[u] = []);
@@ -489,7 +495,6 @@
         return null;
     }
 
-    // Google Apps Script 백업 지표 가져오기 (야후 API 실패시 사용)
     async function fetchSheetBackup() {
         try {
             const res = await fetch(API_URL);
@@ -585,7 +590,6 @@
         fetchSheetBackup();
     }
 
-    // --- 동향 리포트 로직 (기간 설정 방식) ---
     window.generatePeriodTrend = async function() {
         if (!db) return;
         const sDate = document.getElementById('trend-start').value;
@@ -637,7 +641,7 @@
                 for(let tk in portPrev) if(portPrev[tk].q > 0) totalValPrev += portPrev[tk].q * getPrice(tk) * portPrev[tk].xr;
                 for(let tk in portCurr) if(portCurr[tk].q > 0) totalValCurr += portCurr[tk].q * getPrice(tk) * portCurr[tk].xr;
 
-                let dayRes = { inc:[], dec:[], keep:[] };
+                let dayRes = { inc:[], dec:[] }; // 유지(keep) 제거됨
                 const allTks = new Set([...Object.keys(portPrev), ...Object.keys(portCurr)]);
                 
                 allTks.forEach(tk => {
@@ -663,10 +667,9 @@
                     else if (qP > EPSILON && qC > qP + EPSILON) dayRes.inc.push({ tk, n, type: '추가 매수', detail });
                     else if (qP > EPSILON && qC < qP - EPSILON && qC > EPSILON) dayRes.dec.push({ tk, n, type: '일부 매도', detail });
                     else if (qP > EPSILON && qC < EPSILON) dayRes.dec.push({ tk, n, type: '전체 매도', detail });
-                    else if (qP > EPSILON && Math.abs(qC - qP) < EPSILON) dayRes.keep.push({ tk, n, type: '변화 없음', detail });
                 });
 
-                if(dayRes.inc.length > 0 || dayRes.dec.length > 0 || dayRes.keep.length > 0) {
+                if(dayRes.inc.length > 0 || dayRes.dec.length > 0) {
                     report.users[u].daily[dStr] = dayRes;
                 }
             });
@@ -700,9 +703,13 @@
     window.renderTrends = function() {
         const selector = document.getElementById('trend-date-selector');
         const container = document.getElementById('trends-container');
+        const userFilter = document.getElementById('trend-user-filter');
+        
         if (!selector || !container) return;
 
         const selDate = selector.value;
+        const filterVal = userFilter ? userFilter.value : 'all';
+
         if (!selDate || !state.trends[selDate]) {
             container.innerHTML = '<div style="text-align:center; padding:30px; color:#aaa;">리포트를 생성해주세요.</div>';
             return;
@@ -712,6 +719,8 @@
         let html = ``;
 
         users.forEach(u => {
+            if (filterVal !== 'all' && u !== filterVal) return;
+
             const data = report.users[u];
             if (!data || !data.daily) return;
 
@@ -719,7 +728,7 @@
             const dates = Object.keys(data.daily).sort((a,b) => new Date(b) - new Date(a));
             
             if (dates.length === 0) {
-                dailyHtml = '<div style="color:#aaa; font-size:13px; padding:10px;">해당 기간에 매매 내역이 없습니다.</div>';
+                dailyHtml = '<div style="color:#aaa; font-size:13px; padding:10px;">해당 기간에 매매 내역(변동)이 없습니다.</div>';
             } else {
                 dates.forEach(d => {
                     const day = data.daily[d];
@@ -734,18 +743,18 @@
                         `).join('');
                     };
 
-                    const incHtml = renderItems(day.inc, 'badge-new') || renderItems(day.inc?.filter(i=>i.type==='추가 매수'), 'badge-add'); 
+                    const incHtml = renderItems(day.inc?.filter(i=>i.type==='신규 매수'), 'badge-new') + renderItems(day.inc?.filter(i=>i.type==='추가 매수'), 'badge-add'); 
                     const decHtml = renderItems(day.dec?.filter(i=>i.type==='일부 매도'), 'badge-part') + renderItems(day.dec?.filter(i=>i.type==='전체 매도'), 'badge-full');
-                    const keepHtml = renderItems(day.keep, 'badge-keep');
 
-                    dailyHtml += `
-                        <div class="trend-day-box">
-                            <div class="trend-day-title">📅 ${d} 매매 동향</div>
-                            ${incHtml ? `<div style="margin-bottom:10px;"><h5>📈 비중 확대</h5>${incHtml}</div>` : ''}
-                            ${decHtml ? `<div style="margin-bottom:10px;"><h5>📉 비중 축소</h5>${decHtml}</div>` : ''}
-                            ${keepHtml ? `<div style="margin-bottom:10px;"><h5>⏸️ 유지</h5>${keepHtml}</div>` : ''}
-                        </div>
-                    `;
+                    if (incHtml || decHtml) {
+                        dailyHtml += `
+                            <div class="trend-day-box">
+                                <div class="trend-day-title">📅 ${d} 매매 동향</div>
+                                ${incHtml ? `<div style="margin-bottom:10px;"><h5>📈 비중 확대</h5>${incHtml}</div>` : ''}
+                                ${decHtml ? `<div style="margin-bottom:10px;"><h5>📉 비중 축소</h5>${decHtml}</div>` : ''}
+                            </div>
+                        `;
+                    }
                 });
             }
 
@@ -779,6 +788,10 @@
             `;
         });
 
+        if (html === '') {
+            html = '<div style="text-align:center; padding:30px; color:#aaa;">해당 필터에 맞는 동향 데이터가 없습니다.</div>';
+        }
+
         container.innerHTML = html;
     }
 
@@ -803,7 +816,6 @@
             await db.ref(`trendComments/${cmtKey}/${commentId}`).remove();
         } catch(e) { alert("삭제 실패"); }
     }
-
 
     let pendingDelete = null;
     function openDelModal(id, mode = 'trade') { 
@@ -1018,6 +1030,9 @@
                 
                 let tDomInvKw = 0, tDomValKw = 0;
                 let tOvsInvUsd = 0, tOvsValUsd = 0;
+                
+                let dailyAmtSum = 0;
+                let yestValSum = 0;
 
                 state.trades[u].sort((a,b) => new Date(a.date)-new Date(b.date)).forEach(t => {
                     if (!port[t.ticker]) port[t.ticker] = { n: t.name, q: 0, c: 0, cr: t.currency };
@@ -1049,9 +1064,14 @@
                     const xr = isUsd ? exKRW : 1;
                     const isLoaded = info.price > 0;
                     const curPr = isLoaded ? info.price : p.c; 
+                    const prevPr = isLoaded ? (curPr / (1 + (info.change / 100))) : p.c; 
                     
                     const iBase = p.q * p.c;
                     const vBase = isLoaded ? p.q * curPr : iBase;
+
+                    // Daily PnL
+                    dailyAmtSum += (p.q * curPr * xr) - (p.q * prevPr * xr);
+                    yestValSum += (p.q * prevPr * xr);
 
                     if (isUsd) {
                         tOvsInvUsd += iBase;
@@ -1245,7 +1265,8 @@
                     }
                 } catch(e) { console.error("차트 에러:", e); }
 
-                stats.push({ u, i: tInv, v: tVal, ur: tVal - tInv, r: real, rp: tInv > 0 ? ((tVal - tInv)/tInv)*100 : 0 });
+                const userDailyPct = yestValSum > 0 ? (dailyAmtSum / yestValSum) * 100 : 0;
+                stats.push({ u, i: tInv, v: tVal, ur: tVal - tInv, r: real, rp: tInv > 0 ? ((tVal - tInv)/tInv)*100 : 0, dailyPct: userDailyPct, dailyAmt: dailyAmtSum });
             }
 
             const dashBody = document.getElementById('dash-body');
@@ -1263,6 +1284,19 @@
                         <td class="${rpCls}">${s.rp>0?'+':''}${s.rp.toFixed(2)}%</td>
                     </tr>`;
                 }).join('');
+            }
+
+            // 오늘의 수익 왕 (전일 대비 미실현 수익액 기준 최고 수익률)
+            const win = [...stats].sort((a,b) => b.dailyPct - a.dailyPct)[0];
+            const dashTop = document.getElementById('dash-top');
+            if(dashTop) {
+                if (win && win.v > 0 && win.dailyPct !== 0) {
+                    dashTop.innerText = `${win.u} (${win.dailyPct>0?'+':''}${win.dailyPct.toFixed(2)}%)`;
+                    dashTop.className = win.dailyPct > 0 ? 'profit' : (win.dailyPct < 0 ? 'loss' : '');
+                } else {
+                    dashTop.innerText = '-';
+                    dashTop.className = '';
+                }
             }
 
             let allDailyChangesArray = [];
