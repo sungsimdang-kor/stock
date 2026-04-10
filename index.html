@@ -190,7 +190,7 @@
 
     <div class="container">
         <div class="top-info-bar">
-            <div class="version-tag">V1.8</div>
+            <div class="version-tag">V1.8.1 (핫픽스)</div>
             <div class="top-right-items">
                 <div class="exchange-info" id="last-update-display">서버 데이터 대기 중...</div>
                 <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
@@ -292,14 +292,11 @@
             <div class="card">
                 <h3>버전별 업데이트 내역</h3>
                 <ul style="line-height: 1.8; color: #444; font-size: 15px;">
+                    <li><strong>V1.8.1:</strong> Firebase 과거 데이터 호환성 에러 긴급 수정(화면 멈춤 버그 해결)</li>
                     <li><strong>V1.8:</strong> 자동 일일 동향(21시 생성), 비중 확대/축소 분석 및 댓글 시스템 도입, 차트 라벨 비중(%) 표시 추가</li>
                     <li><strong>V1.7:</strong> 자산 요약 원금 대비 손익액 및 수익률 추가, 관심종목 52주 데이터 자동화, 포트폴리오 원클릭 매매연동</li>
                     <li><strong>V1.6:</strong> 미국 주식 달러/원화 토글 기능 적용</li>
                     <li><strong>V1.5:</strong> 야후 파이낸스/네이버 금융 3중 우회 프록시 엔진 적용 (IP 차단 방지)</li>
-                    <li><strong>V1.4:</strong> 서버리스 프론트엔드 데이터 수집 자동화 및 Firebase 실시간 연동 강화</li>
-                    <li><strong>V1.3:</strong> 국내 주식 네이버 금융 실시간 API 적용</li>
-                    <li><strong>V1.2:</strong> UI 레이아웃 개편 및 포트폴리오 수익금(₩) 표시</li>
-                    <li><strong>V1.0:</strong> 초기 구축</li>
                 </ul>
             </div>
         </div>
@@ -555,7 +552,6 @@
         if (isManual) toggleLd(false);
     }
 
-    // --- 동향 리포트 로직 ---
     function getTodayDateStr() {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
@@ -692,9 +688,28 @@
                 `).join('');
             };
 
-            const incHtml = renderItems(data.increase.newBuy, 'badge-new', '신규 매수') + renderItems(data.increase.addBuy, 'badge-add', '추가 매수');
-            const decHtml = renderItems(data.decrease.partSell, 'badge-part', '일부 매도') + renderItems(data.decrease.fullSell, 'badge-full', '전체 매도');
-            const keepHtml = renderItems(data.keep.noChange, 'badge-keep', '변화 없음');
+            // 에러 방지를 위한 안전 처리 (과거 포맷 호환)
+            let incNew = [], incAdd = [], decPart = [], decFull = [], keepNo = [];
+            
+            if (data.increase) { 
+                incNew = data.increase.newBuy || [];
+                incAdd = data.increase.addBuy || [];
+                decPart = data.decrease.partSell || [];
+                decFull = data.decrease.fullSell || [];
+                keepNo = data.keep.noChange || [];
+            } else if (data.KRW || data.USD) {
+                const krw = data.KRW || {};
+                const usd = data.USD || {};
+                incNew = [...(krw.newBuy||[]), ...(usd.newBuy||[])];
+                incAdd = [...(krw.addBuy||[]), ...(usd.addBuy||[])];
+                decPart = [...(krw.partSell||[]), ...(usd.partSell||[])];
+                decFull = [...(krw.fullSell||[]), ...(usd.fullSell||[])];
+                keepNo = [...(krw.keep||[]), ...(usd.keep||[])];
+            }
+
+            const incHtml = renderItems(incNew, 'badge-new', '신규 매수') + renderItems(incAdd, 'badge-add', '추가 매수');
+            const decHtml = renderItems(decPart, 'badge-part', '일부 매도') + renderItems(decFull, 'badge-full', '전체 매도');
+            const keepHtml = renderItems(keepNo, 'badge-keep', '변화 없음');
 
             const buildSection = (title, content, emptyMsg) => {
                 return `
@@ -764,7 +779,362 @@
         } catch(e) { alert("삭제 실패"); }
     }
 
-    function updateAll() {
+
+    let pendingDelete = null;
+    function openDelModal(id, mode = 'trade') { 
+        pendingDelete = { id, mode }; 
+        document.getElementById('del-modal').classList.add('open'); 
+    }
+    window.openDelModal = openDelModal;
+
+    function closeDelModal() { 
+        pendingDelete = null; 
+        document.getElementById('del-modal').classList.remove('open'); 
+    }
+    window.closeDelModal = closeDelModal;
+    
+    document.getElementById('del-confirm-btn').addEventListener('click', async function() {
+        if (!pendingDelete || !db) return;
+        const { id, mode } = pendingDelete;
+        const node = mode === 'opinion' ? 'opinions' : 'trades';
+        closeDelModal();
+        toggleLd(true, "삭제 중...");
+        try { await db.ref(`${node}/${id}`).remove(); } catch(e) { alert("삭제 실패"); }
+        toggleLd(false);
+    });
+    document.getElementById('del-modal').addEventListener('click', function(e) { if (e.target === this) closeDelModal(); });
+
+    function getSortArrow(u, key) {
+        if (sortStates[u].key !== key) return '↕';
+        return sortStates[u].asc ? '▲' : '▼';
+    }
+
+    window.sortPort = function(u, key) {
+        if (sortStates[u].key === key) sortStates[u].asc = !sortStates[u].asc;
+        else { sortStates[u].key = key; sortStates[u].asc = (key === 'fn') ? true : false; }
+        updateAll();
+    }
+
+    window.fillTradeForm = function(u, tk) {
+        document.getElementById(`tk-${u}`).value = tk;
+        handleTk(u);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function initUI() {
+        const con = document.getElementById('pages-container');
+        if (!con) return;
+        con.innerHTML = '';
+        
+        users.forEach(u => {
+            const html = `
+                <div id="u-${u}" class="tab-content">
+                    
+                    <div class="metrics" style="margin-bottom: 20px;">
+                        <div class="m-box" style="border-left-color: #9b59b6;">
+                            <h4>전체 자산 손익 (KRW)</h4>
+                            <p id="tot-val-${u}">0원</p>
+                            <div id="tot-ret-${u}" style="font-size:15px; font-weight:bold; margin-top:5px;">0%</div>
+                        </div>
+                        <div class="m-box" style="border-left-color: #3498db;">
+                            <h4>국내 주식 손익 (KRW)</h4>
+                            <p id="dom-val-${u}">0원</p>
+                            <div id="dom-ret-${u}" style="font-size:15px; font-weight:bold; margin-top:5px;">0%</div>
+                        </div>
+                        <div class="m-box" style="border-left-color: #e67e22; position: relative;">
+                            <h4>해외 주식 손익</h4>
+                            <div style="position: absolute; top: 15px; right: 15px; display: flex; gap: 4px;">
+                                <button class="curr-btn active" id="btn-krw-${u}" onclick="setCurrency('${u}', 'KRW')">₩</button>
+                                <button class="curr-btn" id="btn-usd-${u}" onclick="setCurrency('${u}', 'USD')">＄</button>
+                            </div>
+                            <p id="ovs-val-${u}">0원</p>
+                            <div id="ovs-ret-${u}" style="font-size:15px; font-weight:bold; margin-top:5px;">0%</div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>현재 포트폴리오 (실시간 연동)</h3>
+                        <div class="tbl-wrap">
+                            <table>
+                                <thead id="thead-${u}"></thead>
+                                <tbody id="port-${u}"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <h3>비중 차트</h3>
+                        <div class="chart"><canvas id="ch-${u}"></canvas></div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>매매 입력/수정</h3>
+                            <div class="realized-badge">누적 확정 수익금: <span id="rp-${u}">0</span>원</div>
+                        </div>
+                        <div class="form-grid">
+                            <input type="hidden" id="eid-${u}">
+                            <div class="f-grp"><label>날짜</label><input type="date" id="dt-${u}"></div>
+                            <div class="f-grp"><label>티커 (입력 후 바깥 클릭)</label><input type="text" id="tk-${u}" onchange="handleTk('${u}')" placeholder="AAPL, 005930"></div>
+                            <div class="f-grp"><label>종목명 (자동)</label><input type="text" id="nm-${u}" disabled placeholder="자동 입력"></div>
+                            <div class="f-grp"><label>유형</label><select id="ty-${u}"><option value="buy">매수</option><option value="sell">매도</option></select></div>
+                            <div class="f-grp"><label>통화 (자동)</label><select id="cr-${u}" disabled><option value="USD">USD</option><option value="KRW">KRW</option></select></div>
+                            <div class="f-grp"><label>가격</label><input type="number" step="0.01" id="pr-${u}"></div>
+                            <div class="f-grp"><label>수량</label><input type="number" step="0.0001" id="qt-${u}"></div>
+                            <div class="f-grp btn-grp" style="grid-column: span 1;">
+                                <button class="p-btn" id="btn-${u}" onclick="saveTr('${u}')">저장</button>
+                                <button class="c-btn" id="cbtn-${u}" onclick="cancelEd('${u}')">취소</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>매매 일지</h3>
+                        <div class="filter-bar">
+                            <span class="filter-label">필터:</span>
+                            <input type="date" id="f-dt-s-${u}" onchange="updateAll()">
+                            <span>~</span>
+                            <input type="date" id="f-dt-e-${u}" onchange="updateAll()">
+                            <input type="text" id="f-txt-${u}" placeholder="종목/티커 검색" oninput="updateAll()">
+                            <select id="f-ty-${u}" onchange="updateAll()">
+                                <option value="all">유형 전체</option>
+                                <option value="buy">매수</option>
+                                <option value="sell">매도</option>
+                            </select>
+                        </div>
+                        <div class="tbl-wrap">
+                            <table>
+                                <thead><tr><th>날짜</th><th>종목</th><th>유형</th><th>가격</th><th>수량</th><th>관리</th></tr></thead>
+                                <tbody id="log-${u}"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>`;
+            con.insertAdjacentHTML('beforeend', html);
+            
+            const dtInput = document.getElementById(`dt-${u}`);
+            if (dtInput) dtInput.value = new Date().toISOString().substring(0, 10);
+        });
+    }
+
+    window.switchTab = function(targetId, btn) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        
+        const targetEl = document.getElementById(targetId);
+        if (targetEl) targetEl.classList.add('active');
+        if (btn) btn.classList.add('active');
+    }
+
+    window.handleOpWatchTk = async function() {
+        const tkIn = document.getElementById('op-watch-tk');
+        const tk = tkIn.value.trim().toUpperCase();
+        if (!tk) return;
+        tkIn.value = tk;
+        
+        document.getElementById('op-watch-nm').placeholder = "조회 중...";
+        await fetchBulkStockPrices([tk]);
+        
+        const fbKey = safeKey(tk);
+        const info = cache[fbKey];
+        
+        if (info) {
+            document.getElementById('op-watch-nm').value = info.name || '';
+            document.getElementById('op-watch-pr').value = info.price || '';
+            document.getElementById('op-watch-low').value = info.low52 || '';
+            document.getElementById('op-watch-high').value = info.high52 || '';
+        }
+        document.getElementById('op-watch-nm').placeholder = "";
+    }
+
+    window.saveOpinion = async function() {
+        if (!db) return alert("DB 미연결");
+        const user = document.getElementById('op-user').value;
+        const text = document.getElementById('op-text').value.trim();
+        
+        const wTk = document.getElementById('op-watch-tk').value.trim().toUpperCase();
+        const wNm = document.getElementById('op-watch-nm').value.trim();
+        const wPr = document.getElementById('op-watch-pr').value;
+        const wLow = document.getElementById('op-watch-low').value;
+        const wHigh = document.getElementById('op-watch-high').value;
+        
+        if (!text) return alert("내용을 입력해 주세요.");
+
+        toggleLd(true, "의견 등록 중...");
+        try {
+            await db.ref('opinions').push({
+                user: user,
+                text: text,
+                watchTicker: wTk,
+                watchName: wNm,
+                watchPrice: wPr,
+                watchLow: wLow,
+                watchHigh: wHigh,
+                timestamp: Date.now()
+            });
+            document.getElementById('op-text').value = '';
+            document.getElementById('op-watch-tk').value = '';
+            document.getElementById('op-watch-nm').value = '';
+            document.getElementById('op-watch-pr').value = '';
+            document.getElementById('op-watch-low').value = '';
+            document.getElementById('op-watch-high').value = '';
+        } catch(e) { alert("등록 실패"); }
+        toggleLd(false);
+    }
+
+    function renderOpinions() {
+        const container = document.getElementById('opinions-timeline');
+        if (!container) return;
+        
+        const arr = [...state.opinions].sort((a,b) => b.timestamp - a.timestamp);
+        
+        if (arr.length === 0) {
+            container.innerHTML = '<div style="text-align:center; color:#aaa; padding:20px;">아직 등록된 의견이 없습니다.</div>';
+            return;
+        }
+
+        container.innerHTML = arr.map(op => {
+            const d = new Date(op.timestamp);
+            const dateStr = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            
+            let watchHtml = '';
+            if (op.watchTicker) {
+                watchHtml = `
+                    <div class="op-watch-card">
+                        <strong>💡 관심 종목: ${op.watchName} (${op.watchTicker})</strong>
+                        <div class="op-watch-details">
+                            <span>현재가(기록시점): ${op.watchPrice || '-'}</span>
+                            <span>52주 최저: ${op.watchLow || '-'}</span>
+                            <span>52주 최고: ${op.watchHigh || '-'}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="op-item">
+                    <div class="op-header">
+                        <span class="op-author">${op.user}</span>
+                        <div>
+                            <span>${dateStr}</span>
+                            <button class="op-del" style="margin-left:10px;" onclick="openDelModal('${op.id}', 'opinion')">삭제</button>
+                        </div>
+                    </div>
+                    <div class="op-content">${op.text}</div>
+                    ${watchHtml}
+                </div>
+            `;
+        }).join('');
+    }
+
+    window.saveTr = async function(u) {
+        if (!db) return alert("데이터베이스에 연결되지 않았습니다.");
+        
+        const eid = document.getElementById(`eid-${u}`).value;
+        const tk  = document.getElementById(`tk-${u}`).value.toUpperCase();
+        const data = {
+            user:     u,
+            date:     document.getElementById(`dt-${u}`).value,
+            ticker:   tk,
+            name:     document.getElementById(`nm-${u}`).value || tk,
+            type:     document.getElementById(`ty-${u}`).value,
+            currency: document.getElementById(`cr-${u}`).value,
+            price:    parseFloat(document.getElementById(`pr-${u}`).value),
+            qty:      parseFloat(document.getElementById(`qt-${u}`).value)
+        };
+        if (!data.ticker || isNaN(data.price) || isNaN(data.qty)) return alert("입력값을 확인해 주세요.");
+
+        toggleLd(true, "저장 중...");
+        try {
+            if (eid) await db.ref(`trades/${eid}`).update(data);
+            else await db.ref('trades').push(data);
+            cancelEd(u);
+            syncMarketDataToFirebase(false); 
+        } catch(e) { alert("저장 실패: " + e.message); }
+        toggleLd(false);
+    }
+
+    window.editTr = function(u, id) {
+        const tr = state.trades[u].find(t => String(t.id) === String(id));
+        if (!tr) return;
+        document.getElementById(`eid-${u}`).value  = tr.id;
+        document.getElementById(`dt-${u}`).value   = tr.date;
+        document.getElementById(`tk-${u}`).value   = tr.ticker;
+        document.getElementById(`nm-${u}`).value   = tr.name;
+        document.getElementById(`ty-${u}`).value   = tr.type;
+        document.getElementById(`cr-${u}`).value   = tr.currency;
+        document.getElementById(`pr-${u}`).value   = tr.price;
+        document.getElementById(`qt-${u}`).value   = tr.qty;
+        document.getElementById(`btn-${u}`).innerText = "수정 완료";
+        document.getElementById(`cbtn-${u}`).style.display = "block";
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    window.cancelEd = function(u) {
+        document.getElementById(`eid-${u}`).value = "";
+        ['tk','nm','pr','qt'].forEach(id => {
+            const el = document.getElementById(`${id}-${u}`);
+            if(el) el.value = '';
+        });
+        document.getElementById(`dt-${u}`).value = new Date().toISOString().substring(0, 10);
+        document.getElementById(`btn-${u}`).innerText = "저장";
+        document.getElementById(`cbtn-${u}`).style.display = "none";
+    }
+
+    function renderIdx() {
+        const grid = document.getElementById('market-indices');
+        if(!grid) return;
+        const html = Object.entries(mSym).map(([sym, lbl]) => {
+            const fbKey = safeKey(sym);
+            const info = cache[fbKey];
+            let priceStr = '-';
+            let changeHtml = '<span class="pct" style="color:#aaa">데이터 없음</span>';
+
+            if (info && info.price > 0) {
+                priceStr = info.price.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                const pct = info.change;
+                const cls  = pct > 0 ? 'profit' : (pct < 0 ? 'loss' : '');
+                const sign = pct > 0 ? '+' : '';
+                changeHtml = `<span class="pct ${cls}">(${sign}${pct.toFixed(2)}%)</span>`;
+            }
+            return `<div class="idx-item"><div class="val">${priceStr} ${changeHtml}</div><div class="key">${lbl}</div></div>`;
+        }).join('');
+        grid.innerHTML = html;
+    }
+
+    window.handleTk = async function(u) {
+        const tkIn = document.getElementById(`tk-${u}`);
+        const nmIn = document.getElementById(`nm-${u}`);
+        const prIn = document.getElementById(`pr-${u}`);
+        const crSel = document.getElementById(`cr-${u}`);
+
+        const tk = tkIn.value.trim().toUpperCase();
+        if (!tk) { nmIn.value = ''; return; }
+
+        tkIn.value = tk;
+        const isKorean = /^\d{6}$/.test(tk);
+        const fbKey = safeKey(tk);
+        const instantName = tMap[tk] || (cache[fbKey] ? cache[fbKey].name : "");
+        
+        crSel.value = isKorean ? 'KRW' : 'USD';
+        
+        if (instantName) {
+            nmIn.value = instantName;
+        } else {
+            nmIn.value = "";
+            nmIn.placeholder = "API 검색 중...";
+        }
+
+        const info = await getStk(tk, true);
+        if (info) {
+            if (!nmIn.value) nmIn.value = info.name;
+            if (info.price > 0 && !prIn.value) prIn.value = info.price;
+        } else {
+            if (!nmIn.value) nmIn.placeholder = "직접 입력";
+        }
+    }
+
+    window.updateAll = function() {
         try {
             let stats = [], hlds = [];
             allDailyChanges = [];
