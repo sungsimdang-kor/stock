@@ -112,8 +112,11 @@
         .trend-day-box { margin-bottom: 20px; border: 1px solid #eee; border-radius: 8px; padding: 15px; }
         .trend-day-title { font-weight: bold; color: var(--pri); margin-bottom: 12px; font-size: 15px; border-bottom: 2px solid #f0f0f0; padding-bottom: 5px; }
         
-        .trend-detail-item { display: flex; align-items: center; margin-bottom: 8px; font-size: 13px; flex-wrap: wrap; gap: 8px; background: #f9fafc; padding: 10px 12px; border-radius: 6px; border-left: 4px solid #ccc; }
+        .trend-detail-item { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; background: #f9fafc; padding: 12px; border-radius: 8px; border-left: 4px solid #ccc; border-top: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee; }
+        .trend-detail-top { display: flex; align-items: center; gap: 10px; width: 100%; }
         .trend-badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; white-space: nowrap; min-width: 65px; text-align: center; }
+        .trend-rsn-input { width: 100%; padding: 10px; border: 1px solid #dcdcdc; border-radius: 6px; font-size: 13px; box-sizing: border-box; background: #fff; transition: border-color 0.2s; }
+        .trend-rsn-input:focus { border-color: var(--pri); outline: none; }
         
         .badge-new { background: #ffeaea; color: #d63031; border-left-color: #d63031; }
         .badge-add { background: #fff4e6; color: #e67e22; border-left-color: #e67e22; }
@@ -190,7 +193,7 @@
 
     <div class="container">
         <div class="top-info-bar">
-            <div class="version-tag">V2.1</div>
+            <div class="version-tag">V2.2</div>
             <div class="top-right-items">
                 <div class="exchange-info" id="last-update-display">서버 데이터 대기 중...</div>
                 <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
@@ -301,12 +304,12 @@
             <div class="card">
                 <h3>버전별 업데이트 내역</h3>
                 <ul style="line-height: 1.8; color: #444; font-size: 15px;">
+                    <li><strong>V2.2:</strong> 매매 입력창 '변경 사유' 제거, 개인별 동향 탭 내 각 종목 하단에 비중 '변경 사유' 직접 입력 기능 추가</li>
                     <li><strong>V2.1:</strong> 개인별 매매 저장/수정 로직 복구, 개인별 동향 '변경 사유' 입력 및 출력 기능 추가</li>
                     <li><strong>V2.0:</strong> 개인별 동향 사용자 필터 추가, 변동 없는 유지 항목 제거, 오늘의 수익왕 로직(전일 대비 미실현 수익액 기준) 변경</li>
                     <li><strong>V1.9:</strong> 통합뷰 지표 에러 완벽 해결(구글시트 백업 적용), 개인별 동향 기간설정 및 매매일지 기준 일자별 상세 분석(비중/수량) 추가, 차트 비중(%) 표시 최적화</li>
                     <li><strong>V1.8.1:</strong> Firebase 과거 데이터 호환성 에러 긴급 수정</li>
                     <li><strong>V1.8:</strong> 자동 일일 동향(21시 생성), 비중 확대/축소 분석 및 댓글 시스템 도입</li>
-                    <li><strong>V1.7:</strong> 자산 요약 원금 대비 손익액 및 수익률 추가, 관심종목 52주 데이터 자동화, 포트폴리오 원클릭 매매연동</li>
                 </ul>
             </div>
         </div>
@@ -360,7 +363,7 @@
     
     let cache = {};
     let sheetIndices = {}; 
-    const state = { trades: {}, opinions: [], charts: {}, trends: {}, trendComments: {} };
+    const state = { trades: {}, opinions: [], charts: {}, trends: {}, trendComments: {}, trendItemReasons: {} };
     let allDailyChanges = []; 
     users.forEach(u => state.trades[u] = []);
 
@@ -438,6 +441,11 @@
 
             db.ref('trendComments').on('value', (snapshot) => {
                 state.trendComments = snapshot.val() || {};
+                renderTrends();
+            });
+
+            db.ref('trendItemReasons').on('value', (snapshot) => {
+                state.trendItemReasons = snapshot.val() || {};
                 renderTrends();
             });
 
@@ -600,12 +608,11 @@
         const cr = document.getElementById(`cr-${u}`).value;
         const pr = parseFloat(document.getElementById(`pr-${u}`).value);
         const qt = parseFloat(document.getElementById(`qt-${u}`).value);
-        const rs = document.getElementById(`rs-${u}`).value.trim();
 
         if (!dt || !tk || isNaN(pr) || isNaN(qt)) return alert("입력값을 정확히 확인해주세요.");
 
         const eid = document.getElementById(`eid-${u}`).value;
-        const data = { user: u, date: dt, ticker: tk, name: nm || tk, type: ty, currency: cr, price: pr, qty: qt, reason: rs };
+        const data = { user: u, date: dt, ticker: tk, name: nm || tk, type: ty, currency: cr, price: pr, qty: qt };
 
         toggleLd(true, "저장 중...");
         try {
@@ -632,7 +639,6 @@
         document.getElementById(`cr-${u}`).value = t.currency;
         document.getElementById(`pr-${u}`).value = t.price;
         document.getElementById(`qt-${u}`).value = t.qty;
-        if (document.getElementById(`rs-${u}`)) document.getElementById(`rs-${u}`).value = t.reason || '';
 
         document.getElementById(`btn-${u}`).innerText = "수정 완료";
         document.getElementById(`cbtn-${u}`).style.display = "block";
@@ -645,7 +651,6 @@
         document.getElementById(`nm-${u}`).value = '';
         document.getElementById(`pr-${u}`).value = '';
         document.getElementById(`qt-${u}`).value = '';
-        if (document.getElementById(`rs-${u}`)) document.getElementById(`rs-${u}`).value = '';
         document.getElementById(`dt-${u}`).value = new Date().toISOString().substring(0, 10);
         document.getElementById(`btn-${u}`).innerText = "저장";
         document.getElementById(`cbtn-${u}`).style.display = "none";
@@ -759,11 +764,9 @@
                         else portPrev[t.ticker].q -= t.qty;
                     }
                     if (t.date <= dStr) {
-                        if(!portCurr[t.ticker]) portCurr[t.ticker] = { q: 0, n: tkName, xr, reason: '' };
+                        if(!portCurr[t.ticker]) portCurr[t.ticker] = { q: 0, n: tkName, xr };
                         if(t.type === 'buy') portCurr[t.ticker].q += t.qty;
                         else portCurr[t.ticker].q -= t.qty;
-                        
-                        if (t.date === dStr && t.reason) portCurr[t.ticker].reason = t.reason; 
                     }
                 });
 
@@ -795,9 +798,8 @@
                     let qC_str = qC.toLocaleString(undefined,{maximumFractionDigits:4});
                     let wP_str = wP.toFixed(1);
                     let wC_str = wC.toFixed(1);
-                    let rsnStr = (portCurr[tk] && portCurr[tk].reason) ? `<br><span style="color:#0056b3; font-weight:600; font-size:12px;">💬 사유: ${portCurr[tk].reason}</span>` : '';
 
-                    let detail = `수량: ${qP_str} → ${qC_str} | 비중: ${wP_str}% → ${wC_str}%${rsnStr}`;
+                    let detail = `수량: ${qP_str} → ${qC_str} | 비중: ${wP_str}% → ${wC_str}%`;
 
                     if (qP < EPSILON && qC > EPSILON) dayRes.inc.push({ tk, n, type: '신규 매수', detail });
                     else if (qP > EPSILON && qC > qP + EPSILON) dayRes.inc.push({ tk, n, type: '추가 매수', detail });
@@ -836,6 +838,15 @@
         }).join('');
     }
 
+    window.saveTrendItemReason = async function(date, user, tk, val) {
+        if (!db) return;
+        try {
+            await db.ref(`trendItemReasons/${date}_${user}_${tk}`).set(val);
+        } catch(e) {
+            console.error("사유 저장 실패", e);
+        }
+    };
+
     window.renderTrends = function() {
         const selector = document.getElementById('trend-date-selector');
         const container = document.getElementById('trends-container');
@@ -871,12 +882,19 @@
                     
                     const renderItems = (arr, badgeCls) => {
                         if(!arr || arr.length === 0) return '';
-                        return arr.map(i => `
+                        return arr.map(i => {
+                            const rsnKey = `${d}_${u}_${i.tk}`;
+                            const rsnVal = state.trendItemReasons[rsnKey] || '';
+                            return `
                             <div class="trend-detail-item">
-                                <div class="trend-badge ${badgeCls}">${i.type}</div>
-                                <div class="trend-text"><strong>${i.n} (${i.tk})</strong><br><span style="color:#666; font-size:12px;">${i.detail}</span></div>
+                                <div class="trend-detail-top">
+                                    <div class="trend-badge ${badgeCls}">${i.type}</div>
+                                    <div class="trend-text"><strong>${i.n} (${i.tk})</strong><br><span style="color:#666; font-size:12px;">${i.detail}</span></div>
+                                </div>
+                                <input type="text" class="trend-rsn-input" value="${rsnVal}" placeholder="비중 변경 사유를 입력하세요 (자동 저장)" onchange="saveTrendItemReason('${d}', '${u}', '${i.tk}', this.value)">
                             </div>
-                        `).join('');
+                            `;
+                        }).join('');
                     };
 
                     const incHtml = renderItems(day.inc?.filter(i=>i.type==='신규 매수'), 'badge-new') + renderItems(day.inc?.filter(i=>i.type==='추가 매수'), 'badge-add'); 
@@ -1054,8 +1072,7 @@
                             <div class="f-grp"><label>통화 (자동)</label><select id="cr-${u}" disabled><option value="USD">USD</option><option value="KRW">KRW</option></select></div>
                             <div class="f-grp"><label>가격</label><input type="number" step="0.01" id="pr-${u}"></div>
                             <div class="f-grp"><label>수량</label><input type="number" step="0.0001" id="qt-${u}"></div>
-                            <div class="f-grp" style="grid-column: span 2;"><label>변경 사유</label><input type="text" id="rs-${u}" placeholder="짧은 댓글 (선택)"></div>
-                            <div class="f-grp btn-grp" style="grid-column: span 2;">
+                            <div class="f-grp btn-grp" style="grid-column: span 1;">
                                 <button class="p-btn" id="btn-${u}" onclick="saveTr('${u}')">저장</button>
                                 <button class="c-btn" id="cbtn-${u}" onclick="cancelEd('${u}')">취소</button>
                             </div>
