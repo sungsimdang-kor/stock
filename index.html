@@ -41,7 +41,7 @@
 
         .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; width: 100%; box-sizing: border-box; }
         .card h3 { margin-top: 0; border-bottom: 1px solid var(--brd); padding-bottom: 10px; font-size: 18px; }
-        .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--brd); padding-bottom: 10px; margin-bottom: 15px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--brd); padding-bottom: 10px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;}
         .card-header h3 { border: none; padding: 0; margin: 0; }
         
         .realized-badge { background: #fff3cd; color: #856404; padding: 6px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; border: 1px solid #ffeeba; }
@@ -72,7 +72,7 @@
         th { background: #f9fafc; color: #555; font-size: 13px; cursor: pointer; user-select: none; transition: background 0.2s; }
         th:hover { background: #eef2f5; }
         th:first-child, td:first-child { text-align: left; }
-        
+
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; align-items: end; }
         .f-grp { display: flex; flex-direction: column; font-size: 12px; }
         .f-grp label { margin-bottom: 4px; color: #555; }
@@ -109,17 +109,18 @@
         /* 동향 리포트 스타일 */
         .trend-card { background: #fff; border: 1px solid var(--brd); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
         .trend-author { font-size: 18px; font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
-        .trend-section { margin-bottom: 15px; }
-        .trend-section h5 { margin: 0 0 10px 0; font-size: 15px; color: #444; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-        .trend-detail-item { display: flex; align-items: center; margin-bottom: 8px; font-size: 13px; flex-wrap: wrap; gap: 8px; background: #f9fafc; padding: 8px 12px; border-radius: 6px; border-left: 3px solid #ccc; }
+        .trend-day-box { margin-bottom: 20px; border: 1px solid #eee; border-radius: 8px; padding: 15px; }
+        .trend-day-title { font-weight: bold; color: var(--pri); margin-bottom: 12px; font-size: 15px; border-bottom: 2px solid #f0f0f0; padding-bottom: 5px; }
         
-        .trend-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; white-space: nowrap; }
+        .trend-detail-item { display: flex; align-items: center; margin-bottom: 8px; font-size: 13px; flex-wrap: wrap; gap: 8px; background: #f9fafc; padding: 10px 12px; border-radius: 6px; border-left: 4px solid #ccc; }
+        .trend-badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; white-space: nowrap; min-width: 65px; text-align: center; }
+        
         .badge-new { background: #ffeaea; color: #d63031; border-left-color: #d63031; }
         .badge-add { background: #fff4e6; color: #e67e22; border-left-color: #e67e22; }
         .badge-part { background: #e3f2fd; color: #2980b9; border-left-color: #2980b9; }
         .badge-full { background: #eaecf0; color: #555; border-left-color: #555; }
         .badge-keep { background: #f0f0f0; color: #7f8c8d; border-left-color: #7f8c8d; }
-        .trend-text { color: #333; line-height: 1.4; }
+        .trend-text { color: #333; line-height: 1.5; flex: 1; }
         
         .trend-comments { margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--brd); }
         .comment-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
@@ -190,7 +191,7 @@
 
     <div class="container">
         <div class="top-info-bar">
-            <div class="version-tag">V1.8.1 (핫픽스)</div>
+            <div class="version-tag">V1.9</div>
             <div class="top-right-items">
                 <div class="exchange-info" id="last-update-display">서버 데이터 대기 중...</div>
                 <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
@@ -234,14 +235,17 @@
         <div id="trends" class="tab-content">
             <div class="card">
                 <div class="card-header">
-                    <h3>개인별 동향 리포트</h3>
-                    <div style="display:flex; gap:10px; align-items:center;">
-                        <select id="trend-date-selector" onchange="renderTrends()"></select>
-                        <button class="refresh-btn" onclick="generateDailyTrend(true)">수동 리포트 생성(오늘)</button>
+                    <h3>개인별 매매 동향 (기간 설정)</h3>
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <input type="date" id="trend-start" style="padding:6px; border:1px solid var(--brd); border-radius:4px;">
+                        <span>~</span>
+                        <input type="date" id="trend-end" style="padding:6px; border:1px solid var(--brd); border-radius:4px;">
+                        <button class="refresh-btn" onclick="generatePeriodTrend()">리포트 생성</button>
+                        <select id="trend-date-selector" onchange="renderTrends()" style="padding:6px; border:1px solid var(--brd); border-radius:4px; margin-left:10px;"></select>
                     </div>
                 </div>
                 <div id="trends-container">
-                    <div style="text-align:center; padding:30px; color:#aaa;">조회된 리포트가 없습니다. 매일 21시 이후 자동 생성됩니다.</div>
+                    <div style="text-align:center; padding:30px; color:#aaa;">기간을 설정하고 리포트를 생성해주세요.</div>
                 </div>
             </div>
         </div>
@@ -292,11 +296,10 @@
             <div class="card">
                 <h3>버전별 업데이트 내역</h3>
                 <ul style="line-height: 1.8; color: #444; font-size: 15px;">
-                    <li><strong>V1.8.1:</strong> Firebase 과거 데이터 호환성 에러 긴급 수정(화면 멈춤 버그 해결)</li>
-                    <li><strong>V1.8:</strong> 자동 일일 동향(21시 생성), 비중 확대/축소 분석 및 댓글 시스템 도입, 차트 라벨 비중(%) 표시 추가</li>
+                    <li><strong>V1.9:</strong> 통합뷰 지표 에러 완벽 해결(구글시트 백업 적용), 개인별 동향 기간설정 및 매매일지 기준 일자별 상세 분석(비중/수량) 추가, 차트 비중(%) 표시 최적화</li>
+                    <li><strong>V1.8.1:</strong> Firebase 과거 데이터 호환성 에러 긴급 수정</li>
+                    <li><strong>V1.8:</strong> 자동 일일 동향(21시 생성), 비중 확대/축소 분석 및 댓글 시스템 도입</li>
                     <li><strong>V1.7:</strong> 자산 요약 원금 대비 손익액 및 수익률 추가, 관심종목 52주 데이터 자동화, 포트폴리오 원클릭 매매연동</li>
-                    <li><strong>V1.6:</strong> 미국 주식 달러/원화 토글 기능 적용</li>
-                    <li><strong>V1.5:</strong> 야후 파이낸스/네이버 금융 3중 우회 프록시 엔진 적용 (IP 차단 방지)</li>
                 </ul>
             </div>
         </div>
@@ -347,7 +350,9 @@
         'KRW=X': '원달러환율', '^IXIC': '나스닥', '^GSPC': 'S&P 500', 
         '^KS11': 'KOSPI', '^KQ11': '코스닥', '^VIX': 'VIX', 'CL=F': 'WTI 유가'
     };
+    
     let cache = {};
+    let sheetIndices = {}; // 구글 시트 백업 지표
     const state = { trades: {}, opinions: [], charts: {}, trends: {}, trendComments: {} };
     let allDailyChanges = []; 
     users.forEach(u => state.trades[u] = []);
@@ -367,11 +372,17 @@
     };
 
     let db = null;
+    const API_URL = 'https://script.google.com/macros/s/AKfycbws0zNCaNdxg-OcjUk5Hi2vQ6anfSmbgjOEryJuDmp8tsDnz1HG0oyG4WOYVwJbjiZu/exec';
 
     window.onload = () => {
         if (sessionStorage.getItem('isLogged') === 'true') {
             startApp();
         }
+        
+        const today = new Date();
+        const aWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        document.getElementById('trend-start').value = aWeekAgo.toISOString().substring(0, 10);
+        document.getElementById('trend-end').value = today.toISOString().substring(0, 10);
     };
 
     function startApp() {
@@ -399,7 +410,6 @@
                     if(state.trades[t.user]) state.trades[t.user].push(t);
                 });
                 updateAll();
-                checkAndGenerateDailyTrend(); 
             });
 
             db.ref('opinions').on('value', (snapshot) => {
@@ -441,13 +451,15 @@
                     }
                     document.getElementById('exchange-rate-display').innerText = `적용 환율: 1 USD = ${exKRW.toLocaleString(undefined, {maximumFractionDigits: 2})} KRW`;
                     
-                    renderIdx();
-                    updateAll();
+                    fetchSheetBackup(); 
                 } else {
                     document.getElementById('last-update-display').innerText = "최초 데이터 수집 중...";
                     syncMarketDataToFirebase(false);
+                    fetchSheetBackup();
                 }
             });
+        } else {
+            fetchSheetBackup();
         }
     }
 
@@ -475,6 +487,26 @@
             } catch(e) { } 
         }
         return null;
+    }
+
+    // Google Apps Script 백업 지표 가져오기 (야후 API 실패시 사용)
+    async function fetchSheetBackup() {
+        try {
+            const res = await fetch(API_URL);
+            const data = await res.json();
+            if (data.indices) {
+                const entries = Object.entries(data.indices);
+                const isMissingNames = entries.length > 0 && entries.every(([k, v]) => !v || v === '-');
+                if (isMissingNames) {
+                    const defaultLabels = ['원달러환율', '나스닥', 'S&P 500', 'KOSPI', '코스닥', 'VIX', 'WTI 유가'];
+                    entries.forEach(([k, v], i) => { sheetIndices[defaultLabels[i] || `지표 ${i+1}`] = k; });
+                } else {
+                    Object.assign(sheetIndices, data.indices);
+                }
+            }
+        } catch(e) { console.warn("시트 백업 지표 로드 실패", e); }
+        renderIdx();
+        updateAll();
     }
 
     async function fetchBulkStockPrices(tickers) {
@@ -550,114 +582,119 @@
 
         window.isFetchingMarketData = false;
         if (isManual) toggleLd(false);
+        fetchSheetBackup();
     }
 
-    function getTodayDateStr() {
-        const now = new Date();
-        return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-    }
-
-    async function checkAndGenerateDailyTrend() {
-        const now = new Date();
-        if (now.getHours() < 21) return; 
-
-        const dateStr = getTodayDateStr();
-        if (!db || state.trends[dateStr]) return; 
-
-        await generateDailyTrend(false);
-    }
-
-    window.generateDailyTrend = async function(isManual = false) {
-        const dateStr = getTodayDateStr();
+    // --- 동향 리포트 로직 (기간 설정 방식) ---
+    window.generatePeriodTrend = async function() {
         if (!db) return;
+        const sDate = document.getElementById('trend-start').value;
+        const eDate = document.getElementById('trend-end').value;
         
-        if (isManual) toggleLd(true, "동향 리포트 생성 중...");
+        if (!sDate || !eDate || sDate > eDate) return alert("올바른 기간을 설정해주세요.");
 
-        const report = { timestamp: Date.now(), users: {} };
+        const reportKey = `${sDate}_to_${eDate}`;
+        toggleLd(true, "리포트 생성 중...");
+
+        const report = { timestamp: Date.now(), title: `${sDate} ~ ${eDate} 기간 동향`, users: {} };
         const EPSILON = 0.000001;
 
         users.forEach(u => {
-            let portPrev = {};
-            let portCurr = {};
+            report.users[u] = { daily: {} };
             
+            let tradeDates = new Set();
             state.trades[u].forEach(t => {
-                const tkName = t.name || t.ticker;
-                const isKRW = t.currency === 'KRW';
-                const xr = isKRW ? 1 : exKRW;
-                
-                if (t.date < dateStr) {
-                    if(!portPrev[t.ticker]) portPrev[t.ticker] = { q: 0, n: tkName, xr };
-                    if(t.type === 'buy') portPrev[t.ticker].q += t.qty;
-                    else portPrev[t.ticker].q -= t.qty;
-                }
-                
-                if (t.date <= dateStr) {
-                    if(!portCurr[t.ticker]) portCurr[t.ticker] = { q: 0, n: tkName, xr };
-                    if(t.type === 'buy') portCurr[t.ticker].q += t.qty;
-                    else portCurr[t.ticker].q -= t.qty;
-                }
+                if (t.date >= sDate && t.date <= eDate) tradeDates.add(t.date);
             });
+            let sortedDates = Array.from(tradeDates).sort();
 
-            let totalValPrev = 0;
-            let totalValCurr = 0;
-            
-            const getPrice = (tk) => {
-                const fbKey = safeKey(tk);
-                return (cache[fbKey] && cache[fbKey].price) ? cache[fbKey].price : 0;
-            };
+            sortedDates.forEach(dStr => {
+                let portPrev = {};
+                let portCurr = {};
+                
+                state.trades[u].forEach(t => {
+                    const tkName = t.name || t.ticker;
+                    const xr = t.currency === 'KRW' ? 1 : exKRW;
+                    
+                    if (t.date < dStr) {
+                        if(!portPrev[t.ticker]) portPrev[t.ticker] = { q: 0, n: tkName, xr };
+                        if(t.type === 'buy') portPrev[t.ticker].q += t.qty;
+                        else portPrev[t.ticker].q -= t.qty;
+                    }
+                    if (t.date <= dStr) {
+                        if(!portCurr[t.ticker]) portCurr[t.ticker] = { q: 0, n: tkName, xr };
+                        if(t.type === 'buy') portCurr[t.ticker].q += t.qty;
+                        else portCurr[t.ticker].q -= t.qty;
+                    }
+                });
 
-            for(let tk in portPrev) {
-                if(portPrev[tk].q > 0) totalValPrev += portPrev[tk].q * getPrice(tk) * portPrev[tk].xr;
-            }
-            for(let tk in portCurr) {
-                if(portCurr[tk].q > 0) totalValCurr += portCurr[tk].q * getPrice(tk) * portCurr[tk].xr;
-            }
+                let totalValPrev = 0; let totalValCurr = 0;
+                const getPrice = (tk) => {
+                    const fbKey = safeKey(tk);
+                    return (cache[fbKey] && cache[fbKey].price) ? cache[fbKey].price : 0;
+                };
 
-            report.users[u] = {
-                increase: { newBuy: [], addBuy: [] },
-                decrease: { partSell: [], fullSell: [] },
-                keep: { noChange: [] }
-            };
-            
-            const allTickers = new Set([...Object.keys(portPrev), ...Object.keys(portCurr)]);
-            
-            allTickers.forEach(tk => {
-                const qP = portPrev[tk] ? portPrev[tk].q : 0;
-                const qC = portCurr[tk] ? portCurr[tk].q : 0;
-                if (qP < EPSILON && qC < EPSILON) return; 
+                for(let tk in portPrev) if(portPrev[tk].q > 0) totalValPrev += portPrev[tk].q * getPrice(tk) * portPrev[tk].xr;
+                for(let tk in portCurr) if(portCurr[tk].q > 0) totalValCurr += portCurr[tk].q * getPrice(tk) * portCurr[tk].xr;
 
-                const xr = portCurr[tk] ? portCurr[tk].xr : portPrev[tk].xr;
-                const n = portCurr[tk] ? portCurr[tk].n : portPrev[tk].n;
-                const price = getPrice(tk);
+                let dayRes = { inc:[], dec:[], keep:[] };
+                const allTks = new Set([...Object.keys(portPrev), ...Object.keys(portCurr)]);
+                
+                allTks.forEach(tk => {
+                    const qP = portPrev[tk] ? portPrev[tk].q : 0;
+                    const qC = portCurr[tk] ? portCurr[tk].q : 0;
+                    if (qP < EPSILON && qC < EPSILON) return; 
 
-                const wP = totalValPrev > 0 ? (qP * price * xr / totalValPrev) * 100 : 0;
-                const wC = totalValCurr > 0 ? (qC * price * xr / totalValCurr) * 100 : 0;
+                    const xr = portCurr[tk] ? portCurr[tk].xr : portPrev[tk].xr;
+                    const n = portCurr[tk] ? portCurr[tk].n : portPrev[tk].n;
+                    const price = getPrice(tk);
 
-                const formatStr = `<strong>${n} (${tk})</strong> <br>수량: ${qP.toLocaleString(undefined,{maximumFractionDigits:4})} → ${qC.toLocaleString(undefined,{maximumFractionDigits:4})} | 비중: ${wP.toFixed(1)}% → ${wC.toFixed(1)}%`;
+                    const wP = totalValPrev > 0 ? (qP * price * xr / totalValPrev) * 100 : 0;
+                    const wC = totalValCurr > 0 ? (qC * price * xr / totalValCurr) * 100 : 0;
 
-                if (qP < EPSILON && qC > EPSILON) report.users[u].increase.newBuy.push(formatStr);
-                else if (qP > EPSILON && qC > qP + EPSILON) report.users[u].increase.addBuy.push(formatStr);
-                else if (qP > EPSILON && qC < qP - EPSILON && qC > EPSILON) report.users[u].decrease.partSell.push(formatStr);
-                else if (qP > EPSILON && qC < EPSILON) report.users[u].decrease.fullSell.push(formatStr);
-                else if (qP > EPSILON && Math.abs(qC - qP) < EPSILON) report.users[u].keep.noChange.push(formatStr);
+                    let qP_str = qP.toLocaleString(undefined,{maximumFractionDigits:4});
+                    let qC_str = qC.toLocaleString(undefined,{maximumFractionDigits:4});
+                    let wP_str = wP.toFixed(1);
+                    let wC_str = wC.toFixed(1);
+
+                    let detail = `수량: ${qP_str} → ${qC_str} | 비중: ${wP_str}% → ${wC_str}%`;
+
+                    if (qP < EPSILON && qC > EPSILON) dayRes.inc.push({ tk, n, type: '신규 매수', detail });
+                    else if (qP > EPSILON && qC > qP + EPSILON) dayRes.inc.push({ tk, n, type: '추가 매수', detail });
+                    else if (qP > EPSILON && qC < qP - EPSILON && qC > EPSILON) dayRes.dec.push({ tk, n, type: '일부 매도', detail });
+                    else if (qP > EPSILON && qC < EPSILON) dayRes.dec.push({ tk, n, type: '전체 매도', detail });
+                    else if (qP > EPSILON && Math.abs(qC - qP) < EPSILON) dayRes.keep.push({ tk, n, type: '변화 없음', detail });
+                });
+
+                if(dayRes.inc.length > 0 || dayRes.dec.length > 0 || dayRes.keep.length > 0) {
+                    report.users[u].daily[dStr] = dayRes;
+                }
             });
         });
 
         try {
-            await db.ref(`trends/${dateStr}`).set(report);
-            if (isManual) alert(`${dateStr} 리포트가 성공적으로 생성되었습니다.`);
-        } catch(e) {
-            if (isManual) alert("생성 실패");
-        }
-        if (isManual) toggleLd(false);
+            await db.ref(`trends/${reportKey}`).set(report);
+            setTimeout(() => {
+                const sel = document.getElementById('trend-date-selector');
+                if(sel) { sel.value = reportKey; renderTrends(); }
+            }, 500);
+        } catch(e) { alert("리포트 생성 실패"); }
+        toggleLd(false);
     }
 
     function updateTrendDateSelector() {
         const selector = document.getElementById('trend-date-selector');
         if (!selector) return;
         
-        const dates = Object.keys(state.trends).sort((a,b) => new Date(b) - new Date(a));
-        selector.innerHTML = dates.map(d => `<option value="${d}">${d}</option>`).join('');
+        const dates = Object.keys(state.trends).sort((a,b) => {
+            const dateA = a.split('_')[0];
+            const dateB = b.split('_')[0];
+            return new Date(dateB) - new Date(dateA);
+        });
+        selector.innerHTML = dates.map(d => {
+            const title = state.trends[d].title || d;
+            return `<option value="${d}">${title}</option>`;
+        }).join('');
     }
 
     window.renderTrends = function() {
@@ -667,60 +704,50 @@
 
         const selDate = selector.value;
         if (!selDate || !state.trends[selDate]) {
-            container.innerHTML = '<div style="text-align:center; padding:30px; color:#aaa;">해당 날짜의 리포트가 없습니다.</div>';
+            container.innerHTML = '<div style="text-align:center; padding:30px; color:#aaa;">리포트를 생성해주세요.</div>';
             return;
         }
 
         const report = state.trends[selDate];
-        let html = '';
+        let html = ``;
 
         users.forEach(u => {
             const data = report.users[u];
-            if (!data) return;
+            if (!data || !data.daily) return;
 
-            const renderItems = (arr, badgeClass, badgeText) => {
-                if(!arr || arr.length === 0) return '';
-                return arr.map(item => `
-                    <div class="trend-detail-item">
-                        <div class="trend-badge ${badgeClass}">${badgeText}</div>
-                        <div class="trend-text">${item}</div>
-                    </div>
-                `).join('');
-            };
-
-            // 에러 방지를 위한 안전 처리 (과거 포맷 호환)
-            let incNew = [], incAdd = [], decPart = [], decFull = [], keepNo = [];
+            let dailyHtml = '';
+            const dates = Object.keys(data.daily).sort((a,b) => new Date(b) - new Date(a));
             
-            if (data.increase) { 
-                incNew = data.increase.newBuy || [];
-                incAdd = data.increase.addBuy || [];
-                decPart = data.decrease.partSell || [];
-                decFull = data.decrease.fullSell || [];
-                keepNo = data.keep.noChange || [];
-            } else if (data.KRW || data.USD) {
-                const krw = data.KRW || {};
-                const usd = data.USD || {};
-                incNew = [...(krw.newBuy||[]), ...(usd.newBuy||[])];
-                incAdd = [...(krw.addBuy||[]), ...(usd.addBuy||[])];
-                decPart = [...(krw.partSell||[]), ...(usd.partSell||[])];
-                decFull = [...(krw.fullSell||[]), ...(usd.fullSell||[])];
-                keepNo = [...(krw.keep||[]), ...(usd.keep||[])];
-            }
+            if (dates.length === 0) {
+                dailyHtml = '<div style="color:#aaa; font-size:13px; padding:10px;">해당 기간에 매매 내역이 없습니다.</div>';
+            } else {
+                dates.forEach(d => {
+                    const day = data.daily[d];
+                    
+                    const renderItems = (arr, badgeCls) => {
+                        if(!arr || arr.length === 0) return '';
+                        return arr.map(i => `
+                            <div class="trend-detail-item">
+                                <div class="trend-badge ${badgeCls}">${i.type}</div>
+                                <div class="trend-text"><strong>${i.n} (${i.tk})</strong><br><span style="color:#666; font-size:12px;">${i.detail}</span></div>
+                            </div>
+                        `).join('');
+                    };
 
-            const incHtml = renderItems(incNew, 'badge-new', '신규 매수') + renderItems(incAdd, 'badge-add', '추가 매수');
-            const decHtml = renderItems(decPart, 'badge-part', '일부 매도') + renderItems(decFull, 'badge-full', '전체 매도');
-            const keepHtml = renderItems(keepNo, 'badge-keep', '변화 없음');
+                    const incHtml = renderItems(day.inc, 'badge-new') || renderItems(day.inc?.filter(i=>i.type==='추가 매수'), 'badge-add'); 
+                    const decHtml = renderItems(day.dec?.filter(i=>i.type==='일부 매도'), 'badge-part') + renderItems(day.dec?.filter(i=>i.type==='전체 매도'), 'badge-full');
+                    const keepHtml = renderItems(day.keep, 'badge-keep');
 
-            const buildSection = (title, content, emptyMsg) => {
-                return `
-                    <div class="trend-section">
-                        <h5>${title}</h5>
-                        <div class="trend-items">
-                            ${content || `<div style="color:#aaa; font-size:13px; padding-left:5px;">${emptyMsg}</div>`}
+                    dailyHtml += `
+                        <div class="trend-day-box">
+                            <div class="trend-day-title">📅 ${d} 매매 동향</div>
+                            ${incHtml ? `<div style="margin-bottom:10px;"><h5>📈 비중 확대</h5>${incHtml}</div>` : ''}
+                            ${decHtml ? `<div style="margin-bottom:10px;"><h5>📉 비중 축소</h5>${decHtml}</div>` : ''}
+                            ${keepHtml ? `<div style="margin-bottom:10px;"><h5>⏸️ 유지</h5>${keepHtml}</div>` : ''}
                         </div>
-                    </div>
-                `;
-            };
+                    `;
+                });
+            }
 
             const cmtKey = `${selDate}_${u}`;
             const commentsObj = state.trendComments[cmtKey] || {};
@@ -734,9 +761,7 @@
             html += `
                 <div class="trend-card">
                     <div class="trend-author">👤 ${u}의 포트폴리오 동향</div>
-                    ${buildSection('📈 비중 확대', incHtml, '확대된 비중 없음')}
-                    ${buildSection('📉 비중 축소', decHtml, '축소된 비중 없음')}
-                    ${buildSection('⏸️ 유지', keepHtml, '유지 중인 종목 없음')}
+                    ${dailyHtml}
                     
                     <div class="trend-comments">
                         <div class="comment-list">${commentsHtml}</div>
@@ -926,161 +951,6 @@
         if (btn) btn.classList.add('active');
     }
 
-    window.handleOpWatchTk = async function() {
-        const tkIn = document.getElementById('op-watch-tk');
-        const tk = tkIn.value.trim().toUpperCase();
-        if (!tk) return;
-        tkIn.value = tk;
-        
-        document.getElementById('op-watch-nm').placeholder = "조회 중...";
-        await fetchBulkStockPrices([tk]);
-        
-        const fbKey = safeKey(tk);
-        const info = cache[fbKey];
-        
-        if (info) {
-            document.getElementById('op-watch-nm').value = info.name || '';
-            document.getElementById('op-watch-pr').value = info.price || '';
-            document.getElementById('op-watch-low').value = info.low52 || '';
-            document.getElementById('op-watch-high').value = info.high52 || '';
-        }
-        document.getElementById('op-watch-nm').placeholder = "";
-    }
-
-    window.saveOpinion = async function() {
-        if (!db) return alert("DB 미연결");
-        const user = document.getElementById('op-user').value;
-        const text = document.getElementById('op-text').value.trim();
-        
-        const wTk = document.getElementById('op-watch-tk').value.trim().toUpperCase();
-        const wNm = document.getElementById('op-watch-nm').value.trim();
-        const wPr = document.getElementById('op-watch-pr').value;
-        const wLow = document.getElementById('op-watch-low').value;
-        const wHigh = document.getElementById('op-watch-high').value;
-        
-        if (!text) return alert("내용을 입력해 주세요.");
-
-        toggleLd(true, "의견 등록 중...");
-        try {
-            await db.ref('opinions').push({
-                user: user,
-                text: text,
-                watchTicker: wTk,
-                watchName: wNm,
-                watchPrice: wPr,
-                watchLow: wLow,
-                watchHigh: wHigh,
-                timestamp: Date.now()
-            });
-            document.getElementById('op-text').value = '';
-            document.getElementById('op-watch-tk').value = '';
-            document.getElementById('op-watch-nm').value = '';
-            document.getElementById('op-watch-pr').value = '';
-            document.getElementById('op-watch-low').value = '';
-            document.getElementById('op-watch-high').value = '';
-        } catch(e) { alert("등록 실패"); }
-        toggleLd(false);
-    }
-
-    function renderOpinions() {
-        const container = document.getElementById('opinions-timeline');
-        if (!container) return;
-        
-        const arr = [...state.opinions].sort((a,b) => b.timestamp - a.timestamp);
-        
-        if (arr.length === 0) {
-            container.innerHTML = '<div style="text-align:center; color:#aaa; padding:20px;">아직 등록된 의견이 없습니다.</div>';
-            return;
-        }
-
-        container.innerHTML = arr.map(op => {
-            const d = new Date(op.timestamp);
-            const dateStr = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-            
-            let watchHtml = '';
-            if (op.watchTicker) {
-                watchHtml = `
-                    <div class="op-watch-card">
-                        <strong>💡 관심 종목: ${op.watchName} (${op.watchTicker})</strong>
-                        <div class="op-watch-details">
-                            <span>현재가(기록시점): ${op.watchPrice || '-'}</span>
-                            <span>52주 최저: ${op.watchLow || '-'}</span>
-                            <span>52주 최고: ${op.watchHigh || '-'}</span>
-                        </div>
-                    </div>
-                `;
-            }
-
-            return `
-                <div class="op-item">
-                    <div class="op-header">
-                        <span class="op-author">${op.user}</span>
-                        <div>
-                            <span>${dateStr}</span>
-                            <button class="op-del" style="margin-left:10px;" onclick="openDelModal('${op.id}', 'opinion')">삭제</button>
-                        </div>
-                    </div>
-                    <div class="op-content">${op.text}</div>
-                    ${watchHtml}
-                </div>
-            `;
-        }).join('');
-    }
-
-    window.saveTr = async function(u) {
-        if (!db) return alert("데이터베이스에 연결되지 않았습니다.");
-        
-        const eid = document.getElementById(`eid-${u}`).value;
-        const tk  = document.getElementById(`tk-${u}`).value.toUpperCase();
-        const data = {
-            user:     u,
-            date:     document.getElementById(`dt-${u}`).value,
-            ticker:   tk,
-            name:     document.getElementById(`nm-${u}`).value || tk,
-            type:     document.getElementById(`ty-${u}`).value,
-            currency: document.getElementById(`cr-${u}`).value,
-            price:    parseFloat(document.getElementById(`pr-${u}`).value),
-            qty:      parseFloat(document.getElementById(`qt-${u}`).value)
-        };
-        if (!data.ticker || isNaN(data.price) || isNaN(data.qty)) return alert("입력값을 확인해 주세요.");
-
-        toggleLd(true, "저장 중...");
-        try {
-            if (eid) await db.ref(`trades/${eid}`).update(data);
-            else await db.ref('trades').push(data);
-            cancelEd(u);
-            syncMarketDataToFirebase(false); 
-        } catch(e) { alert("저장 실패: " + e.message); }
-        toggleLd(false);
-    }
-
-    window.editTr = function(u, id) {
-        const tr = state.trades[u].find(t => String(t.id) === String(id));
-        if (!tr) return;
-        document.getElementById(`eid-${u}`).value  = tr.id;
-        document.getElementById(`dt-${u}`).value   = tr.date;
-        document.getElementById(`tk-${u}`).value   = tr.ticker;
-        document.getElementById(`nm-${u}`).value   = tr.name;
-        document.getElementById(`ty-${u}`).value   = tr.type;
-        document.getElementById(`cr-${u}`).value   = tr.currency;
-        document.getElementById(`pr-${u}`).value   = tr.price;
-        document.getElementById(`qt-${u}`).value   = tr.qty;
-        document.getElementById(`btn-${u}`).innerText = "수정 완료";
-        document.getElementById(`cbtn-${u}`).style.display = "block";
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    window.cancelEd = function(u) {
-        document.getElementById(`eid-${u}`).value = "";
-        ['tk','nm','pr','qt'].forEach(id => {
-            const el = document.getElementById(`${id}-${u}`);
-            if(el) el.value = '';
-        });
-        document.getElementById(`dt-${u}`).value = new Date().toISOString().substring(0, 10);
-        document.getElementById(`btn-${u}`).innerText = "저장";
-        document.getElementById(`cbtn-${u}`).style.display = "none";
-    }
-
     function renderIdx() {
         const grid = document.getElementById('market-indices');
         if(!grid) return;
@@ -1096,6 +966,9 @@
                 const cls  = pct > 0 ? 'profit' : (pct < 0 ? 'loss' : '');
                 const sign = pct > 0 ? '+' : '';
                 changeHtml = `<span class="pct ${cls}">(${sign}${pct.toFixed(2)}%)</span>`;
+            } else if (sheetIndices[lbl]) {
+                priceStr = parseFloat(String(sheetIndices[lbl]).replace(/,/g, '')).toLocaleString(undefined, { maximumFractionDigits: 2 });
+                changeHtml = ''; 
             }
             return `<div class="idx-item"><div class="val">${priceStr} ${changeHtml}</div><div class="key">${lbl}</div></div>`;
         }).join('');
