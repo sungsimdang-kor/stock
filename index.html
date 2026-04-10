@@ -190,7 +190,7 @@
 
     <div class="container">
         <div class="top-info-bar">
-            <div class="version-tag">V2.0</div>
+            <div class="version-tag">V2.1</div>
             <div class="top-right-items">
                 <div class="exchange-info" id="last-update-display">서버 데이터 대기 중...</div>
                 <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
@@ -301,6 +301,7 @@
             <div class="card">
                 <h3>버전별 업데이트 내역</h3>
                 <ul style="line-height: 1.8; color: #444; font-size: 15px;">
+                    <li><strong>V2.1:</strong> 개인별 매매 저장/수정 로직 복구, 개인별 동향 '변경 사유' 입력 및 출력 기능 추가</li>
                     <li><strong>V2.0:</strong> 개인별 동향 사용자 필터 추가, 변동 없는 유지 항목 제거, 오늘의 수익왕 로직(전일 대비 미실현 수익액 기준) 변경</li>
                     <li><strong>V1.9:</strong> 통합뷰 지표 에러 완벽 해결(구글시트 백업 적용), 개인별 동향 기간설정 및 매매일지 기준 일자별 상세 분석(비중/수량) 추가, 차트 비중(%) 표시 최적화</li>
                     <li><strong>V1.8.1:</strong> Firebase 과거 데이터 호환성 에러 긴급 수정</li>
@@ -590,6 +591,138 @@
         fetchSheetBackup();
     }
 
+    window.saveTr = async function(u) {
+        if (!db) return alert("데이터베이스 연결 오류");
+        const dt = document.getElementById(`dt-${u}`).value;
+        const tk = document.getElementById(`tk-${u}`).value.trim().toUpperCase();
+        const nm = document.getElementById(`nm-${u}`).value;
+        const ty = document.getElementById(`ty-${u}`).value;
+        const cr = document.getElementById(`cr-${u}`).value;
+        const pr = parseFloat(document.getElementById(`pr-${u}`).value);
+        const qt = parseFloat(document.getElementById(`qt-${u}`).value);
+        const rs = document.getElementById(`rs-${u}`).value.trim();
+
+        if (!dt || !tk || isNaN(pr) || isNaN(qt)) return alert("입력값을 정확히 확인해주세요.");
+
+        const eid = document.getElementById(`eid-${u}`).value;
+        const data = { user: u, date: dt, ticker: tk, name: nm || tk, type: ty, currency: cr, price: pr, qty: qt, reason: rs };
+
+        toggleLd(true, "저장 중...");
+        try {
+            if (eid) {
+                await db.ref(`trades/${eid}`).update(data);
+            } else {
+                await db.ref('trades').push(data);
+            }
+            cancelEd(u);
+        } catch(e) {
+            alert("저장 실패");
+        }
+        toggleLd(false);
+    };
+
+    window.editTr = function(u, id) {
+        const t = state.trades[u].find(x => x.id === id);
+        if (!t) return;
+        document.getElementById(`eid-${u}`).value = t.id;
+        document.getElementById(`dt-${u}`).value = t.date;
+        document.getElementById(`tk-${u}`).value = t.ticker;
+        document.getElementById(`nm-${u}`).value = t.name;
+        document.getElementById(`ty-${u}`).value = t.type;
+        document.getElementById(`cr-${u}`).value = t.currency;
+        document.getElementById(`pr-${u}`).value = t.price;
+        document.getElementById(`qt-${u}`).value = t.qty;
+        if (document.getElementById(`rs-${u}`)) document.getElementById(`rs-${u}`).value = t.reason || '';
+
+        document.getElementById(`btn-${u}`).innerText = "수정 완료";
+        document.getElementById(`cbtn-${u}`).style.display = "block";
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    window.cancelEd = function(u) {
+        document.getElementById(`eid-${u}`).value = '';
+        document.getElementById(`tk-${u}`).value = '';
+        document.getElementById(`nm-${u}`).value = '';
+        document.getElementById(`pr-${u}`).value = '';
+        document.getElementById(`qt-${u}`).value = '';
+        if (document.getElementById(`rs-${u}`)) document.getElementById(`rs-${u}`).value = '';
+        document.getElementById(`dt-${u}`).value = new Date().toISOString().substring(0, 10);
+        document.getElementById(`btn-${u}`).innerText = "저장";
+        document.getElementById(`cbtn-${u}`).style.display = "none";
+    };
+
+    window.handleOpWatchTk = async function() {
+        const tk = document.getElementById('op-watch-tk').value.trim().toUpperCase();
+        if(!tk) return;
+        document.getElementById('op-watch-tk').value = tk;
+        const info = await getStk(tk, true);
+        if(info) {
+            document.getElementById('op-watch-nm').value = info.name;
+            if(info.price) document.getElementById('op-watch-pr').value = info.price;
+            if(info.low52) document.getElementById('op-watch-low').value = info.low52;
+            if(info.high52) document.getElementById('op-watch-high').value = info.high52;
+        }
+    };
+
+    window.saveOpinion = async function() {
+        if(!db) return;
+        const user = document.getElementById('op-user').value;
+        const text = document.getElementById('op-text').value.trim();
+        if(!text) return alert('의견 내용을 입력해주세요.');
+        
+        const data = { author: user, text: text, timestamp: Date.now() };
+        const tk = document.getElementById('op-watch-tk').value.trim().toUpperCase();
+        if(tk) {
+            data.watch = {
+                tk,
+                nm: document.getElementById('op-watch-nm').value,
+                pr: document.getElementById('op-watch-pr').value,
+                low: document.getElementById('op-watch-low').value,
+                high: document.getElementById('op-watch-high').value
+            };
+        }
+        toggleLd(true, "의견 저장 중...");
+        try {
+            await db.ref('opinions').push(data);
+            document.getElementById('op-text').value = '';
+            document.getElementById('op-watch-tk').value = '';
+            document.getElementById('op-watch-nm').value = '';
+            document.getElementById('op-watch-pr').value = '';
+            document.getElementById('op-watch-low').value = '';
+            document.getElementById('op-watch-high').value = '';
+        } catch(e) { alert('저장 실패'); }
+        toggleLd(false);
+    };
+
+    window.renderOpinions = function() {
+        const container = document.getElementById('opinions-timeline');
+        if(!container) return;
+        let html = state.opinions.sort((a,b) => b.timestamp - a.timestamp).map(op => {
+            const d = new Date(op.timestamp);
+            const timeStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            let watchHtml = '';
+            if(op.watch && op.watch.tk) {
+                watchHtml = `<div class="op-watch-card">
+                    <strong>관심 종목: ${op.watch.nm} (${op.watch.tk})</strong>
+                    <div class="op-watch-details">
+                        <span>현재가: ${op.watch.pr}</span>
+                        <span>52주 최저: ${op.watch.low}</span>
+                        <span>52주 최고: ${op.watch.high}</span>
+                    </div>
+                </div>`;
+            }
+            return `<div class="op-item">
+                <div class="op-header">
+                    <span class="op-author">${op.author}</span>
+                    <span>${timeStr} <button class="op-del" onclick="openDelModal('${op.id}', 'opinion')">삭제</button></span>
+                </div>
+                <div class="op-content">${op.text}</div>
+                ${watchHtml}
+            </div>`;
+        }).join('');
+        container.innerHTML = html || '<div style="text-align:center;color:#aaa;padding:20px;">등록된 의견이 없습니다.</div>';
+    };
+
     window.generatePeriodTrend = async function() {
         if (!db) return;
         const sDate = document.getElementById('trend-start').value;
@@ -626,9 +759,11 @@
                         else portPrev[t.ticker].q -= t.qty;
                     }
                     if (t.date <= dStr) {
-                        if(!portCurr[t.ticker]) portCurr[t.ticker] = { q: 0, n: tkName, xr };
+                        if(!portCurr[t.ticker]) portCurr[t.ticker] = { q: 0, n: tkName, xr, reason: '' };
                         if(t.type === 'buy') portCurr[t.ticker].q += t.qty;
                         else portCurr[t.ticker].q -= t.qty;
+                        
+                        if (t.date === dStr && t.reason) portCurr[t.ticker].reason = t.reason; 
                     }
                 });
 
@@ -641,7 +776,7 @@
                 for(let tk in portPrev) if(portPrev[tk].q > 0) totalValPrev += portPrev[tk].q * getPrice(tk) * portPrev[tk].xr;
                 for(let tk in portCurr) if(portCurr[tk].q > 0) totalValCurr += portCurr[tk].q * getPrice(tk) * portCurr[tk].xr;
 
-                let dayRes = { inc:[], dec:[] }; // 유지(keep) 제거됨
+                let dayRes = { inc:[], dec:[] }; 
                 const allTks = new Set([...Object.keys(portPrev), ...Object.keys(portCurr)]);
                 
                 allTks.forEach(tk => {
@@ -660,8 +795,9 @@
                     let qC_str = qC.toLocaleString(undefined,{maximumFractionDigits:4});
                     let wP_str = wP.toFixed(1);
                     let wC_str = wC.toFixed(1);
+                    let rsnStr = (portCurr[tk] && portCurr[tk].reason) ? `<br><span style="color:#0056b3; font-weight:600; font-size:12px;">💬 사유: ${portCurr[tk].reason}</span>` : '';
 
-                    let detail = `수량: ${qP_str} → ${qC_str} | 비중: ${wP_str}% → ${wC_str}%`;
+                    let detail = `수량: ${qP_str} → ${qC_str} | 비중: ${wP_str}% → ${wC_str}%${rsnStr}`;
 
                     if (qP < EPSILON && qC > EPSILON) dayRes.inc.push({ tk, n, type: '신규 매수', detail });
                     else if (qP > EPSILON && qC > qP + EPSILON) dayRes.inc.push({ tk, n, type: '추가 매수', detail });
@@ -918,7 +1054,8 @@
                             <div class="f-grp"><label>통화 (자동)</label><select id="cr-${u}" disabled><option value="USD">USD</option><option value="KRW">KRW</option></select></div>
                             <div class="f-grp"><label>가격</label><input type="number" step="0.01" id="pr-${u}"></div>
                             <div class="f-grp"><label>수량</label><input type="number" step="0.0001" id="qt-${u}"></div>
-                            <div class="f-grp btn-grp" style="grid-column: span 1;">
+                            <div class="f-grp" style="grid-column: span 2;"><label>변경 사유</label><input type="text" id="rs-${u}" placeholder="짧은 댓글 (선택)"></div>
+                            <div class="f-grp btn-grp" style="grid-column: span 2;">
                                 <button class="p-btn" id="btn-${u}" onclick="saveTr('${u}')">저장</button>
                                 <button class="c-btn" id="cbtn-${u}" onclick="cancelEd('${u}')">취소</button>
                             </div>
@@ -1286,7 +1423,6 @@
                 }).join('');
             }
 
-            // 오늘의 수익 왕 (전일 대비 미실현 수익액 기준 최고 수익률)
             const win = [...stats].sort((a,b) => b.dailyPct - a.dailyPct)[0];
             const dashTop = document.getElementById('dash-top');
             if(dashTop) {
