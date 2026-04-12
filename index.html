@@ -209,7 +209,10 @@
 
     <div class="container">
         <div class="top-info-bar">
-            <div class="version-tag">V2.4</div>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <div class="version-tag">V2.5</div>
+                <div id="logged-user-display" style="font-weight: bold; color: var(--pri); font-size: 14px; background: #e3f2fd; padding: 6px 12px; border-radius: 8px; border: 1px solid #90caf9;"></div>
+            </div>
             <div class="top-right-items">
                 <div class="exchange-info" id="last-update-display">서버 데이터 대기 중...</div>
                 <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
@@ -320,7 +323,8 @@
             <div class="card">
                 <h3>버전별 업데이트 내역</h3>
                 <ul style="line-height: 1.8; color: #444; font-size: 15px;">
-                    <li><strong>V2.4:</strong> 개별 계정 로그인(초기 비밀번호 0000, 첫 로그인 시 변경) 도입, 작성자 본인 및 관리자(김태호) 권한별 수정/삭제 접근 제어 추가</li>
+                    <li><strong>V2.5:</strong> 상단 로그인 사용자 표시 추가, 본인 및 관리자(김태호) 외 타인 데이터 수정/삭제 시 권한 차단 팝업 추가.</li>
+                    <li><strong>V2.4:</strong> 개별 계정 로그인(초기 비밀번호 0000, 첫 로그인 시 변경) 도입 및 세션 처리.</li>
                     <li><strong>V2.3:</strong> 자동 일일 동향 생성 기준을 23시 59분으로 명시, 매매 변동 내역이 존재하는 경우에만 동향 리포트를 업데이트하도록 로직 개선.</li>
                     <li><strong>V2.2:</strong> 개인별 동향 탭 내 각 종목 하단에 비중 '변경 사유' 직접 입력 기능 추가</li>
                     <li><strong>V2.1:</strong> 개인별 매매 저장/수정 로직 복구</li>
@@ -449,6 +453,13 @@
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('pwd-change-screen').style.display = 'none';
         document.getElementById('main-app').style.display = 'block';
+
+        const curUser = sessionStorage.getItem('loggedInUser');
+        const userDisplay = document.getElementById('logged-user-display');
+        if(userDisplay) userDisplay.innerText = `로그인된 사용자: ${curUser}`;
+        
+        const opUserSel = document.getElementById('op-user');
+        if(opUserSel && curUser !== '김태호') opUserSel.value = curUser;
 
         initUI(); 
         
@@ -631,7 +642,7 @@
     }
 
     window.saveTr = async function(u) {
-        if (!hasAuth(u)) return alert('권한이 없습니다.');
+        if (!hasAuth(u)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
         if (!db) return alert("데이터베이스 연결 오류");
 
         const dt = document.getElementById(`dt-${u}`).value;
@@ -657,7 +668,7 @@
     };
 
     window.editTr = function(u, id) {
-        if (!hasAuth(u)) return alert('권한이 없습니다.');
+        if (!hasAuth(u)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
         const t = state.trades[u].find(x => x.id === id);
         if (!t) return;
         document.getElementById(`eid-${u}`).value = t.id;
@@ -701,7 +712,7 @@
     window.saveOpinion = async function() {
         if(!db) return;
         const user = document.getElementById('op-user').value;
-        if (!hasAuth(user)) return alert('권한이 없습니다.');
+        if (!hasAuth(user)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
 
         const text = document.getElementById('op-text').value.trim();
         if(!text) return alert('의견 내용을 입력해주세요.');
@@ -867,7 +878,7 @@
 
     window.saveTrendItemReason = async function(date, user, tk, val, el) {
         if (!hasAuth(user)) {
-            alert('권한이 없습니다.');
+            alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
             el.value = state.trendItemReasons[`${date}_${user}_${tk}`] || ''; 
             return;
         }
@@ -981,7 +992,7 @@
     window.addTrendComment = async function(dateStr, targetUser) {
         if (!db) return;
         const author = document.getElementById(`tc-author-${targetUser}`).value;
-        if (!hasAuth(author)) return alert('권한이 없습니다.');
+        if (!hasAuth(author)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
 
         const text = document.getElementById(`tc-text-${targetUser}`).value.trim();
         if (!text) return;
@@ -996,7 +1007,7 @@
     }
 
     window.delTrendComment = async function(cmtKey, commentId, author) {
-        if (!hasAuth(author)) return alert('권한이 없습니다.');
+        if (!hasAuth(author)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
         if (!db || !confirm("댓글을 삭제하시겠습니까?")) return;
         try {
             await db.ref(`trendComments/${cmtKey}/${commentId}`).remove();
@@ -1005,7 +1016,7 @@
 
     let pendingDelete = null;
     function openDelModal(id, mode, owner) { 
-        if (!hasAuth(owner)) return alert('권한이 없습니다.');
+        if (!hasAuth(owner)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
         pendingDelete = { id, mode }; 
         document.getElementById('del-modal').classList.add('open'); 
     }
