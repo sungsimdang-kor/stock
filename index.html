@@ -16,10 +16,13 @@
         #login-screen { position: fixed; inset: 0; background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 100000; }
         .login-box { background: var(--card); padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; width: 100%; max-width: 320px; box-sizing: border-box; }
         .login-box h2 { margin: 0 0 25px; color: var(--pri); font-size: 22px; }
+        .login-box select { width: 100%; padding: 14px; border: 1px solid var(--brd); border-radius: 6px; margin-bottom: 15px; font-size: 16px; box-sizing: border-box; text-align: center; }
         .login-box input { width: 100%; padding: 14px; border: 1px solid var(--brd); border-radius: 6px; margin-bottom: 20px; font-size: 16px; box-sizing: border-box; text-align: center; letter-spacing: 2px; }
         .login-box button { width: 100%; padding: 14px; background: var(--pri); color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .login-box button:hover { background: #000; }
         
+        #pwd-change-screen { display: none; position: fixed; inset: 0; background: var(--bg); justify-content: center; align-items: center; z-index: 100001; }
+
         #main-app { display: none; } 
 
         .container { max-width: 1200px; margin: 0 auto; padding: 15px; padding-bottom: 60px; box-sizing: border-box; }
@@ -95,7 +98,6 @@
         .profit { color: var(--profit); font-weight: bold; }
         .loss   { color: var(--loss);   font-weight: bold; }
 
-        /* 타임라인 스타일 */
         .op-item { background: #f9fafc; padding: 15px; border-radius: 8px; border-left: 4px solid var(--pri); margin-bottom: 15px; }
         .op-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; color: #666; align-items: center; }
         .op-author { font-weight: bold; color: var(--pri); font-size: 14px; }
@@ -106,7 +108,6 @@
         .op-del { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 12px; padding: 0; }
         .op-del:hover { text-decoration: underline; background: none; }
 
-        /* 동향 리포트 스타일 */
         .trend-card { background: #fff; border: 1px solid var(--brd); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
         .trend-author { font-size: 18px; font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
         .trend-day-box { margin-bottom: 20px; border: 1px solid #eee; border-radius: 8px; padding: 15px; }
@@ -171,8 +172,23 @@
 <div id="login-screen">
     <div class="login-box">
         <h2>대시보드 로그인</h2>
+        <select id="login-user-sel">
+            <option value="김태호">김태호</option>
+            <option value="이용우">이용우</option>
+            <option value="이형주">이형주</option>
+        </select>
         <input type="password" id="pwd-input" placeholder="비밀번호 입력">
-        <button id="login-btn">입장하기</button>
+        <button id="login-btn" onclick="checkLogin()">입장하기</button>
+    </div>
+</div>
+
+<div id="pwd-change-screen">
+    <div class="login-box">
+        <h2>초기 비밀번호 변경</h2>
+        <p style="font-size:13px; color:#666; margin-bottom:20px;">초기 비밀번호(0000)를 변경해야 접속이 가능합니다.</p>
+        <input type="hidden" id="pwd-change-user">
+        <input type="password" id="new-pwd-input" placeholder="새 비밀번호 입력">
+        <button id="pwd-change-btn" onclick="changePwd()">변경 및 계속하기</button>
     </div>
 </div>
 
@@ -193,7 +209,7 @@
 
     <div class="container">
         <div class="top-info-bar">
-            <div class="version-tag">V2.3</div>
+            <div class="version-tag">V2.4</div>
             <div class="top-right-items">
                 <div class="exchange-info" id="last-update-display">서버 데이터 대기 중...</div>
                 <div class="exchange-info" id="exchange-rate-display">적용 환율: 로딩 중...</div>
@@ -304,11 +320,10 @@
             <div class="card">
                 <h3>버전별 업데이트 내역</h3>
                 <ul style="line-height: 1.8; color: #444; font-size: 15px;">
-                    <li><strong>V2.3:</strong> 자동 일일 동향 생성 기준을 23시 59분으로 명시, 매매 변동 내역이 존재하는 경우에만 동향 리포트를 업데이트하도록 조건부 로직 개선, 전체 UI/데이터 스크립트 온전하게 복구.</li>
-                    <li><strong>V2.2:</strong> 매매 입력창 '변경 사유' 제거, 개인별 동향 탭 내 각 종목 하단에 비중 '변경 사유' 직접 입력 기능 추가</li>
-                    <li><strong>V2.1:</strong> 개인별 매매 저장/수정 로직 복구, 개인별 동향 '변경 사유' 입력 및 출력 기능 추가</li>
-                    <li><strong>V2.0:</strong> 개인별 동향 사용자 필터 추가, 변동 없는 유지 항목 제거, 오늘의 수익왕 로직(전일 대비 미실현 수익액 기준) 변경</li>
-                    <li><strong>V1.9:</strong> 통합뷰 지표 에러 완벽 해결(구글시트 백업 적용), 개인별 동향 기간설정 및 매매일지 기준 일자별 상세 분석(비중/수량) 추가, 차트 비중(%) 표시 최적화</li>
+                    <li><strong>V2.4:</strong> 개별 계정 로그인(초기 비밀번호 0000, 첫 로그인 시 변경) 도입, 작성자 본인 및 관리자(김태호) 권한별 수정/삭제 접근 제어 추가</li>
+                    <li><strong>V2.3:</strong> 자동 일일 동향 생성 기준을 23시 59분으로 명시, 매매 변동 내역이 존재하는 경우에만 동향 리포트를 업데이트하도록 로직 개선.</li>
+                    <li><strong>V2.2:</strong> 개인별 동향 탭 내 각 종목 하단에 비중 '변경 사유' 직접 입력 기능 추가</li>
+                    <li><strong>V2.1:</strong> 개인별 매매 저장/수정 로직 복구</li>
                 </ul>
             </div>
         </div>
@@ -318,55 +333,18 @@
 </div>
 
 <script>
-    window.checkPwd = function() {
-        const pwd = document.getElementById('pwd-input').value;
-        if (pwd === 'richguys') {
-            sessionStorage.setItem('isLogged', 'true');
-            startApp();
-        } else {
-            alert('비밀번호가 올바르지 않습니다.');
-        }
-    };
-
-    document.getElementById('pwd-input').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') checkPwd();
-    });
-    document.getElementById('login-btn').addEventListener('click', checkPwd);
-
     const users = ['김태호', '이용우', '이형주'];
     let exKRW = 1350; 
-    let previousPrices = {}; 
-    const sortStates = {};
-    users.forEach(u => sortStates[u] = { key: 'vKw', asc: false }); 
-
-    const currMode = {};
-    users.forEach(u => currMode[u] = 'KRW');
-    window.setCurrency = function(u, mode) {
-        currMode[u] = mode;
-        updateAll();
-    };
-
-    const tMap = {
-        'AAPL':'Apple', 'MSFT':'Microsoft', 'TSLA':'Tesla', 'NVDA':'NVIDIA',
-        'GOOGL':'Alphabet', 'AMZN':'Amazon', 'META':'Meta', 'BRK-B':'Berkshire Hathaway',
-        '005930':'삼성전자', '000660':'SK하이닉스', '373220':'LG에너지솔루션',
-        '207940':'삼성바이오로직스', '005380':'현대차', '035420':'NAVER', '035720':'카카오'
-    };
-
-    const mSym = {
-        'KRW=X': '원달러환율', '^IXIC': '나스닥', '^GSPC': 'S&P 500', 
-        '^KS11': 'KOSPI', '^KQ11': '코스닥', '^VIX': 'VIX', 'CL=F': 'WTI 유가'
-    };
-    
     let cache = {};
     let sheetIndices = {}; 
     const state = { trades: {}, opinions: [], charts: {}, trends: {}, trendComments: {}, trendItemReasons: {} };
     let allDailyChanges = []; 
     users.forEach(u => state.trades[u] = []);
 
-    function safeKey(key) {
-        return key.replace(/[.#$\[\]]/g, '_');
-    }
+    const sortStates = {};
+    users.forEach(u => sortStates[u] = { key: 'vKw', asc: false }); 
+    const currMode = {};
+    users.forEach(u => currMode[u] = 'KRW');
 
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
@@ -381,29 +359,96 @@
     let db = null;
     const API_URL = 'https://script.google.com/macros/s/AKfycbws0zNCaNdxg-OcjUk5Hi2vQ6anfSmbgjOEryJuDmp8tsDnz1HG0oyG4WOYVwJbjiZu/exec';
 
+    const tMap = {
+        'AAPL':'Apple', 'MSFT':'Microsoft', 'TSLA':'Tesla', 'NVDA':'NVIDIA',
+        'GOOGL':'Alphabet', 'AMZN':'Amazon', 'META':'Meta', 'BRK-B':'Berkshire Hathaway',
+        '005930':'삼성전자', '000660':'SK하이닉스', '373220':'LG에너지솔루션',
+        '207940':'삼성바이오로직스', '005380':'현대차', '035420':'NAVER', '035720':'카카오'
+    };
+
+    const mSym = {
+        'KRW=X': '원달러환율', '^IXIC': '나스닥', '^GSPC': 'S&P 500', 
+        '^KS11': 'KOSPI', '^KQ11': '코스닥', '^VIX': 'VIX', 'CL=F': 'WTI 유가'
+    };
+
+    function safeKey(key) { return key.replace(/[.#$\[\]]/g, '_'); }
+
     window.onload = () => {
-        if (sessionStorage.getItem('isLogged') === 'true') {
+        try {
+            if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.database();
+            } else if (typeof firebase !== 'undefined') {
+                db = firebase.database();
+            }
+        } catch (e) { console.error("Firebase 에러:", e); }
+
+        if (sessionStorage.getItem('loggedInUser')) {
             startApp();
+        } else {
+            document.getElementById('login-screen').style.display = 'flex';
         }
-        
+
         const today = new Date();
         const aWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
         document.getElementById('trend-start').value = aWeekAgo.toISOString().substring(0, 10);
         document.getElementById('trend-end').value = today.toISOString().substring(0, 10);
     };
 
+    window.checkLogin = async function() {
+        if (!db) return alert('DB 연결 오류');
+        const selUser = document.getElementById('login-user-sel').value;
+        const pwd = document.getElementById('pwd-input').value;
+
+        if (!pwd) return alert('비밀번호를 입력하세요.');
+
+        const snap = await db.ref(`users/${selUser}`).once('value');
+        let dbUser = snap.val();
+
+        if (!dbUser) {
+            dbUser = { pwd: '0000' };
+            await db.ref(`users/${selUser}`).set(dbUser);
+        }
+
+        if (pwd === dbUser.pwd) {
+            if (pwd === '0000') {
+                document.getElementById('pwd-change-user').value = selUser;
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('pwd-change-screen').style.display = 'flex';
+            } else {
+                sessionStorage.setItem('loggedInUser', selUser);
+                startApp();
+            }
+        } else {
+            alert('비밀번호가 일치하지 않습니다.');
+        }
+    };
+
+    document.getElementById('pwd-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') checkLogin();
+    });
+
+    window.changePwd = async function() {
+        const u = document.getElementById('pwd-change-user').value;
+        const newPwd = document.getElementById('new-pwd-input').value;
+        if(!newPwd || newPwd === '0000') return alert('새로운 비밀번호를 올바르게 입력하세요.');
+
+        await db.ref(`users/${u}/pwd`).set(newPwd);
+        alert('비밀번호가 변경되었습니다. 다시 로그인해주세요.');
+        document.getElementById('pwd-change-screen').style.display = 'none';
+        document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('pwd-input').value = '';
+    };
+
+    function hasAuth(owner) {
+        const cur = sessionStorage.getItem('loggedInUser');
+        return cur === owner || cur === '김태호';
+    }
+
     function startApp() {
         document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('pwd-change-screen').style.display = 'none';
         document.getElementById('main-app').style.display = 'block';
-
-        try {
-            if (typeof firebase !== 'undefined' && !firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
-                db = firebase.database();
-            } else if (typeof firebase !== 'undefined' && firebase.apps.length) {
-                db = firebase.database();
-            }
-        } catch (e) { console.error("Firebase 에러:", e); }
 
         initUI(); 
         
@@ -412,8 +457,7 @@
                 const data = snapshot.val() || {};
                 users.forEach(u => state.trades[u] = []);
                 Object.keys(data).forEach(key => {
-                    const t = data[key];
-                    t.id = key;
+                    const t = data[key]; t.id = key;
                     if(state.trades[t.user]) state.trades[t.user].push(t);
                 });
                 updateAll();
@@ -423,8 +467,7 @@
                 const data = snapshot.val() || {};
                 state.opinions = [];
                 Object.keys(data).forEach(key => {
-                    const op = data[key];
-                    op.id = key;
+                    const op = data[key]; op.id = key;
                     state.opinions.push(op);
                 });
                 renderOpinions();
@@ -462,7 +505,6 @@
                         }
                     }
                     document.getElementById('exchange-rate-display').innerText = `적용 환율: 1 USD = ${exKRW.toLocaleString(undefined, {maximumFractionDigits: 2})} KRW`;
-                    
                     fetchSheetBackup(); 
                 } else {
                     document.getElementById('last-update-display').innerText = "최초 데이터 수집 중...";
@@ -483,11 +525,7 @@
     }
 
     async function fetchProxy(url) {
-        const proxies = [
-            'https://api.allorigins.win/raw?url=',
-            'https://api.codetabs.com/v1/proxy/?quest=',
-            'https://corsproxy.io/?'
-        ];
+        const proxies = ['https://api.allorigins.win/raw?url=', 'https://api.codetabs.com/v1/proxy/?quest=', 'https://corsproxy.io/?'];
         for (let i = 0; i < proxies.length; i++) {
             try {
                 let reqUrl = proxies[i] + encodeURIComponent(url);
@@ -515,7 +553,7 @@
                     Object.assign(sheetIndices, data.indices);
                 }
             }
-        } catch(e) { console.warn("시트 백업 지표 로드 실패", e); }
+        } catch(e) {}
         renderIdx();
         updateAll();
     }
@@ -546,7 +584,6 @@
         if (!tk) return null;
         const fbKey = safeKey(tk);
         if (!force && cache[fbKey] && cache[fbKey].price > 0) return cache[fbKey];
-        
         await fetchBulkStockPrices([tk]);
         return cache[fbKey];
     }
@@ -585,19 +622,18 @@
                 exKRW: newExKRW,
                 cache: newCache
             });
-
         } catch (e) {
-            console.error(e);
             if (isManual) alert("업데이트 중 오류 발생: " + e.message);
         }
-
         window.isFetchingMarketData = false;
         if (isManual) toggleLd(false);
         fetchSheetBackup();
     }
 
     window.saveTr = async function(u) {
+        if (!hasAuth(u)) return alert('권한이 없습니다.');
         if (!db) return alert("데이터베이스 연결 오류");
+
         const dt = document.getElementById(`dt-${u}`).value;
         const tk = document.getElementById(`tk-${u}`).value.trim().toUpperCase();
         const nm = document.getElementById(`nm-${u}`).value;
@@ -613,19 +649,15 @@
 
         toggleLd(true, "저장 중...");
         try {
-            if (eid) {
-                await db.ref(`trades/${eid}`).update(data);
-            } else {
-                await db.ref('trades').push(data);
-            }
+            if (eid) await db.ref(`trades/${eid}`).update(data);
+            else await db.ref('trades').push(data);
             cancelEd(u);
-        } catch(e) {
-            alert("저장 실패");
-        }
+        } catch(e) { alert("저장 실패"); }
         toggleLd(false);
     };
 
     window.editTr = function(u, id) {
+        if (!hasAuth(u)) return alert('권한이 없습니다.');
         const t = state.trades[u].find(x => x.id === id);
         if (!t) return;
         document.getElementById(`eid-${u}`).value = t.id;
@@ -669,6 +701,8 @@
     window.saveOpinion = async function() {
         if(!db) return;
         const user = document.getElementById('op-user').value;
+        if (!hasAuth(user)) return alert('권한이 없습니다.');
+
         const text = document.getElementById('op-text').value.trim();
         if(!text) return alert('의견 내용을 입력해주세요.');
         
@@ -676,8 +710,7 @@
         const tk = document.getElementById('op-watch-tk').value.trim().toUpperCase();
         if(tk) {
             data.watch = {
-                tk,
-                nm: document.getElementById('op-watch-nm').value,
+                tk, nm: document.getElementById('op-watch-nm').value,
                 pr: document.getElementById('op-watch-pr').value,
                 low: document.getElementById('op-watch-low').value,
                 high: document.getElementById('op-watch-high').value
@@ -716,7 +749,7 @@
             return `<div class="op-item">
                 <div class="op-header">
                     <span class="op-author">${op.author}</span>
-                    <span>${timeStr} <button class="op-del" onclick="openDelModal('${op.id}', 'opinion')">삭제</button></span>
+                    <span>${timeStr} <button class="op-del" onclick="openDelModal('${op.id}', 'opinion', '${op.author}')">삭제</button></span>
                 </div>
                 <div class="op-content">${op.text}</div>
                 ${watchHtml}
@@ -732,40 +765,31 @@
         
         if (!sDate || !eDate || sDate > eDate) return alert("올바른 기간을 설정해주세요.");
 
-        toggleLd(true, "리포트 생성 중...");
+        toggleLd(true, "변동 내역 분석 중...");
 
         const reportKey = `${sDate}_to_${eDate}`;
         const report = { timestamp: Date.now(), title: `${sDate} ~ ${eDate} 기간 동향`, users: {} };
         const EPSILON = 0.000001;
-
-        let totalChangeCount = 0;
+        let totalChangeCount = 0; 
 
         users.forEach(u => {
             report.users[u] = { daily: {} };
-            
             let tradeDates = new Set();
-            state.trades[u].forEach(t => {
-                if (t.date >= sDate && t.date <= eDate) tradeDates.add(t.date);
-            });
+            state.trades[u].forEach(t => { if (t.date >= sDate && t.date <= eDate) tradeDates.add(t.date); });
             let sortedDates = Array.from(tradeDates).sort();
 
             sortedDates.forEach(dStr => {
-                let portPrev = {};
-                let portCurr = {};
-                
+                let portPrev = {}, portCurr = {};
                 state.trades[u].forEach(t => {
                     const tkName = t.name || t.ticker;
                     const xr = t.currency === 'KRW' ? 1 : exKRW;
-                    
                     if (t.date < dStr) {
                         if(!portPrev[t.ticker]) portPrev[t.ticker] = { q: 0, n: tkName, xr };
-                        if(t.type === 'buy') portPrev[t.ticker].q += t.qty;
-                        else portPrev[t.ticker].q -= t.qty;
+                        if(t.type === 'buy') portPrev[t.ticker].q += t.qty; else portPrev[t.ticker].q -= t.qty;
                     }
                     if (t.date <= dStr) {
                         if(!portCurr[t.ticker]) portCurr[t.ticker] = { q: 0, n: tkName, xr };
-                        if(t.type === 'buy') portCurr[t.ticker].q += t.qty;
-                        else portCurr[t.ticker].q -= t.qty;
+                        if(t.type === 'buy') portCurr[t.ticker].q += t.qty; else portCurr[t.ticker].q -= t.qty;
                     }
                 });
 
@@ -778,12 +802,12 @@
                 for(let tk in portPrev) if(portPrev[tk].q > 0) totalValPrev += portPrev[tk].q * getPrice(tk) * portPrev[tk].xr;
                 for(let tk in portCurr) if(portCurr[tk].q > 0) totalValCurr += portCurr[tk].q * getPrice(tk) * portCurr[tk].xr;
 
-                let dayRes = { inc:[], dec:[] }; 
+                let dayRes = { inc:[], dec:[] };
                 const allTks = new Set([...Object.keys(portPrev), ...Object.keys(portCurr)]);
                 
                 allTks.forEach(tk => {
-                    const qP = portPrev[tk] ? portPrev[tk].q : 0;
-                    const qC = portCurr[tk] ? portCurr[tk].q : 0;
+                    const qP = portPrev[tk]?.q || 0;
+                    const qC = portCurr[tk]?.q || 0;
                     if (Math.abs(qP - qC) < EPSILON) return; 
 
                     const xr = portCurr[tk] ? portCurr[tk].xr : portPrev[tk].xr;
@@ -808,14 +832,14 @@
 
                 if(dayRes.inc.length > 0 || dayRes.dec.length > 0) {
                     report.users[u].daily[dStr] = dayRes;
-                    totalChangeCount++;
+                    totalChangeCount++; 
                 }
             });
         });
 
         if (totalChangeCount === 0) {
             toggleLd(false);
-            alert("해당 기간에 매매 변동 사항이 없어 리포트를 생성/업데이트하지 않습니다.");
+            alert("해당 기간 동안 매매 변동 사항이 없어 리포트가 업데이트되지 않았습니다.");
             return;
         }
 
@@ -833,25 +857,24 @@
     function updateTrendDateSelector() {
         const selector = document.getElementById('trend-date-selector');
         if (!selector) return;
-        
         const dates = Object.keys(state.trends).sort((a,b) => {
             const dateA = a.split('_')[0];
             const dateB = b.split('_')[0];
             return new Date(dateB) - new Date(dateA);
         });
-        selector.innerHTML = dates.map(d => {
-            const title = state.trends[d].title || d;
-            return `<option value="${d}">${title}</option>`;
-        }).join('');
+        selector.innerHTML = dates.map(d => `<option value="${d}">${state.trends[d].title || d}</option>`).join('');
     }
 
-    window.saveTrendItemReason = async function(date, user, tk, val) {
+    window.saveTrendItemReason = async function(date, user, tk, val, el) {
+        if (!hasAuth(user)) {
+            alert('권한이 없습니다.');
+            el.value = state.trendItemReasons[`${date}_${user}_${tk}`] || ''; 
+            return;
+        }
         if (!db) return;
         try {
             await db.ref(`trendItemReasons/${date}_${user}_${tk}`).set(val);
-        } catch(e) {
-            console.error("사유 저장 실패", e);
-        }
+        } catch(e) {}
     };
 
     window.renderTrends = function() {
@@ -886,7 +909,6 @@
             } else {
                 dates.forEach(d => {
                     const day = data.daily[d];
-                    
                     const renderItems = (arr, badgeCls) => {
                         if(!arr || arr.length === 0) return '';
                         return arr.map(i => {
@@ -898,7 +920,7 @@
                                     <div class="trend-badge ${badgeCls}">${i.type}</div>
                                     <div class="trend-text"><strong>${i.n} (${i.tk})</strong><br><span style="color:#666; font-size:12px;">${i.detail}</span></div>
                                 </div>
-                                <input type="text" class="trend-rsn-input" value="${rsnVal}" placeholder="비중 변경 사유를 입력하세요 (자동 저장)" onchange="saveTrendItemReason('${d}', '${u}', '${i.tk}', this.value)">
+                                <input type="text" class="trend-rsn-input" value="${rsnVal}" placeholder="비중 변경 사유를 입력하세요 (자동 저장)" onchange="saveTrendItemReason('${d}', '${u}', '${i.tk}', this.value, this)">
                             </div>
                             `;
                         }).join('');
@@ -925,7 +947,7 @@
                 const c = commentsObj[k];
                 const d = new Date(c.timestamp);
                 const timeStr = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-                return `<div class="comment-item"><div><strong>${c.author}</strong> ${c.text}</div><div style="color:#aaa; font-size:11px;">${timeStr} <button class="op-del" style="margin-left:5px" onclick="delTrendComment('${cmtKey}', '${k}')">x</button></div></div>`;
+                return `<div class="comment-item"><div><strong>${c.author}</strong> ${c.text}</div><div style="color:#aaa; font-size:11px;">${timeStr} <button class="op-del" style="margin-left:5px" onclick="delTrendComment('${cmtKey}', '${k}', '${c.author}')">x</button></div></div>`;
             }).join('');
 
             html += `
@@ -959,6 +981,8 @@
     window.addTrendComment = async function(dateStr, targetUser) {
         if (!db) return;
         const author = document.getElementById(`tc-author-${targetUser}`).value;
+        if (!hasAuth(author)) return alert('권한이 없습니다.');
+
         const text = document.getElementById(`tc-text-${targetUser}`).value.trim();
         if (!text) return;
 
@@ -971,7 +995,8 @@
         } catch(e) { alert("댓글 등록 실패"); }
     }
 
-    window.delTrendComment = async function(cmtKey, commentId) {
+    window.delTrendComment = async function(cmtKey, commentId, author) {
+        if (!hasAuth(author)) return alert('권한이 없습니다.');
         if (!db || !confirm("댓글을 삭제하시겠습니까?")) return;
         try {
             await db.ref(`trendComments/${cmtKey}/${commentId}`).remove();
@@ -979,7 +1004,8 @@
     }
 
     let pendingDelete = null;
-    function openDelModal(id, mode = 'trade') { 
+    function openDelModal(id, mode, owner) { 
+        if (!hasAuth(owner)) return alert('권한이 없습니다.');
         pendingDelete = { id, mode }; 
         document.getElementById('del-modal').classList.add('open'); 
     }
@@ -1399,7 +1425,7 @@
                             <td>${t.qty}</td>
                             <td>
                                 <button class="a-btn edit-btn" data-u="${u}" data-id="${t.id}" onclick="editTr(this.dataset.u, this.dataset.id)">수정</button>
-                                <button class="a-btn del-btn"  onclick="openDelModal('${t.id}', 'trade')">삭제</button>
+                                <button class="a-btn del-btn"  onclick="openDelModal('${t.id}', 'trade', '${u}')">삭제</button>
                             </td>
                         </tr>`;
                     }).join('') || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">내역 없음</td></tr>';
