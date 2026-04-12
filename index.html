@@ -105,8 +105,12 @@
         .op-watch-card { margin-top:12px; padding:12px; background:#fff; border:1px solid var(--brd); border-radius:6px; font-size:13px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
         .op-watch-card strong { color: var(--pri); font-size: 14px; }
         .op-watch-details { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 8px; color: #555; }
-        .op-del { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 12px; padding: 0; }
-        .op-del:hover { text-decoration: underline; background: none; }
+        
+        .op-btn-grp { display: inline-flex; gap: 8px; margin-left: 10px; }
+        .op-action-btn { background: none; border: none; cursor: pointer; font-size: 12px; padding: 0; }
+        .op-action-btn:hover { text-decoration: underline; background: none; }
+        .op-edit-btn { color: #f39c12; }
+        .op-del-btn { color: #e74c3c; }
 
         .trend-card { background: #fff; border: 1px solid var(--brd); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
         .trend-author { font-size: 18px; font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
@@ -210,7 +214,7 @@
     <div class="container">
         <div class="top-info-bar">
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <div class="version-tag">V2.5</div>
+                <div class="version-tag">V2.6</div>
                 <div id="logged-user-display" style="font-weight: bold; color: var(--pri); font-size: 14px; background: #e3f2fd; padding: 6px 12px; border-radius: 8px; border: 1px solid #90caf9;"></div>
             </div>
             <div class="top-right-items">
@@ -223,7 +227,7 @@
         <div class="tabs" id="tab-menu">
             <button class="tab-btn active" onclick="switchTab('dashboard', this)">통합 뷰</button>
             <button class="tab-btn" onclick="switchTab('trends', this)">개인별 동향</button>
-            <button class="tab-btn" onclick="switchTab('opinions', this)">개인별 의견 (공유)</button>
+            <button class="tab-btn" onclick="switchTab('opinions', this)">개인별 의견</button>
             <button class="tab-btn" onclick="switchTab('u-김태호', this)">김태호</button>
             <button class="tab-btn" onclick="switchTab('u-이용우', this)">이용우</button>
             <button class="tab-btn" onclick="switchTab('u-이형주', this)">이형주</button>
@@ -281,6 +285,7 @@
             <div class="card">
                 <h3>의견 및 매매 기록 공유</h3>
                 <div class="form-grid" style="grid-template-columns: 1fr;">
+                    <input type="hidden" id="op-eid">
                     <div class="f-grp" style="max-width: 200px;">
                         <label>작성자</label>
                         <select id="op-user">
@@ -306,8 +311,9 @@
                         <div class="f-grp"><label>52주 최고가</label><input type="number" step="0.01" id="op-watch-high"></div>
                     </div>
 
-                    <div class="btn-grp" style="max-width: 200px; margin-top: 10px;">
-                        <button class="p-btn" onclick="saveOpinion()">의견 등록</button>
+                    <div class="btn-grp" style="max-width: 250px; margin-top: 10px;">
+                        <button class="p-btn" id="op-btn" onclick="saveOpinion()">의견 등록</button>
+                        <button class="c-btn" id="op-cbtn" onclick="cancelOpEd()" style="display:none;">취소</button>
                     </div>
                 </div>
             </div>
@@ -323,11 +329,11 @@
             <div class="card">
                 <h3>버전별 업데이트 내역</h3>
                 <ul style="line-height: 1.8; color: #444; font-size: 15px;">
+                    <li><strong>V2.6:</strong> '개인별 의견' 탭 이름 변경 및 본인/관리자 의견 수정 기능 추가, 관심종목 입력 시 로딩 대기 지연 문제 완벽 동기화 해결(공란 방지).</li>
                     <li><strong>V2.5:</strong> 상단 로그인 사용자 표시 추가, 본인 및 관리자(김태호) 외 타인 데이터 수정/삭제 시 권한 차단 팝업 추가.</li>
                     <li><strong>V2.4:</strong> 개별 계정 로그인(초기 비밀번호 0000, 첫 로그인 시 변경) 도입 및 세션 처리.</li>
-                    <li><strong>V2.3:</strong> 자동 일일 동향 생성 기준을 23시 59분으로 명시, 매매 변동 내역이 존재하는 경우에만 동향 리포트를 업데이트하도록 로직 개선.</li>
+                    <li><strong>V2.3:</strong> 자동 일일 동향 생성 기준을 23시 59분으로 명시, 매매 변동 내역 조건부 로직 개선.</li>
                     <li><strong>V2.2:</strong> 개인별 동향 탭 내 각 종목 하단에 비중 '변경 사유' 직접 입력 기능 추가</li>
-                    <li><strong>V2.1:</strong> 개인별 매매 저장/수정 로직 복구</li>
                 </ul>
             </div>
         </div>
@@ -719,25 +725,87 @@
         
         const data = { author: user, text: text, timestamp: Date.now() };
         const tk = document.getElementById('op-watch-tk').value.trim().toUpperCase();
-        if(tk) {
-            data.watch = {
-                tk, nm: document.getElementById('op-watch-nm').value,
-                pr: document.getElementById('op-watch-pr').value,
-                low: document.getElementById('op-watch-low').value,
-                high: document.getElementById('op-watch-high').value
-            };
-        }
+        
         toggleLd(true, "의견 저장 중...");
+
+        if(tk) {
+            let nm = document.getElementById('op-watch-nm').value;
+            let pr = document.getElementById('op-watch-pr').value;
+            let low = document.getElementById('op-watch-low').value;
+            let high = document.getElementById('op-watch-high').value;
+            
+            // 데이터가 미처 로딩되지 않은 상태라면 내부적으로 기다렸다가 가져옴
+            if (!nm || nm === "API 검색 중..." || !pr) {
+                const info = await getStk(tk, true);
+                if (info) {
+                    nm = info.name || nm;
+                    pr = info.price || pr;
+                    low = info.low52 || low;
+                    high = info.high52 || high;
+                }
+            }
+
+            data.watch = { tk, nm, pr, low, high };
+        }
+        
         try {
-            await db.ref('opinions').push(data);
-            document.getElementById('op-text').value = '';
+            const eid = document.getElementById('op-eid').value;
+            if (eid) {
+                const existingOp = state.opinions.find(o => o.id === eid);
+                if(existingOp) data.timestamp = existingOp.timestamp; // 기존 작성 시간 유지
+                await db.ref(`opinions/${eid}`).update(data);
+            } else {
+                await db.ref('opinions').push(data);
+            }
+            cancelOpEd(); 
+        } catch(e) { alert('저장 실패'); }
+        toggleLd(false);
+    };
+
+    window.editOpinion = function(id, author) {
+        if (!hasAuth(author)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
+        const op = state.opinions.find(x => x.id === id);
+        if (!op) return;
+        
+        document.getElementById('op-eid').value = op.id;
+        document.getElementById('op-user').value = op.author;
+        document.getElementById('op-text').value = op.text;
+        
+        if (op.watch && op.watch.tk) {
+            document.getElementById('op-watch-tk').value = op.watch.tk;
+            document.getElementById('op-watch-nm').value = op.watch.nm || '';
+            document.getElementById('op-watch-pr').value = op.watch.pr || '';
+            document.getElementById('op-watch-low').value = op.watch.low || '';
+            document.getElementById('op-watch-high').value = op.watch.high || '';
+        } else {
             document.getElementById('op-watch-tk').value = '';
             document.getElementById('op-watch-nm').value = '';
             document.getElementById('op-watch-pr').value = '';
             document.getElementById('op-watch-low').value = '';
             document.getElementById('op-watch-high').value = '';
-        } catch(e) { alert('저장 실패'); }
-        toggleLd(false);
+        }
+        
+        document.getElementById('op-btn').innerText = "수정 완료";
+        document.getElementById('op-cbtn').style.display = "block";
+        
+        switchTab('opinions', document.querySelector('.tab-btn:nth-child(3)'));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    window.cancelOpEd = function() {
+        document.getElementById('op-eid').value = '';
+        document.getElementById('op-text').value = '';
+        document.getElementById('op-watch-tk').value = '';
+        document.getElementById('op-watch-nm').value = '';
+        document.getElementById('op-watch-pr').value = '';
+        document.getElementById('op-watch-low').value = '';
+        document.getElementById('op-watch-high').value = '';
+        
+        document.getElementById('op-btn').innerText = "의견 등록";
+        document.getElementById('op-cbtn').style.display = "none";
+        
+        const curUser = sessionStorage.getItem('loggedInUser');
+        if (curUser && curUser !== '김태호') document.getElementById('op-user').value = curUser;
     };
 
     window.renderOpinions = function() {
@@ -760,7 +828,12 @@
             return `<div class="op-item">
                 <div class="op-header">
                     <span class="op-author">${op.author}</span>
-                    <span>${timeStr} <button class="op-del" onclick="openDelModal('${op.id}', 'opinion', '${op.author}')">삭제</button></span>
+                    <span>${timeStr} 
+                        <span class="op-btn-grp">
+                            <button class="op-action-btn op-edit-btn" onclick="editOpinion('${op.id}', '${op.author}')">수정</button>
+                            <button class="op-action-btn op-del-btn" onclick="openDelModal('${op.id}', 'opinion', '${op.author}')">삭제</button>
+                        </span>
+                    </span>
                 </div>
                 <div class="op-content">${op.text}</div>
                 ${watchHtml}
