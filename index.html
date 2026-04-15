@@ -132,7 +132,6 @@
         .comment-item strong { color: var(--pri); margin-right: 5px; }
         .comment-input-area { display: flex; gap: 8px; }
         .comment-input-area input { flex: 1; padding: 8px; border: 1px solid var(--brd); border-radius: 4px; font-size: 13px; }
-        .comment-input-area select { padding: 8px; border: 1px solid var(--brd); border-radius: 4px; font-size: 13px; }
         .comment-input-area button { padding: 8px 15px; background: var(--pri); color: #fff; font-size: 13px; }
 
         /* 캘린더 스타일 */
@@ -156,7 +155,8 @@
         .modal-overlay.open { display: flex; }
         .modal-box { background: white; border-radius: 12px; padding: 25px; max-width: 500px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-height: 80vh; overflow-y: auto; }
         .modal-box h4 { margin: 0 0 15px; font-size: 18px; border-bottom: 1px solid var(--brd); padding-bottom: 10px; }
-        .modal-close-btn { margin-top: 15px; width: 100%; background: #eee; color: #333; }
+        .modal-close-btn { margin-top: 15px; width: 100%; background: #eee; color: #333; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;}
+        .modal-close-btn:hover { background: #e0e0e0; }
 
         .del-modal-box { background: white; border-radius: 16px; padding: 30px 24px 20px; max-width: 320px; width: 90%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
         .del-modal-box .icon { font-size: 40px; margin-bottom: 12px; }
@@ -229,8 +229,7 @@
     <div id="realized-modal" class="modal-overlay">
         <div class="modal-box">
             <h4>누적 확정 수익금 상세 내역</h4>
-            <div class="tbl-wrap" id="realized-modal-body">
-            </div>
+            <div class="tbl-wrap" id="realized-modal-body"></div>
             <button class="modal-close-btn" onclick="document.getElementById('realized-modal').classList.remove('open')">닫기</button>
         </div>
     </div>
@@ -238,7 +237,7 @@
     <div class="container">
         <div class="top-info-bar">
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <div class="version-tag">V2.7</div>
+                <div class="version-tag">V2.8</div>
                 <div id="logged-user-display" style="font-weight: bold; color: var(--pri); font-size: 14px; background: #e3f2fd; padding: 6px 12px; border-radius: 8px; border: 1px solid #90caf9;"></div>
             </div>
             <div class="top-right-items">
@@ -308,8 +307,7 @@
                         <div class="cal-day-name">금</div>
                         <div class="cal-day-name" style="color:#2980b9;">토</div>
                     </div>
-                    <div class="cal-grid" id="cal-body">
-                        </div>
+                    <div class="cal-grid" id="cal-body"></div>
                 </div>
 
                 <div id="trends-container">
@@ -325,7 +323,7 @@
                     <input type="hidden" id="op-eid">
                     <div class="f-grp" style="max-width: 200px;">
                         <label>작성자</label>
-                        <select id="op-user">
+                        <select id="op-user" disabled style="background:#eee;">
                             <option value="김태호">김태호</option>
                             <option value="이용우">이용우</option>
                             <option value="이형주">이형주</option>
@@ -366,12 +364,10 @@
             <div class="card">
                 <h3>버전별 업데이트 내역</h3>
                 <ul style="line-height: 1.8; color: #444; font-size: 15px;">
-                    <li><strong>V2.7:</strong> 차트 위치 상향, 다중 매매 일괄 입력 도입, 누적 확정 수익금 상세 조회 모달 추가, 동향 탭 캘린더 연동(변동 내역 아이콘 클릭 시 즉시 리포트 표출).</li>
-                    <li><strong>V2.6:</strong> '개인별 의견' 탭 이름 변경 및 본인/관리자 의견 수정 기능 추가, 관심종목 입력 시 비동기 처리 완벽 동기화(공란 방지).</li>
+                    <li><strong>V2.8:</strong> 런타임 오류 완전 해결, 다중 매매 추가(일괄 저장) 로직 및 확정수익 상세 팝업 정상 작동.</li>
+                    <li><strong>V2.7:</strong> 차트 위치 상향, 다중 매매 일괄 입력 도입, 누적 확정 수익금 상세 조회 모달 추가, 동향 탭 캘린더 연동.</li>
+                    <li><strong>V2.6:</strong> '개인별 의견' 탭 이름 변경 및 본인/관리자 의견 수정 기능 추가, 관심종목 입력 시 비동기 처리 완벽 동기화.</li>
                     <li><strong>V2.5:</strong> 상단 로그인 사용자 표시 추가, 본인 및 관리자(김태호) 외 타인 데이터 수정/삭제 권한 완벽 분리.</li>
-                    <li><strong>V2.4:</strong> 개별 계정 로그인(초기 비밀번호 0000) 도입 및 세션 처리.</li>
-                    <li><strong>V2.3:</strong> 자동 일일 동향 조건부 로직 개선.</li>
-                    <li><strong>V2.2:</strong> 개인별 동향 탭 내 각 종목 하단에 비중 '변경 사유' 직접 입력 기능 추가</li>
                 </ul>
             </div>
         </div>
@@ -394,7 +390,6 @@
     const currMode = {};
     users.forEach(u => currMode[u] = 'KRW');
 
-    // 캘린더 변수
     let calYear = new Date().getFullYear();
     let calMonth = new Date().getMonth();
     let activeCalDate = '';
@@ -472,10 +467,6 @@
         }
     };
 
-    document.getElementById('pwd-input').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') checkLogin();
-    });
-
     window.changePwd = async function() {
         const u = document.getElementById('pwd-change-user').value;
         const newPwd = document.getElementById('new-pwd-input').value;
@@ -503,7 +494,10 @@
         if(userDisplay) userDisplay.innerText = `로그인된 사용자: ${curUser}`;
         
         const opUserSel = document.getElementById('op-user');
-        if(opUserSel && curUser !== '김태호') opUserSel.value = curUser;
+        if(opUserSel) {
+            opUserSel.value = curUser;
+            if(curUser === '김태호') opUserSel.disabled = false; // 관리자는 타인 이름으로 공지 가능
+        }
 
         initUI(); 
         
@@ -550,9 +544,7 @@
                         document.getElementById('last-update-display').innerText = `최근 갱신: ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
                         
                         const CACHE_LIFETIME = 15 * 60 * 1000;
-                        if (Date.now() - data.lastUpdated > CACHE_LIFETIME) {
-                            syncMarketDataToFirebase(false);
-                        }
+                        if (Date.now() - data.lastUpdated > CACHE_LIFETIME) syncMarketDataToFirebase(false);
                     }
                     document.getElementById('exchange-rate-display').innerText = `적용 환율: 1 USD = ${exKRW.toLocaleString(undefined, {maximumFractionDigits: 2})} KRW`;
                     fetchSheetBackup(); 
@@ -680,7 +672,7 @@
         fetchSheetBackup();
     }
 
-    // --- 캘린더 로직 ---
+    // --- 동향 캘린더 로직 ---
     window.changeCalMonth = function(dir) {
         calMonth += dir;
         if(calMonth < 0) { calMonth = 11; calYear--; }
@@ -733,7 +725,7 @@
 
     window.showDailyTrend = function(dateStr) {
         activeCalDate = dateStr;
-        renderCalendar(); // active 클래스 갱신
+        renderCalendar(); 
 
         const container = document.getElementById('trends-container');
         const filterVal = document.getElementById('trend-user-filter').value;
@@ -826,6 +818,8 @@
                     return `<div class="comment-item"><div><strong>${c.author}</strong> ${c.text}</div><div style="color:#aaa; font-size:11px;">${timeStr} <button class="op-del" style="margin-left:5px" onclick="delTrendComment('${cmtKey}', '${k}', '${c.author}')">x</button></div></div>`;
                 }).join('');
 
+                const curUser = sessionStorage.getItem('loggedInUser');
+
                 html += `
                 <div class="trend-card">
                     <div class="trend-author">👤 ${u}의 포트폴리오 동향</div>
@@ -838,7 +832,7 @@
                     <div class="trend-comments">
                         <div class="comment-list">${commentsHtml}</div>
                         <div class="comment-input-area">
-                            <input type="hidden" id="tc-author-${u}" value="${sessionStorage.getItem('loggedInUser') || u}">
+                            <input type="hidden" id="tc-author-${u}" value="${curUser || u}">
                             <input type="text" id="tc-text-${u}" placeholder="동향에 대한 코멘트를 남겨보세요..." onkeypress="if(event.key==='Enter') addTrendComment('${dateStr}', '${u}')">
                             <button onclick="addTrendComment('${dateStr}', '${u}')">등록</button>
                         </div>
@@ -854,21 +848,56 @@
         container.innerHTML = html;
     }
 
+    window.saveTrendItemReason = async function(date, user, tk, val, el) {
+        if (!hasAuth(user)) {
+            alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
+            el.value = state.trendItemReasons[`${date}_${user}_${tk}`] || ''; 
+            return;
+        }
+        if (!db) return;
+        try {
+            await db.ref(`trendItemReasons/${date}_${user}_${tk}`).set(val);
+        } catch(e) {}
+    };
 
-    // --- 멀티 매매 입력 로직 ---
-    window.addTradeRow = function(u, defaultData = null) {
+    window.addTrendComment = async function(dateStr, targetUser) {
+        if (!db) return;
+        const author = document.getElementById(`tc-author-${targetUser}`).value;
+        const text = document.getElementById(`tc-text-${targetUser}`).value.trim();
+        if (!text) return;
+
+        const refKey = `${dateStr}_${targetUser}`;
+        try {
+            await db.ref(`trendComments/${refKey}`).push({
+                author: author, text: text, timestamp: Date.now()
+            });
+            document.getElementById(`tc-text-${targetUser}`).value = '';
+        } catch(e) { alert("댓글 등록 실패"); }
+    }
+
+    window.delTrendComment = async function(cmtKey, commentId, author) {
+        if (!hasAuth(author)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
+        if (!db || !confirm("댓글을 삭제하시겠습니까?")) return;
+        try {
+            await db.ref(`trendComments/${cmtKey}/${commentId}`).remove();
+        } catch(e) { alert("삭제 실패"); }
+    }
+
+
+    // --- 다중 매매 행 추가 / 저장 로직 ---
+    window.addTradeRow = function(u, t = null) {
         const container = document.getElementById(`trade-rows-container-${u}`);
-        if (!container) return;
+        if(!container) return;
         const rowId = 'row-' + Date.now() + Math.floor(Math.random()*1000);
-        const dt = defaultData ? defaultData.date : new Date().toISOString().substring(0, 10);
-        const tk = defaultData ? defaultData.ticker : '';
-        const nm = defaultData ? defaultData.name : '';
-        const ty = defaultData ? defaultData.type : 'buy';
-        const cr = defaultData ? defaultData.currency : 'USD';
-        const pr = defaultData ? defaultData.price : '';
-        const qt = defaultData ? defaultData.qty : '';
-
-        const rowHtml = `
+        const dt = t ? t.date : new Date().toISOString().substring(0, 10);
+        const tk = t ? t.ticker : '';
+        const nm = t ? t.name : '';
+        const ty = t ? t.type : 'buy';
+        const cr = t ? t.currency : 'USD';
+        const pr = t ? t.price : '';
+        const qt = t ? t.qty : '';
+        
+        const html = `
         <div class="trade-row form-grid" id="${rowId}" style="margin-bottom:10px; padding-bottom:10px; border-bottom:1px dashed #eee; position:relative;">
             <div class="f-grp"><label>날짜</label><input type="date" class="i-dt" value="${dt}"></div>
             <div class="f-grp"><label>티커</label><input type="text" class="i-tk" value="${tk}" onchange="handleTkRow(this, '${u}')" placeholder="AAPL, 005930"></div>
@@ -878,10 +907,9 @@
             <div class="f-grp"><label>가격</label><input type="number" step="0.01" class="i-pr" value="${pr}"></div>
             <div class="f-grp"><label>수량</label><input type="number" step="0.0001" class="i-qt" value="${qt}"></div>
             <button type="button" onclick="document.getElementById('${rowId}').remove()" style="position:absolute; right:0; top:22px; background:#ffeaea; border:1px solid #ff4d4f; color:#d63031; cursor:pointer; font-size:16px; border-radius:4px; padding:2px 8px;" title="이 행 삭제">✖</button>
-        </div>
-        `;
-        container.insertAdjacentHTML('beforeend', rowHtml);
-    }
+        </div>`;
+        container.insertAdjacentHTML('beforeend', html);
+    };
 
     window.handleTkRow = async function(el, u) {
         const row = el.closest('.trade-row');
@@ -900,21 +928,17 @@
         
         crSel.value = isKorean ? 'KRW' : 'USD';
         
-        if (instantName) {
-            nmIn.value = instantName;
-        } else {
-            nmIn.value = "";
-            nmIn.placeholder = "API 검색 중...";
-        }
+        if (instantName) nmIn.value = instantName;
+        else { nmIn.value = ""; nmIn.placeholder = "검색 중..."; }
 
         const info = await getStk(tk, true);
         if (info) {
-            if (!nmIn.value) nmIn.value = info.name;
+            if (!nmIn.value || nmIn.value === "검색 중...") nmIn.value = info.name;
             if (info.price > 0 && !prIn.value) prIn.value = info.price;
         } else {
-            if (!nmIn.value) nmIn.placeholder = "직접 입력";
+            if (!nmIn.value || nmIn.value === "검색 중...") nmIn.placeholder = "직접 입력";
         }
-    }
+    };
 
     window.saveTr = async function(u) {
         if (!hasAuth(u)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
@@ -941,7 +965,7 @@
         if (!isValid) return alert("입력값을 정확히 확인해주세요.");
         if (tradesToSave.length === 0) return alert("저장할 매매 내역이 없습니다.");
 
-        toggleLd(true, "일괄 저장 중...");
+        toggleLd(true, "저장 중...");
         try {
             const eid = document.getElementById(`eid-${u}`).value;
             if (eid && tradesToSave.length === 1) {
@@ -988,7 +1012,7 @@
     };
 
 
-    // --- 누적 확정 수익금 상세 모달 로직 ---
+    // --- 누적 확정 수익금 상세 로직 ---
     window.showRealizedDetails = function(u) {
         const list = state.realizedDetails[u] || [];
         let html = `<table><thead><tr><th style="text-align:center;">날짜</th><th style="text-align:left;">종목</th><th>확정 수익금 (KRW)</th></tr></thead><tbody>`;
@@ -1010,15 +1034,187 @@
         
         document.getElementById('realized-modal-body').innerHTML = html;
         document.getElementById('realized-modal').classList.add('open');
+    };
+
+
+    window.handleOpWatchTk = async function() {
+        const tk = document.getElementById('op-watch-tk').value.trim().toUpperCase();
+        if(!tk) return;
+        document.getElementById('op-watch-tk').value = tk;
+        const info = await getStk(tk, true);
+        if(info) {
+            document.getElementById('op-watch-nm').value = info.name;
+            if(info.price) document.getElementById('op-watch-pr').value = info.price;
+            if(info.low52) document.getElementById('op-watch-low').value = info.low52;
+            if(info.high52) document.getElementById('op-watch-high').value = info.high52;
+        }
+    };
+
+    window.saveOpinion = async function() {
+        if(!db) return;
+        const user = document.getElementById('op-user').value;
+        if (!hasAuth(user)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
+
+        const text = document.getElementById('op-text').value.trim();
+        if(!text) return alert('의견 내용을 입력해주세요.');
+        
+        const data = { author: user, text: text, timestamp: Date.now() };
+        const tk = document.getElementById('op-watch-tk').value.trim().toUpperCase();
+        
+        toggleLd(true, "의견 저장 중...");
+
+        if(tk) {
+            let nm = document.getElementById('op-watch-nm').value;
+            let pr = document.getElementById('op-watch-pr').value;
+            let low = document.getElementById('op-watch-low').value;
+            let high = document.getElementById('op-watch-high').value;
+            
+            if (!nm || nm === "API 검색 중..." || !pr) {
+                const info = await getStk(tk, true);
+                if (info) {
+                    nm = info.name || nm;
+                    pr = info.price || pr;
+                    low = info.low52 || low;
+                    high = info.high52 || high;
+                }
+            }
+            data.watch = { tk, nm, pr, low, high };
+        }
+        
+        try {
+            const eid = document.getElementById('op-eid').value;
+            if (eid) {
+                const existingOp = state.opinions.find(o => o.id === eid);
+                if(existingOp) data.timestamp = existingOp.timestamp;
+                await db.ref(`opinions/${eid}`).update(data);
+            } else {
+                await db.ref('opinions').push(data);
+            }
+            cancelOpEd(); 
+        } catch(e) { alert('저장 실패'); }
+        toggleLd(false);
+    };
+
+    window.editOpinion = function(id, author) {
+        if (!hasAuth(author)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
+        const op = state.opinions.find(x => x.id === id);
+        if (!op) return;
+        
+        document.getElementById('op-eid').value = op.id;
+        document.getElementById('op-user').value = op.author;
+        document.getElementById('op-text').value = op.text;
+        
+        if (op.watch && op.watch.tk) {
+            document.getElementById('op-watch-tk').value = op.watch.tk;
+            document.getElementById('op-watch-nm').value = op.watch.nm || '';
+            document.getElementById('op-watch-pr').value = op.watch.pr || '';
+            document.getElementById('op-watch-low').value = op.watch.low || '';
+            document.getElementById('op-watch-high').value = op.watch.high || '';
+        } else {
+            document.getElementById('op-watch-tk').value = '';
+            document.getElementById('op-watch-nm').value = '';
+            document.getElementById('op-watch-pr').value = '';
+            document.getElementById('op-watch-low').value = '';
+            document.getElementById('op-watch-high').value = '';
+        }
+        
+        document.getElementById('op-btn').innerText = "수정 완료";
+        document.getElementById('op-cbtn').style.display = "block";
+        
+        switchTab('opinions', document.querySelector('.tab-btn:nth-child(3)'));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    window.cancelOpEd = function() {
+        document.getElementById('op-eid').value = '';
+        document.getElementById('op-text').value = '';
+        document.getElementById('op-watch-tk').value = '';
+        document.getElementById('op-watch-nm').value = '';
+        document.getElementById('op-watch-pr').value = '';
+        document.getElementById('op-watch-low').value = '';
+        document.getElementById('op-watch-high').value = '';
+        
+        document.getElementById('op-btn').innerText = "의견 등록";
+        document.getElementById('op-cbtn').style.display = "none";
+        
+        const curUser = sessionStorage.getItem('loggedInUser');
+        if (curUser && curUser !== '김태호') document.getElementById('op-user').value = curUser;
+    };
+
+    window.renderOpinions = function() {
+        const container = document.getElementById('opinions-timeline');
+        if(!container) return;
+        let html = state.opinions.sort((a,b) => b.timestamp - a.timestamp).map(op => {
+            const d = new Date(op.timestamp);
+            const timeStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            let watchHtml = '';
+            if(op.watch && op.watch.tk) {
+                watchHtml = `<div class="op-watch-card">
+                    <strong>관심 종목: ${op.watch.nm} (${op.watch.tk})</strong>
+                    <div class="op-watch-details">
+                        <span>현재가: ${op.watch.pr}</span>
+                        <span>52주 최저: ${op.watch.low}</span>
+                        <span>52주 최고: ${op.watch.high}</span>
+                    </div>
+                </div>`;
+            }
+            return `<div class="op-item">
+                <div class="op-header">
+                    <span class="op-author">${op.author}</span>
+                    <span>${timeStr} 
+                        <span class="op-btn-grp">
+                            <button class="op-action-btn op-edit-btn" onclick="editOpinion('${op.id}', '${op.author}')">수정</button>
+                            <button class="op-action-btn op-del-btn" onclick="openDelModal('${op.id}', 'opinion', '${op.author}')">삭제</button>
+                        </span>
+                    </span>
+                </div>
+                <div class="op-content">${op.text}</div>
+                ${watchHtml}
+            </div>`;
+        }).join('');
+        container.innerHTML = html || '<div style="text-align:center;color:#aaa;padding:20px;">등록된 의견이 없습니다.</div>';
+    };
+
+    let pendingDelete = null;
+    function openDelModal(id, mode, owner) { 
+        if (!hasAuth(owner)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
+        pendingDelete = { id, mode }; 
+        document.getElementById('del-modal').classList.add('open'); 
+    }
+    window.openDelModal = openDelModal;
+
+    function closeDelModal() { 
+        pendingDelete = null; 
+        document.getElementById('del-modal').classList.remove('open'); 
+    }
+    window.closeDelModal = closeDelModal;
+    
+    document.getElementById('del-confirm-btn').addEventListener('click', async function() {
+        if (!pendingDelete || !db) return;
+        const { id, mode } = pendingDelete;
+        const node = mode === 'opinion' ? 'opinions' : 'trades';
+        closeDelModal();
+        toggleLd(true, "삭제 중...");
+        try { await db.ref(`${node}/${id}`).remove(); } catch(e) { alert("삭제 실패"); }
+        toggleLd(false);
+    });
+    document.getElementById('del-modal').addEventListener('click', function(e) { if (e.target === this.firstElementChild) return; if (e.target === this) closeDelModal(); });
+
+    function getSortArrow(u, key) {
+        if (sortStates[u].key !== key) return '↕';
+        return sortStates[u].asc ? '▲' : '▼';
     }
 
+    window.sortPort = function(u, key) {
+        if (sortStates[u].key === key) sortStates[u].asc = !sortStates[u].asc;
+        else { sortStates[u].key = key; sortStates[u].asc = (key === 'fn') ? true : false; }
+        updateAll();
+    }
 
     window.fillTradeForm = function(u, tk) {
-        // 기존 폼 지우고 새로 생성 (혹은 비어있는 행이 있으면 채움)
         const container = document.getElementById(`trade-rows-container-${u}`);
         if(container.innerHTML.trim() === '') addTradeRow(u);
         
-        // 마지막 행에 티커 채우기
         const rows = container.querySelectorAll('.trade-row');
         const lastRow = rows[rows.length - 1];
         lastRow.querySelector('.i-tk').value = tk;
@@ -1033,7 +1229,7 @@
         con.innerHTML = '';
         
         users.forEach(u => {
-            state.realizedDetails[u] = []; // 상세내역 초기화
+            state.realizedDetails[u] = []; 
             
             const html = `
                 <div id="u-${u}" class="tab-content">
@@ -1118,10 +1314,42 @@
                 </div>`;
             con.insertAdjacentHTML('beforeend', html);
             
-            addTradeRow(u); // 최초 빈 행 1개 생성
+            addTradeRow(u);
         });
     }
 
+    window.switchTab = function(targetId, btn) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        
+        const targetEl = document.getElementById(targetId);
+        if (targetEl) targetEl.classList.add('active');
+        if (btn) btn.classList.add('active');
+    }
+
+    function renderIdx() {
+        const grid = document.getElementById('market-indices');
+        if(!grid) return;
+        const html = Object.entries(mSym).map(([sym, lbl]) => {
+            const fbKey = safeKey(sym);
+            const info = cache[fbKey];
+            let priceStr = '-';
+            let changeHtml = '<span class="pct" style="color:#aaa">데이터 없음</span>';
+
+            if (info && info.price > 0) {
+                priceStr = info.price.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                const pct = info.change;
+                const cls  = pct > 0 ? 'profit' : (pct < 0 ? 'loss' : '');
+                const sign = pct > 0 ? '+' : '';
+                changeHtml = `<span class="pct ${cls}">(${sign}${pct.toFixed(2)}%)</span>`;
+            } else if (sheetIndices[lbl]) {
+                priceStr = parseFloat(String(sheetIndices[lbl]).replace(/,/g, '')).toLocaleString(undefined, { maximumFractionDigits: 2 });
+                changeHtml = ''; 
+            }
+            return `<div class="idx-item"><div class="val">${priceStr} ${changeHtml}</div><div class="key">${lbl}</div></div>`;
+        }).join('');
+        grid.innerHTML = html;
+    }
 
     window.updateAll = function() {
         try {
@@ -1160,7 +1388,7 @@
                 if(rpSpan) {
                     rpSpan.innerText = real.toLocaleString('ko-KR', {maximumFractionDigits: 0});
                     rpSpan.parentElement.className = `realized-badge ${real > 0 ? 'profit' : (real < 0 ? 'loss' : '')}`;
-                    rpSpan.parentElement.style.color = real > 0 ? '#155724' : (real < 0 ? '#721c24' : '#856404'); // badge 색상 보정
+                    rpSpan.parentElement.style.color = real > 0 ? '#155724' : (real < 0 ? '#721c24' : '#856404');
                     if(real > 0) { rpSpan.parentElement.style.background = '#d4edda'; rpSpan.parentElement.style.borderColor = '#c3e6cb'; }
                     else if(real < 0) { rpSpan.parentElement.style.background = '#f8d7da'; rpSpan.parentElement.style.borderColor = '#f5c6cb'; }
                 }
@@ -1181,7 +1409,6 @@
                     const iBase = p.q * p.c;
                     const vBase = isLoaded ? p.q * curPr : iBase;
 
-                    // Daily PnL
                     dailyAmtSum += (p.q * curPr * xr) - (p.q * prevPr * xr);
                     yestValSum += (p.q * prevPr * xr);
 
@@ -1199,18 +1426,12 @@
                     let dispSym, dispInv, dispVal;
                     if (isUsd) {
                         if (mode === 'USD') {
-                            dispSym = '$';
-                            dispInv = iBase;
-                            dispVal = vBase;
+                            dispSym = '$'; dispInv = iBase; dispVal = vBase;
                         } else {
-                            dispSym = '₩';
-                            dispInv = iBase * exKRW;
-                            dispVal = vBase * exKRW;
+                            dispSym = '₩'; dispInv = iBase * exKRW; dispVal = vBase * exKRW;
                         }
                     } else {
-                        dispSym = '₩';
-                        dispInv = iBase;
-                        dispVal = vBase;
+                        dispSym = '₩'; dispInv = iBase; dispVal = vBase;
                     }
 
                     const ret = isLoaded && iBase > 0 ? ((vBase - iBase)/iBase)*100 : 0;
@@ -1228,7 +1449,6 @@
                     }
                 }
 
-                // 전체 요약
                 const tTotAmt = tVal - tInv;
                 const tTotRet = tInv > 0 ? (tTotAmt/tInv)*100 : 0;
                 const totValEl = document.getElementById(`tot-val-${u}`);
@@ -1240,7 +1460,6 @@
                     elTotRet.className = tTotAmt > 0 ? 'profit' : (tTotAmt < 0 ? 'loss' : '');
                 }
 
-                // 국내 요약
                 const tDomAmt = tDomValKw - tDomInvKw;
                 const tDomRet = tDomInvKw > 0 ? (tDomAmt/tDomInvKw)*100 : 0;
                 const domValEl = document.getElementById(`dom-val-${u}`);
@@ -1252,7 +1471,6 @@
                     elDomRet.className = tDomAmt > 0 ? 'profit' : (tDomAmt < 0 ? 'loss' : '');
                 }
 
-                // 해외 요약
                 const ovsInvDisp = mode === 'USD' ? tOvsInvUsd : tOvsInvUsd * exKRW;
                 const ovsValDisp = mode === 'USD' ? tOvsValUsd : tOvsValUsd * exKRW;
                 const ovsAmt = ovsValDisp - ovsInvDisp;
