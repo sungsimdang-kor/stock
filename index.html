@@ -47,7 +47,8 @@
         .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--brd); padding-bottom: 10px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;}
         .card-header h3 { border: none; padding: 0; margin: 0; }
         
-        .realized-badge { background: #fff3cd; color: #856404; padding: 6px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; border: 1px solid #ffeeba; }
+        .realized-badge { background: #fff3cd; color: #856404; padding: 6px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; border: 1px solid #ffeeba; cursor: pointer; transition: 0.2s; }
+        .realized-badge:hover { background: #ffeeba; }
 
         .idx-wrap { background: #1a1a1a; padding: 25px; border-radius: 12px; margin-bottom: 20px; color: white; }
         .idx-wrap h3 { border-color: #333; color: #eee; text-align: center; font-size: 15px; margin-bottom: 20px; font-weight: bold; }
@@ -81,10 +82,6 @@
         .f-grp label { margin-bottom: 4px; color: #555; }
         .f-grp input, .f-grp select, .f-grp textarea { padding: 8px; border: 1px solid var(--brd); border-radius: 4px; font-size: 14px; box-sizing: border-box; }
         input[disabled], select[disabled] { background-color: #eaecf0; cursor: not-allowed; color: #555; font-weight: bold; border: 1px solid #ccc; }
-
-        .filter-bar { display: flex; gap: 10px; margin-bottom: 15px; align-items: center; flex-wrap: wrap; background: #f9fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--brd); }
-        .filter-bar input, .filter-bar select { padding: 8px; border: 1px solid var(--brd); border-radius: 4px; font-size: 13px; box-sizing: border-box; }
-        .filter-label { font-size: 13px; font-weight: bold; color: #555; margin-right: 5px; }
 
         .btn-grp { display: flex; gap: 8px; }
         button { cursor: pointer; font-weight: bold; transition: 0.2s; border: none; border-radius: 6px; }
@@ -138,15 +135,32 @@
         .comment-input-area select { padding: 8px; border: 1px solid var(--brd); border-radius: 4px; font-size: 13px; }
         .comment-input-area button { padding: 8px 15px; background: var(--pri); color: #fff; font-size: 13px; }
 
+        /* 캘린더 스타일 */
+        .cal-container { width: 100%; background: #fff; border: 1px solid var(--brd); border-radius: 8px; overflow: hidden; margin-bottom: 20px; }
+        .cal-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: var(--pri); color: white; font-weight: bold; }
+        .cal-header button { background: none; border: none; color: white; cursor: pointer; font-size: 18px; padding: 0 15px; }
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: #eee; }
+        .cal-day-name { text-align: center; padding: 10px 0; background: #f9fafc; font-size: 13px; font-weight: bold; color: #555; }
+        .cal-day { background: #fff; height: 80px; padding: 5px; cursor: pointer; transition: 0.2s; position: relative; }
+        .cal-day:hover { background: #f0f4f8; }
+        .cal-day.empty { background: #fafafa; cursor: default; }
+        .cal-day.active { background: #e3f2fd; border: 2px solid var(--loss); z-index: 1; }
+        .cal-date-num { font-size: 14px; font-weight: bold; color: #333; }
+        .cal-marker { width: 10px; height: 10px; background: var(--loss); border-radius: 50%; position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); box-shadow: 0 0 4px rgba(255,77,79,0.5); }
+
         #loader { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; justify-content: center; align-items: center; font-weight: bold; flex-direction: column; gap: 15px; }
         .spin { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--pri); border-radius: 50%; animation: sp 1s linear infinite; }
         @keyframes sp { 100% { transform: rotate(360deg); } }
 
-        #del-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center; }
-        #del-modal.open { display: flex; }
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center; }
+        .modal-overlay.open { display: flex; }
+        .modal-box { background: white; border-radius: 12px; padding: 25px; max-width: 500px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-height: 80vh; overflow-y: auto; }
+        .modal-box h4 { margin: 0 0 15px; font-size: 18px; border-bottom: 1px solid var(--brd); padding-bottom: 10px; }
+        .modal-close-btn { margin-top: 15px; width: 100%; background: #eee; color: #333; }
+
         .del-modal-box { background: white; border-radius: 16px; padding: 30px 24px 20px; max-width: 320px; width: 90%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
         .del-modal-box .icon { font-size: 40px; margin-bottom: 12px; }
-        .del-modal-box h4 { margin: 0 0 8px; font-size: 17px; }
+        .del-modal-box h4 { margin: 0 0 8px; font-size: 17px; border: none; }
         .del-modal-box p  { margin: 0 0 24px; font-size: 14px; color: #666; }
         .del-modal-btns { display: flex; gap: 10px; }
         .del-modal-btns button { flex: 1; padding: 12px; border-radius: 8px; font-size: 15px; }
@@ -168,6 +182,7 @@
             .btn-grp { grid-column: span 2; }
             .idx-item .val { font-size: 16px; }
             th, td { padding: 9px 7px; font-size: 13px; }
+            .cal-day { height: 60px; }
         }
     </style>
 </head>
@@ -199,7 +214,7 @@
 <div id="main-app">
     <div id="loader"><div class="spin"></div><div id="loader-txt">처리 중...</div></div>
 
-    <div id="del-modal">
+    <div id="del-modal" class="modal-overlay">
         <div class="del-modal-box">
             <div class="icon">🗑️</div>
             <h4>데이터 삭제</h4>
@@ -211,10 +226,19 @@
         </div>
     </div>
 
+    <div id="realized-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h4>누적 확정 수익금 상세 내역</h4>
+            <div class="tbl-wrap" id="realized-modal-body">
+            </div>
+            <button class="modal-close-btn" onclick="document.getElementById('realized-modal').classList.remove('open')">닫기</button>
+        </div>
+    </div>
+
     <div class="container">
         <div class="top-info-bar">
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <div class="version-tag">V2.6</div>
+                <div class="version-tag">V2.7</div>
                 <div id="logged-user-display" style="font-weight: bold; color: var(--pri); font-size: 14px; background: #e3f2fd; padding: 6px 12px; border-radius: 8px; border: 1px solid #90caf9;"></div>
             </div>
             <div class="top-right-items">
@@ -260,23 +284,36 @@
         <div id="trends" class="tab-content">
             <div class="card">
                 <div class="card-header">
-                    <h3>개인별 매매 동향 (기간 설정)</h3>
-                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                        <input type="date" id="trend-start" style="padding:6px; border:1px solid var(--brd); border-radius:4px;">
-                        <span>~</span>
-                        <input type="date" id="trend-end" style="padding:6px; border:1px solid var(--brd); border-radius:4px;">
-                        <button class="refresh-btn" onclick="generatePeriodTrend()">리포트 생성</button>
-                        <select id="trend-date-selector" onchange="renderTrends()" style="padding:6px; border:1px solid var(--brd); border-radius:4px; margin-left:10px;"></select>
-                        <select id="trend-user-filter" onchange="renderTrends()" style="padding:6px; border:1px solid var(--brd); border-radius:4px;">
-                            <option value="all">전체 인원</option>
-                            <option value="김태호">김태호</option>
-                            <option value="이용우">이용우</option>
-                            <option value="이형주">이형주</option>
-                        </select>
-                    </div>
+                    <h3>개인별 매매 동향 (캘린더)</h3>
+                    <select id="trend-user-filter" onchange="renderCalendar(); document.getElementById('trends-container').innerHTML='<div style=\'text-align:center; padding:30px; color:#aaa;\'>날짜를 선택하면 해당 일자의 동향이 표시됩니다.</div>';" style="padding:6px; border:1px solid var(--brd); border-radius:4px;">
+                        <option value="all">전체 인원</option>
+                        <option value="김태호">김태호</option>
+                        <option value="이용우">이용우</option>
+                        <option value="이형주">이형주</option>
+                    </select>
                 </div>
+                
+                <div class="cal-container">
+                    <div class="cal-header">
+                        <button onclick="changeCalMonth(-1)">&#10094;</button>
+                        <span id="cal-month-display">2026년 4월</span>
+                        <button onclick="changeCalMonth(1)">&#10095;</button>
+                    </div>
+                    <div class="cal-grid">
+                        <div class="cal-day-name" style="color:#e74c3c;">일</div>
+                        <div class="cal-day-name">월</div>
+                        <div class="cal-day-name">화</div>
+                        <div class="cal-day-name">수</div>
+                        <div class="cal-day-name">목</div>
+                        <div class="cal-day-name">금</div>
+                        <div class="cal-day-name" style="color:#2980b9;">토</div>
+                    </div>
+                    <div class="cal-grid" id="cal-body">
+                        </div>
+                </div>
+
                 <div id="trends-container">
-                    <div style="text-align:center; padding:30px; color:#aaa;">기간을 설정하고 리포트를 생성해주세요.</div>
+                    <div style="text-align:center; padding:30px; color:#aaa;">날짜를 선택하면 해당 일자의 동향이 표시됩니다.</div>
                 </div>
             </div>
         </div>
@@ -329,10 +366,11 @@
             <div class="card">
                 <h3>버전별 업데이트 내역</h3>
                 <ul style="line-height: 1.8; color: #444; font-size: 15px;">
-                    <li><strong>V2.6:</strong> '개인별 의견' 탭 이름 변경 및 본인/관리자 의견 수정 기능 추가, 관심종목 입력 시 로딩 대기 지연 문제 완벽 동기화 해결(공란 방지).</li>
-                    <li><strong>V2.5:</strong> 상단 로그인 사용자 표시 추가, 본인 및 관리자(김태호) 외 타인 데이터 수정/삭제 시 권한 차단 팝업 추가.</li>
-                    <li><strong>V2.4:</strong> 개별 계정 로그인(초기 비밀번호 0000, 첫 로그인 시 변경) 도입 및 세션 처리.</li>
-                    <li><strong>V2.3:</strong> 자동 일일 동향 생성 기준을 23시 59분으로 명시, 매매 변동 내역 조건부 로직 개선.</li>
+                    <li><strong>V2.7:</strong> 차트 위치 상향, 다중 매매 일괄 입력 도입, 누적 확정 수익금 상세 조회 모달 추가, 동향 탭 캘린더 연동(변동 내역 아이콘 클릭 시 즉시 리포트 표출).</li>
+                    <li><strong>V2.6:</strong> '개인별 의견' 탭 이름 변경 및 본인/관리자 의견 수정 기능 추가, 관심종목 입력 시 비동기 처리 완벽 동기화(공란 방지).</li>
+                    <li><strong>V2.5:</strong> 상단 로그인 사용자 표시 추가, 본인 및 관리자(김태호) 외 타인 데이터 수정/삭제 권한 완벽 분리.</li>
+                    <li><strong>V2.4:</strong> 개별 계정 로그인(초기 비밀번호 0000) 도입 및 세션 처리.</li>
+                    <li><strong>V2.3:</strong> 자동 일일 동향 조건부 로직 개선.</li>
                     <li><strong>V2.2:</strong> 개인별 동향 탭 내 각 종목 하단에 비중 '변경 사유' 직접 입력 기능 추가</li>
                 </ul>
             </div>
@@ -347,7 +385,7 @@
     let exKRW = 1350; 
     let cache = {};
     let sheetIndices = {}; 
-    const state = { trades: {}, opinions: [], charts: {}, trends: {}, trendComments: {}, trendItemReasons: {} };
+    const state = { trades: {}, opinions: [], charts: {}, trendComments: {}, trendItemReasons: {}, realizedDetails: {} };
     let allDailyChanges = []; 
     users.forEach(u => state.trades[u] = []);
 
@@ -355,6 +393,11 @@
     users.forEach(u => sortStates[u] = { key: 'vKw', asc: false }); 
     const currMode = {};
     users.forEach(u => currMode[u] = 'KRW');
+
+    // 캘린더 변수
+    let calYear = new Date().getFullYear();
+    let calMonth = new Date().getMonth();
+    let activeCalDate = '';
 
     const firebaseConfig = {
         apiKey: "AIzaSyBjOprcJi0CotYmYDfWKoXsFtP3FTLnH-s",
@@ -398,11 +441,6 @@
         } else {
             document.getElementById('login-screen').style.display = 'flex';
         }
-
-        const today = new Date();
-        const aWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-        document.getElementById('trend-start').value = aWeekAgo.toISOString().substring(0, 10);
-        document.getElementById('trend-end').value = today.toISOString().substring(0, 10);
     };
 
     window.checkLogin = async function() {
@@ -478,6 +516,7 @@
                     if(state.trades[t.user]) state.trades[t.user].push(t);
                 });
                 updateAll();
+                renderCalendar(); 
             });
 
             db.ref('opinions').on('value', (snapshot) => {
@@ -490,20 +529,14 @@
                 renderOpinions();
             });
 
-            db.ref('trends').on('value', (snapshot) => {
-                state.trends = snapshot.val() || {};
-                updateTrendDateSelector();
-                renderTrends();
-            });
-
             db.ref('trendComments').on('value', (snapshot) => {
                 state.trendComments = snapshot.val() || {};
-                renderTrends();
+                if(activeCalDate) showDailyTrend(activeCalDate);
             });
 
             db.ref('trendItemReasons').on('value', (snapshot) => {
                 state.trendItemReasons = snapshot.val() || {};
-                renderTrends();
+                if(activeCalDate) showDailyTrend(activeCalDate);
             });
 
             db.ref('marketData').on('value', (snapshot) => {
@@ -647,622 +680,215 @@
         fetchSheetBackup();
     }
 
-    window.saveTr = async function(u) {
-        if (!hasAuth(u)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
-        if (!db) return alert("데이터베이스 연결 오류");
+    // --- 캘린더 로직 ---
+    window.changeCalMonth = function(dir) {
+        calMonth += dir;
+        if(calMonth < 0) { calMonth = 11; calYear--; }
+        else if(calMonth > 11) { calMonth = 0; calYear++; }
+        renderCalendar();
+    }
 
-        const dt = document.getElementById(`dt-${u}`).value;
-        const tk = document.getElementById(`tk-${u}`).value.trim().toUpperCase();
-        const nm = document.getElementById(`nm-${u}`).value;
-        const ty = document.getElementById(`ty-${u}`).value;
-        const cr = document.getElementById(`cr-${u}`).value;
-        const pr = parseFloat(document.getElementById(`pr-${u}`).value);
-        const qt = parseFloat(document.getElementById(`qt-${u}`).value);
+    window.renderCalendar = function() {
+        document.getElementById('cal-month-display').innerText = `${calYear}년 ${calMonth + 1}월`;
+        const body = document.getElementById('cal-body');
+        body.innerHTML = '';
 
-        if (!dt || !tk || isNaN(pr) || isNaN(qt)) return alert("입력값을 정확히 확인해주세요.");
-
-        const eid = document.getElementById(`eid-${u}`).value;
-        const data = { user: u, date: dt, ticker: tk, name: nm || tk, type: ty, currency: cr, price: pr, qty: qt };
-
-        toggleLd(true, "저장 중...");
-        try {
-            if (eid) await db.ref(`trades/${eid}`).update(data);
-            else await db.ref('trades').push(data);
-            cancelEd(u);
-        } catch(e) { alert("저장 실패"); }
-        toggleLd(false);
-    };
-
-    window.editTr = function(u, id) {
-        if (!hasAuth(u)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
-        const t = state.trades[u].find(x => x.id === id);
-        if (!t) return;
-        document.getElementById(`eid-${u}`).value = t.id;
-        document.getElementById(`dt-${u}`).value = t.date;
-        document.getElementById(`tk-${u}`).value = t.ticker;
-        document.getElementById(`nm-${u}`).value = t.name;
-        document.getElementById(`ty-${u}`).value = t.type;
-        document.getElementById(`cr-${u}`).value = t.currency;
-        document.getElementById(`pr-${u}`).value = t.price;
-        document.getElementById(`qt-${u}`).value = t.qty;
-
-        document.getElementById(`btn-${u}`).innerText = "수정 완료";
-        document.getElementById(`cbtn-${u}`).style.display = "block";
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    window.cancelEd = function(u) {
-        document.getElementById(`eid-${u}`).value = '';
-        document.getElementById(`tk-${u}`).value = '';
-        document.getElementById(`nm-${u}`).value = '';
-        document.getElementById(`pr-${u}`).value = '';
-        document.getElementById(`qt-${u}`).value = '';
-        document.getElementById(`dt-${u}`).value = new Date().toISOString().substring(0, 10);
-        document.getElementById(`btn-${u}`).innerText = "저장";
-        document.getElementById(`cbtn-${u}`).style.display = "none";
-    };
-
-    window.handleOpWatchTk = async function() {
-        const tk = document.getElementById('op-watch-tk').value.trim().toUpperCase();
-        if(!tk) return;
-        document.getElementById('op-watch-tk').value = tk;
-        const info = await getStk(tk, true);
-        if(info) {
-            document.getElementById('op-watch-nm').value = info.name;
-            if(info.price) document.getElementById('op-watch-pr').value = info.price;
-            if(info.low52) document.getElementById('op-watch-low').value = info.low52;
-            if(info.high52) document.getElementById('op-watch-high').value = info.high52;
-        }
-    };
-
-    window.saveOpinion = async function() {
-        if(!db) return;
-        const user = document.getElementById('op-user').value;
-        if (!hasAuth(user)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
-
-        const text = document.getElementById('op-text').value.trim();
-        if(!text) return alert('의견 내용을 입력해주세요.');
+        const filterU = document.getElementById('trend-user-filter').value;
+        let tradeDays = new Set();
         
-        const data = { author: user, text: text, timestamp: Date.now() };
-        const tk = document.getElementById('op-watch-tk').value.trim().toUpperCase();
-        
-        toggleLd(true, "의견 저장 중...");
-
-        if(tk) {
-            let nm = document.getElementById('op-watch-nm').value;
-            let pr = document.getElementById('op-watch-pr').value;
-            let low = document.getElementById('op-watch-low').value;
-            let high = document.getElementById('op-watch-high').value;
-            
-            // 데이터가 미처 로딩되지 않은 상태라면 내부적으로 기다렸다가 가져옴
-            if (!nm || nm === "API 검색 중..." || !pr) {
-                const info = await getStk(tk, true);
-                if (info) {
-                    nm = info.name || nm;
-                    pr = info.price || pr;
-                    low = info.low52 || low;
-                    high = info.high52 || high;
-                }
-            }
-
-            data.watch = { tk, nm, pr, low, high };
-        }
-        
-        try {
-            const eid = document.getElementById('op-eid').value;
-            if (eid) {
-                const existingOp = state.opinions.find(o => o.id === eid);
-                if(existingOp) data.timestamp = existingOp.timestamp; // 기존 작성 시간 유지
-                await db.ref(`opinions/${eid}`).update(data);
-            } else {
-                await db.ref('opinions').push(data);
-            }
-            cancelOpEd(); 
-        } catch(e) { alert('저장 실패'); }
-        toggleLd(false);
-    };
-
-    window.editOpinion = function(id, author) {
-        if (!hasAuth(author)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
-        const op = state.opinions.find(x => x.id === id);
-        if (!op) return;
-        
-        document.getElementById('op-eid').value = op.id;
-        document.getElementById('op-user').value = op.author;
-        document.getElementById('op-text').value = op.text;
-        
-        if (op.watch && op.watch.tk) {
-            document.getElementById('op-watch-tk').value = op.watch.tk;
-            document.getElementById('op-watch-nm').value = op.watch.nm || '';
-            document.getElementById('op-watch-pr').value = op.watch.pr || '';
-            document.getElementById('op-watch-low').value = op.watch.low || '';
-            document.getElementById('op-watch-high').value = op.watch.high || '';
-        } else {
-            document.getElementById('op-watch-tk').value = '';
-            document.getElementById('op-watch-nm').value = '';
-            document.getElementById('op-watch-pr').value = '';
-            document.getElementById('op-watch-low').value = '';
-            document.getElementById('op-watch-high').value = '';
-        }
-        
-        document.getElementById('op-btn').innerText = "수정 완료";
-        document.getElementById('op-cbtn').style.display = "block";
-        
-        switchTab('opinions', document.querySelector('.tab-btn:nth-child(3)'));
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    window.cancelOpEd = function() {
-        document.getElementById('op-eid').value = '';
-        document.getElementById('op-text').value = '';
-        document.getElementById('op-watch-tk').value = '';
-        document.getElementById('op-watch-nm').value = '';
-        document.getElementById('op-watch-pr').value = '';
-        document.getElementById('op-watch-low').value = '';
-        document.getElementById('op-watch-high').value = '';
-        
-        document.getElementById('op-btn').innerText = "의견 등록";
-        document.getElementById('op-cbtn').style.display = "none";
-        
-        const curUser = sessionStorage.getItem('loggedInUser');
-        if (curUser && curUser !== '김태호') document.getElementById('op-user').value = curUser;
-    };
-
-    window.renderOpinions = function() {
-        const container = document.getElementById('opinions-timeline');
-        if(!container) return;
-        let html = state.opinions.sort((a,b) => b.timestamp - a.timestamp).map(op => {
-            const d = new Date(op.timestamp);
-            const timeStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-            let watchHtml = '';
-            if(op.watch && op.watch.tk) {
-                watchHtml = `<div class="op-watch-card">
-                    <strong>관심 종목: ${op.watch.nm} (${op.watch.tk})</strong>
-                    <div class="op-watch-details">
-                        <span>현재가: ${op.watch.pr}</span>
-                        <span>52주 최저: ${op.watch.low}</span>
-                        <span>52주 최고: ${op.watch.high}</span>
-                    </div>
-                </div>`;
-            }
-            return `<div class="op-item">
-                <div class="op-header">
-                    <span class="op-author">${op.author}</span>
-                    <span>${timeStr} 
-                        <span class="op-btn-grp">
-                            <button class="op-action-btn op-edit-btn" onclick="editOpinion('${op.id}', '${op.author}')">수정</button>
-                            <button class="op-action-btn op-del-btn" onclick="openDelModal('${op.id}', 'opinion', '${op.author}')">삭제</button>
-                        </span>
-                    </span>
-                </div>
-                <div class="op-content">${op.text}</div>
-                ${watchHtml}
-            </div>`;
-        }).join('');
-        container.innerHTML = html || '<div style="text-align:center;color:#aaa;padding:20px;">등록된 의견이 없습니다.</div>';
-    };
-
-    window.generatePeriodTrend = async function() {
-        if (!db) return;
-        const sDate = document.getElementById('trend-start').value;
-        const eDate = document.getElementById('trend-end').value;
-        
-        if (!sDate || !eDate || sDate > eDate) return alert("올바른 기간을 설정해주세요.");
-
-        toggleLd(true, "변동 내역 분석 중...");
-
-        const reportKey = `${sDate}_to_${eDate}`;
-        const report = { timestamp: Date.now(), title: `${sDate} ~ ${eDate} 기간 동향`, users: {} };
-        const EPSILON = 0.000001;
-        let totalChangeCount = 0; 
-
         users.forEach(u => {
-            report.users[u] = { daily: {} };
-            let tradeDates = new Set();
-            state.trades[u].forEach(t => { if (t.date >= sDate && t.date <= eDate) tradeDates.add(t.date); });
-            let sortedDates = Array.from(tradeDates).sort();
-
-            sortedDates.forEach(dStr => {
-                let portPrev = {}, portCurr = {};
-                state.trades[u].forEach(t => {
-                    const tkName = t.name || t.ticker;
-                    const xr = t.currency === 'KRW' ? 1 : exKRW;
-                    if (t.date < dStr) {
-                        if(!portPrev[t.ticker]) portPrev[t.ticker] = { q: 0, n: tkName, xr };
-                        if(t.type === 'buy') portPrev[t.ticker].q += t.qty; else portPrev[t.ticker].q -= t.qty;
-                    }
-                    if (t.date <= dStr) {
-                        if(!portCurr[t.ticker]) portCurr[t.ticker] = { q: 0, n: tkName, xr };
-                        if(t.type === 'buy') portCurr[t.ticker].q += t.qty; else portCurr[t.ticker].q -= t.qty;
-                    }
-                });
-
-                let totalValPrev = 0; let totalValCurr = 0;
-                const getPrice = (tk) => {
-                    const fbKey = safeKey(tk);
-                    return (cache[fbKey] && cache[fbKey].price) ? cache[fbKey].price : 0;
-                };
-
-                for(let tk in portPrev) if(portPrev[tk].q > 0) totalValPrev += portPrev[tk].q * getPrice(tk) * portPrev[tk].xr;
-                for(let tk in portCurr) if(portCurr[tk].q > 0) totalValCurr += portCurr[tk].q * getPrice(tk) * portCurr[tk].xr;
-
-                let dayRes = { inc:[], dec:[] };
-                const allTks = new Set([...Object.keys(portPrev), ...Object.keys(portCurr)]);
-                
-                allTks.forEach(tk => {
-                    const qP = portPrev[tk]?.q || 0;
-                    const qC = portCurr[tk]?.q || 0;
-                    if (Math.abs(qP - qC) < EPSILON) return; 
-
-                    const xr = portCurr[tk] ? portCurr[tk].xr : portPrev[tk].xr;
-                    const n = portCurr[tk] ? portCurr[tk].n : portPrev[tk].n;
-                    const price = getPrice(tk);
-
-                    const wP = totalValPrev > 0 ? (qP * price * xr / totalValPrev) * 100 : 0;
-                    const wC = totalValCurr > 0 ? (qC * price * xr / totalValCurr) * 100 : 0;
-
-                    let qP_str = qP.toLocaleString(undefined,{maximumFractionDigits:4});
-                    let qC_str = qC.toLocaleString(undefined,{maximumFractionDigits:4});
-                    let wP_str = wP.toFixed(1);
-                    let wC_str = wC.toFixed(1);
-
-                    let detail = `수량: ${qP_str} → ${qC_str} | 비중: ${wP_str}% → ${wC_str}%`;
-
-                    if (qP < EPSILON && qC > EPSILON) dayRes.inc.push({ tk, n, type: '신규 매수', detail });
-                    else if (qP > EPSILON && qC > qP + EPSILON) dayRes.inc.push({ tk, n, type: '추가 매수', detail });
-                    else if (qP > EPSILON && qC < qP - EPSILON && qC > EPSILON) dayRes.dec.push({ tk, n, type: '일부 매도', detail });
-                    else if (qP > EPSILON && qC < EPSILON) dayRes.dec.push({ tk, n, type: '전체 매도', detail });
-                });
-
-                if(dayRes.inc.length > 0 || dayRes.dec.length > 0) {
-                    report.users[u].daily[dStr] = dayRes;
-                    totalChangeCount++; 
+            if(filterU !== 'all' && u !== filterU) return;
+            state.trades[u].forEach(t => {
+                if(!t.date) return;
+                const parts = t.date.split('-');
+                if(parts.length === 3) {
+                    const ty = parseInt(parts[0], 10);
+                    const tm = parseInt(parts[1], 10) - 1;
+                    const td = parseInt(parts[2], 10);
+                    if(ty === calYear && tm === calMonth) tradeDays.add(td);
                 }
             });
         });
 
-        if (totalChangeCount === 0) {
-            toggleLd(false);
-            alert("해당 기간 동안 매매 변동 사항이 없어 리포트가 업데이트되지 않았습니다.");
-            return;
+        const firstDay = new Date(calYear, calMonth, 1).getDay();
+        const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+
+        for (let i = 0; i < firstDay; i++) {
+            body.innerHTML += `<div class="cal-day empty"></div>`;
         }
 
-        try {
-            await db.ref(`trends/${reportKey}`).set(report);
-            setTimeout(() => {
-                const sel = document.getElementById('trend-date-selector');
-                if(sel) { sel.value = reportKey; renderTrends(); }
-                alert("변동 사항이 확인되어 동향 리포트가 성공적으로 업데이트되었습니다.");
-            }, 500);
-        } catch(e) { alert("리포트 생성 실패"); }
-        toggleLd(false);
-    }
-
-    function updateTrendDateSelector() {
-        const selector = document.getElementById('trend-date-selector');
-        if (!selector) return;
-        const dates = Object.keys(state.trends).sort((a,b) => {
-            const dateA = a.split('_')[0];
-            const dateB = b.split('_')[0];
-            return new Date(dateB) - new Date(dateA);
-        });
-        selector.innerHTML = dates.map(d => `<option value="${d}">${state.trends[d].title || d}</option>`).join('');
-    }
-
-    window.saveTrendItemReason = async function(date, user, tk, val, el) {
-        if (!hasAuth(user)) {
-            alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
-            el.value = state.trendItemReasons[`${date}_${user}_${tk}`] || ''; 
-            return;
+        for (let i = 1; i <= daysInMonth; i++) {
+            const isTradeDay = tradeDays.has(i);
+            const markerHtml = isTradeDay ? `<div class="cal-marker" title="변동 사항 있음"></div>` : '';
+            const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+            const activeCls = (dateStr === activeCalDate) ? 'active' : '';
+            body.innerHTML += `
+                <div class="cal-day ${activeCls}" onclick="showDailyTrend('${dateStr}')">
+                    <div class="cal-date-num">${i}</div>
+                    ${markerHtml}
+                </div>
+            `;
         }
-        if (!db) return;
-        try {
-            await db.ref(`trendItemReasons/${date}_${user}_${tk}`).set(val);
-        } catch(e) {}
-    };
+    }
 
-    window.renderTrends = function() {
-        const selector = document.getElementById('trend-date-selector');
+    window.showDailyTrend = function(dateStr) {
+        activeCalDate = dateStr;
+        renderCalendar(); // active 클래스 갱신
+
         const container = document.getElementById('trends-container');
-        const userFilter = document.getElementById('trend-user-filter');
-        
-        if (!selector || !container) return;
+        const filterVal = document.getElementById('trend-user-filter').value;
+        const EPSILON = 0.000001;
 
-        const selDate = selector.value;
-        const filterVal = userFilter ? userFilter.value : 'all';
-
-        if (!selDate || !state.trends[selDate]) {
-            container.innerHTML = '<div style="text-align:center; padding:30px; color:#aaa;">리포트를 생성해주세요.</div>';
-            return;
-        }
-
-        const report = state.trends[selDate];
-        let html = ``;
+        let html = '';
+        let totalChanges = 0;
 
         users.forEach(u => {
             if (filterVal !== 'all' && u !== filterVal) return;
 
-            const data = report.users[u];
-            if (!data || !data.daily) return;
+            let portPrev = {}, portCurr = {};
+            state.trades[u].forEach(t => {
+                if(!t.date) return;
+                const tkName = t.name || t.ticker;
+                const xr = t.currency === 'KRW' ? 1 : exKRW;
+                if (t.date < dateStr) {
+                    if(!portPrev[t.ticker]) portPrev[t.ticker] = { q: 0, n: tkName, xr };
+                    if(t.type === 'buy') portPrev[t.ticker].q += t.qty; else portPrev[t.ticker].q -= t.qty;
+                }
+                if (t.date <= dateStr) {
+                    if(!portCurr[t.ticker]) portCurr[t.ticker] = { q: 0, n: tkName, xr };
+                    if(t.type === 'buy') portCurr[t.ticker].q += t.qty; else portCurr[t.ticker].q -= t.qty;
+                }
+            });
 
-            let dailyHtml = '';
-            const dates = Object.keys(data.daily).sort((a,b) => new Date(b) - new Date(a));
+            let totalValPrev = 0; let totalValCurr = 0;
+            const getPrice = (tk) => (cache[safeKey(tk)] && cache[safeKey(tk)].price) ? cache[safeKey(tk)].price : 0;
+
+            for(let tk in portPrev) if(portPrev[tk].q > 0) totalValPrev += portPrev[tk].q * getPrice(tk) * portPrev[tk].xr;
+            for(let tk in portCurr) if(portCurr[tk].q > 0) totalValCurr += portCurr[tk].q * getPrice(tk) * portCurr[tk].xr;
+
+            let incArr = [], decArr = [];
+            const allTks = new Set([...Object.keys(portPrev), ...Object.keys(portCurr)]);
             
-            if (dates.length === 0) {
-                dailyHtml = '<div style="color:#aaa; font-size:13px; padding:10px;">해당 기간에 매매 내역(변동)이 없습니다.</div>';
-            } else {
-                dates.forEach(d => {
-                    const day = data.daily[d];
-                    const renderItems = (arr, badgeCls) => {
-                        if(!arr || arr.length === 0) return '';
-                        return arr.map(i => {
-                            const rsnKey = `${d}_${u}_${i.tk}`;
-                            const rsnVal = state.trendItemReasons[rsnKey] || '';
-                            return `
-                            <div class="trend-detail-item">
-                                <div class="trend-detail-top">
-                                    <div class="trend-badge ${badgeCls}">${i.type}</div>
-                                    <div class="trend-text"><strong>${i.n} (${i.tk})</strong><br><span style="color:#666; font-size:12px;">${i.detail}</span></div>
-                                </div>
-                                <input type="text" class="trend-rsn-input" value="${rsnVal}" placeholder="비중 변경 사유를 입력하세요 (자동 저장)" onchange="saveTrendItemReason('${d}', '${u}', '${i.tk}', this.value, this)">
-                            </div>
-                            `;
-                        }).join('');
-                    };
+            allTks.forEach(tk => {
+                const qP = portPrev[tk]?.q || 0;
+                const qC = portCurr[tk]?.q || 0;
+                if (Math.abs(qP - qC) < EPSILON) return; 
 
-                    const incHtml = renderItems(day.inc?.filter(i=>i.type==='신규 매수'), 'badge-new') + renderItems(day.inc?.filter(i=>i.type==='추가 매수'), 'badge-add'); 
-                    const decHtml = renderItems(day.dec?.filter(i=>i.type==='일부 매도'), 'badge-part') + renderItems(day.dec?.filter(i=>i.type==='전체 매도'), 'badge-full');
+                const xr = portCurr[tk] ? portCurr[tk].xr : portPrev[tk].xr;
+                const n = portCurr[tk] ? portCurr[tk].n : portPrev[tk].n;
+                const price = getPrice(tk);
 
-                    if (incHtml || decHtml) {
-                        dailyHtml += `
-                            <div class="trend-day-box">
-                                <div class="trend-day-title">📅 ${d} 매매 동향</div>
-                                ${incHtml ? `<div style="margin-bottom:10px;"><h5>📈 비중 확대</h5>${incHtml}</div>` : ''}
-                                ${decHtml ? `<div style="margin-bottom:10px;"><h5>📉 비중 축소</h5>${decHtml}</div>` : ''}
+                const wP = totalValPrev > 0 ? (qP * price * xr / totalValPrev) * 100 : 0;
+                const wC = totalValCurr > 0 ? (qC * price * xr / totalValCurr) * 100 : 0;
+
+                let qP_str = qP.toLocaleString(undefined,{maximumFractionDigits:4});
+                let qC_str = qC.toLocaleString(undefined,{maximumFractionDigits:4});
+                let wP_str = wP.toFixed(1);
+                let wC_str = wC.toFixed(1);
+
+                let detail = `수량: ${qP_str} → ${qC_str} | 비중: ${wP_str}% → ${wC_str}%`;
+
+                if (qP < EPSILON && qC > EPSILON) incArr.push({ tk, n, type: '신규 매수', detail });
+                else if (qP > EPSILON && qC > qP + EPSILON) incArr.push({ tk, n, type: '추가 매수', detail });
+                else if (qP > EPSILON && qC < qP - EPSILON && qC > EPSILON) decArr.push({ tk, n, type: '일부 매도', detail });
+                else if (qP > EPSILON && qC < EPSILON) decArr.push({ tk, n, type: '전체 매도', detail });
+            });
+
+            if (incArr.length > 0 || decArr.length > 0) {
+                totalChanges++;
+                
+                const renderItems = (arr, badgeCls) => {
+                    if(!arr || arr.length === 0) return '';
+                    return arr.map(i => {
+                        const rsnKey = `${dateStr}_${u}_${i.tk}`;
+                        const rsnVal = state.trendItemReasons[rsnKey] || '';
+                        return `
+                        <div class="trend-detail-item">
+                            <div class="trend-detail-top">
+                                <div class="trend-badge ${badgeCls}">${i.type}</div>
+                                <div class="trend-text"><strong>${i.n} (${i.tk})</strong><br><span style="color:#666; font-size:12px;">${i.detail}</span></div>
                             </div>
+                            <input type="text" class="trend-rsn-input" value="${rsnVal}" placeholder="비중 변경 사유를 입력하세요 (자동 저장)" onchange="saveTrendItemReason('${dateStr}', '${u}', '${i.tk}', this.value, this)">
+                        </div>
                         `;
-                    }
-                });
-            }
+                    }).join('');
+                };
 
-            const cmtKey = `${selDate}_${u}`;
-            const commentsObj = state.trendComments[cmtKey] || {};
-            const commentsHtml = Object.keys(commentsObj).map(k => {
-                const c = commentsObj[k];
-                const d = new Date(c.timestamp);
-                const timeStr = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-                return `<div class="comment-item"><div><strong>${c.author}</strong> ${c.text}</div><div style="color:#aaa; font-size:11px;">${timeStr} <button class="op-del" style="margin-left:5px" onclick="delTrendComment('${cmtKey}', '${k}', '${c.author}')">x</button></div></div>`;
-            }).join('');
+                const incHtml = renderItems(incArr.filter(i=>i.type==='신규 매수'), 'badge-new') + renderItems(incArr.filter(i=>i.type==='추가 매수'), 'badge-add'); 
+                const decHtml = renderItems(decArr.filter(i=>i.type==='일부 매도'), 'badge-part') + renderItems(decArr.filter(i=>i.type==='전체 매도'), 'badge-full');
 
-            html += `
+                const cmtKey = `${dateStr}_${u}`;
+                const commentsObj = state.trendComments[cmtKey] || {};
+                const commentsHtml = Object.keys(commentsObj).map(k => {
+                    const c = commentsObj[k];
+                    const d = new Date(c.timestamp);
+                    const timeStr = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                    return `<div class="comment-item"><div><strong>${c.author}</strong> ${c.text}</div><div style="color:#aaa; font-size:11px;">${timeStr} <button class="op-del" style="margin-left:5px" onclick="delTrendComment('${cmtKey}', '${k}', '${c.author}')">x</button></div></div>`;
+                }).join('');
+
+                html += `
                 <div class="trend-card">
                     <div class="trend-author">👤 ${u}의 포트폴리오 동향</div>
-                    ${dailyHtml}
+                    <div class="trend-day-box">
+                        <div class="trend-day-title">📅 ${dateStr} 매매 동향</div>
+                        ${incHtml ? `<div style="margin-bottom:10px;"><h5>📈 비중 확대</h5>${incHtml}</div>` : ''}
+                        ${decHtml ? `<div style="margin-bottom:10px;"><h5>📉 비중 축소</h5>${decHtml}</div>` : ''}
+                    </div>
                     
                     <div class="trend-comments">
                         <div class="comment-list">${commentsHtml}</div>
                         <div class="comment-input-area">
-                            <select id="tc-author-${u}" style="width:100px;">
-                                <option value="김태호">김태호</option>
-                                <option value="이용우">이용우</option>
-                                <option value="이형주">이형주</option>
-                            </select>
-                            <input type="text" id="tc-text-${u}" placeholder="동향에 대한 코멘트를 남겨보세요..." onkeypress="if(event.key==='Enter') addTrendComment('${selDate}', '${u}')">
-                            <button onclick="addTrendComment('${selDate}', '${u}')">등록</button>
+                            <input type="hidden" id="tc-author-${u}" value="${sessionStorage.getItem('loggedInUser') || u}">
+                            <input type="text" id="tc-text-${u}" placeholder="동향에 대한 코멘트를 남겨보세요..." onkeypress="if(event.key==='Enter') addTrendComment('${dateStr}', '${u}')">
+                            <button onclick="addTrendComment('${dateStr}', '${u}')">등록</button>
                         </div>
                     </div>
-                </div>
-            `;
+                </div>`;
+            }
         });
 
-        if (html === '') {
-            html = '<div style="text-align:center; padding:30px; color:#aaa;">해당 필터에 맞는 동향 데이터가 없습니다.</div>';
+        if (totalChanges === 0) {
+            html = `<div style="text-align:center; padding:30px; color:#aaa;">${dateStr} 일자에는 매매 변동 내역이 없습니다.</div>`;
         }
 
         container.innerHTML = html;
     }
 
-    window.addTrendComment = async function(dateStr, targetUser) {
-        if (!db) return;
-        const author = document.getElementById(`tc-author-${targetUser}`).value;
-        if (!hasAuth(author)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
 
-        const text = document.getElementById(`tc-text-${targetUser}`).value.trim();
-        if (!text) return;
+    // --- 멀티 매매 입력 로직 ---
+    window.addTradeRow = function(u, defaultData = null) {
+        const container = document.getElementById(`trade-rows-container-${u}`);
+        if (!container) return;
+        const rowId = 'row-' + Date.now() + Math.floor(Math.random()*1000);
+        const dt = defaultData ? defaultData.date : new Date().toISOString().substring(0, 10);
+        const tk = defaultData ? defaultData.ticker : '';
+        const nm = defaultData ? defaultData.name : '';
+        const ty = defaultData ? defaultData.type : 'buy';
+        const cr = defaultData ? defaultData.currency : 'USD';
+        const pr = defaultData ? defaultData.price : '';
+        const qt = defaultData ? defaultData.qty : '';
 
-        const refKey = `${dateStr}_${targetUser}`;
-        try {
-            await db.ref(`trendComments/${refKey}`).push({
-                author: author, text: text, timestamp: Date.now()
-            });
-            document.getElementById(`tc-text-${targetUser}`).value = '';
-        } catch(e) { alert("댓글 등록 실패"); }
+        const rowHtml = `
+        <div class="trade-row form-grid" id="${rowId}" style="margin-bottom:10px; padding-bottom:10px; border-bottom:1px dashed #eee; position:relative;">
+            <div class="f-grp"><label>날짜</label><input type="date" class="i-dt" value="${dt}"></div>
+            <div class="f-grp"><label>티커</label><input type="text" class="i-tk" value="${tk}" onchange="handleTkRow(this, '${u}')" placeholder="AAPL, 005930"></div>
+            <div class="f-grp"><label>종목명</label><input type="text" class="i-nm" value="${nm}" disabled placeholder="자동 입력"></div>
+            <div class="f-grp"><label>유형</label><select class="i-ty"><option value="buy" ${ty==='buy'?'selected':''}>매수</option><option value="sell" ${ty==='sell'?'selected':''}>매도</option></select></div>
+            <div class="f-grp"><label>통화</label><select class="i-cr" disabled><option value="USD" ${cr==='USD'?'selected':''}>USD</option><option value="KRW" ${cr==='KRW'?'selected':''}>KRW</option></select></div>
+            <div class="f-grp"><label>가격</label><input type="number" step="0.01" class="i-pr" value="${pr}"></div>
+            <div class="f-grp"><label>수량</label><input type="number" step="0.0001" class="i-qt" value="${qt}"></div>
+            <button type="button" onclick="document.getElementById('${rowId}').remove()" style="position:absolute; right:0; top:22px; background:#ffeaea; border:1px solid #ff4d4f; color:#d63031; cursor:pointer; font-size:16px; border-radius:4px; padding:2px 8px;" title="이 행 삭제">✖</button>
+        </div>
+        `;
+        container.insertAdjacentHTML('beforeend', rowHtml);
     }
 
-    window.delTrendComment = async function(cmtKey, commentId, author) {
-        if (!hasAuth(author)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
-        if (!db || !confirm("댓글을 삭제하시겠습니까?")) return;
-        try {
-            await db.ref(`trendComments/${cmtKey}/${commentId}`).remove();
-        } catch(e) { alert("삭제 실패"); }
-    }
-
-    let pendingDelete = null;
-    function openDelModal(id, mode, owner) { 
-        if (!hasAuth(owner)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
-        pendingDelete = { id, mode }; 
-        document.getElementById('del-modal').classList.add('open'); 
-    }
-    window.openDelModal = openDelModal;
-
-    function closeDelModal() { 
-        pendingDelete = null; 
-        document.getElementById('del-modal').classList.remove('open'); 
-    }
-    window.closeDelModal = closeDelModal;
-    
-    document.getElementById('del-confirm-btn').addEventListener('click', async function() {
-        if (!pendingDelete || !db) return;
-        const { id, mode } = pendingDelete;
-        const node = mode === 'opinion' ? 'opinions' : 'trades';
-        closeDelModal();
-        toggleLd(true, "삭제 중...");
-        try { await db.ref(`${node}/${id}`).remove(); } catch(e) { alert("삭제 실패"); }
-        toggleLd(false);
-    });
-    document.getElementById('del-modal').addEventListener('click', function(e) { if (e.target === this) closeDelModal(); });
-
-    function getSortArrow(u, key) {
-        if (sortStates[u].key !== key) return '↕';
-        return sortStates[u].asc ? '▲' : '▼';
-    }
-
-    window.sortPort = function(u, key) {
-        if (sortStates[u].key === key) sortStates[u].asc = !sortStates[u].asc;
-        else { sortStates[u].key = key; sortStates[u].asc = (key === 'fn') ? true : false; }
-        updateAll();
-    }
-
-    window.fillTradeForm = function(u, tk) {
-        document.getElementById(`tk-${u}`).value = tk;
-        handleTk(u);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function initUI() {
-        const con = document.getElementById('pages-container');
-        if (!con) return;
-        con.innerHTML = '';
-        
-        users.forEach(u => {
-            const html = `
-                <div id="u-${u}" class="tab-content">
-                    
-                    <div class="metrics" style="margin-bottom: 20px;">
-                        <div class="m-box" style="border-left-color: #9b59b6;">
-                            <h4>전체 자산 손익 (KRW)</h4>
-                            <p id="tot-val-${u}">0원</p>
-                            <div id="tot-ret-${u}" style="font-size:15px; font-weight:bold; margin-top:5px;">0%</div>
-                        </div>
-                        <div class="m-box" style="border-left-color: #3498db;">
-                            <h4>국내 주식 손익 (KRW)</h4>
-                            <p id="dom-val-${u}">0원</p>
-                            <div id="dom-ret-${u}" style="font-size:15px; font-weight:bold; margin-top:5px;">0%</div>
-                        </div>
-                        <div class="m-box" style="border-left-color: #e67e22; position: relative;">
-                            <h4>해외 주식 손익</h4>
-                            <div style="position: absolute; top: 15px; right: 15px; display: flex; gap: 4px;">
-                                <button class="curr-btn active" id="btn-krw-${u}" onclick="setCurrency('${u}', 'KRW')">₩</button>
-                                <button class="curr-btn" id="btn-usd-${u}" onclick="setCurrency('${u}', 'USD')">＄</button>
-                            </div>
-                            <p id="ovs-val-${u}">0원</p>
-                            <div id="ovs-ret-${u}" style="font-size:15px; font-weight:bold; margin-top:5px;">0%</div>
-                        </div>
-                    </div>
-
-                    <div class="card">
-                        <h3>현재 포트폴리오 (실시간 연동)</h3>
-                        <div class="tbl-wrap">
-                            <table>
-                                <thead id="thead-${u}"></thead>
-                                <tbody id="port-${u}"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                    
-                    <div class="card">
-                        <h3>비중 차트</h3>
-                        <div class="chart"><canvas id="ch-${u}"></canvas></div>
-                    </div>
-
-                    <div class="card">
-                        <div class="card-header">
-                            <h3>매매 입력/수정</h3>
-                            <div class="realized-badge">누적 확정 수익금: <span id="rp-${u}">0</span>원</div>
-                        </div>
-                        <div class="form-grid">
-                            <input type="hidden" id="eid-${u}">
-                            <div class="f-grp"><label>날짜</label><input type="date" id="dt-${u}"></div>
-                            <div class="f-grp"><label>티커 (입력 후 바깥 클릭)</label><input type="text" id="tk-${u}" onchange="handleTk('${u}')" placeholder="AAPL, 005930"></div>
-                            <div class="f-grp"><label>종목명 (자동)</label><input type="text" id="nm-${u}" disabled placeholder="자동 입력"></div>
-                            <div class="f-grp"><label>유형</label><select id="ty-${u}"><option value="buy">매수</option><option value="sell">매도</option></select></div>
-                            <div class="f-grp"><label>통화 (자동)</label><select id="cr-${u}" disabled><option value="USD">USD</option><option value="KRW">KRW</option></select></div>
-                            <div class="f-grp"><label>가격</label><input type="number" step="0.01" id="pr-${u}"></div>
-                            <div class="f-grp"><label>수량</label><input type="number" step="0.0001" id="qt-${u}"></div>
-                            <div class="f-grp btn-grp" style="grid-column: span 1;">
-                                <button class="p-btn" id="btn-${u}" onclick="saveTr('${u}')">저장</button>
-                                <button class="c-btn" id="cbtn-${u}" onclick="cancelEd('${u}')">취소</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card">
-                        <h3>매매 일지</h3>
-                        <div class="filter-bar">
-                            <span class="filter-label">필터:</span>
-                            <input type="date" id="f-dt-s-${u}" onchange="updateAll()">
-                            <span>~</span>
-                            <input type="date" id="f-dt-e-${u}" onchange="updateAll()">
-                            <input type="text" id="f-txt-${u}" placeholder="종목/티커 검색" oninput="updateAll()">
-                            <select id="f-ty-${u}" onchange="updateAll()">
-                                <option value="all">유형 전체</option>
-                                <option value="buy">매수</option>
-                                <option value="sell">매도</option>
-                            </select>
-                        </div>
-                        <div class="tbl-wrap">
-                            <table>
-                                <thead><tr><th>날짜</th><th>종목</th><th>유형</th><th>가격</th><th>수량</th><th>관리</th></tr></thead>
-                                <tbody id="log-${u}"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>`;
-            con.insertAdjacentHTML('beforeend', html);
-            
-            const dtInput = document.getElementById(`dt-${u}`);
-            if (dtInput) dtInput.value = new Date().toISOString().substring(0, 10);
-        });
-    }
-
-    window.switchTab = function(targetId, btn) {
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        
-        const targetEl = document.getElementById(targetId);
-        if (targetEl) targetEl.classList.add('active');
-        if (btn) btn.classList.add('active');
-    }
-
-    function renderIdx() {
-        const grid = document.getElementById('market-indices');
-        if(!grid) return;
-        const html = Object.entries(mSym).map(([sym, lbl]) => {
-            const fbKey = safeKey(sym);
-            const info = cache[fbKey];
-            let priceStr = '-';
-            let changeHtml = '<span class="pct" style="color:#aaa">데이터 없음</span>';
-
-            if (info && info.price > 0) {
-                priceStr = info.price.toLocaleString(undefined, { maximumFractionDigits: 2 });
-                const pct = info.change;
-                const cls  = pct > 0 ? 'profit' : (pct < 0 ? 'loss' : '');
-                const sign = pct > 0 ? '+' : '';
-                changeHtml = `<span class="pct ${cls}">(${sign}${pct.toFixed(2)}%)</span>`;
-            } else if (sheetIndices[lbl]) {
-                priceStr = parseFloat(String(sheetIndices[lbl]).replace(/,/g, '')).toLocaleString(undefined, { maximumFractionDigits: 2 });
-                changeHtml = ''; 
-            }
-            return `<div class="idx-item"><div class="val">${priceStr} ${changeHtml}</div><div class="key">${lbl}</div></div>`;
-        }).join('');
-        grid.innerHTML = html;
-    }
-
-    window.handleTk = async function(u) {
-        const tkIn = document.getElementById(`tk-${u}`);
-        const nmIn = document.getElementById(`nm-${u}`);
-        const prIn = document.getElementById(`pr-${u}`);
-        const crSel = document.getElementById(`cr-${u}`);
+    window.handleTkRow = async function(el, u) {
+        const row = el.closest('.trade-row');
+        const tkIn = row.querySelector('.i-tk');
+        const nmIn = row.querySelector('.i-nm');
+        const prIn = row.querySelector('.i-pr');
+        const crSel = row.querySelector('.i-cr');
 
         const tk = tkIn.value.trim().toUpperCase();
         if (!tk) { nmIn.value = ''; return; }
@@ -1290,6 +916,213 @@
         }
     }
 
+    window.saveTr = async function(u) {
+        if (!hasAuth(u)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
+        if (!db) return alert("데이터베이스 연결 오류");
+
+        const container = document.getElementById(`trade-rows-container-${u}`);
+        const rows = container.querySelectorAll('.trade-row');
+        let tradesToSave = [];
+        let isValid = true;
+
+        rows.forEach(r => {
+            const dt = r.querySelector('.i-dt').value;
+            const tk = r.querySelector('.i-tk').value.trim().toUpperCase();
+            const nm = r.querySelector('.i-nm').value;
+            const ty = r.querySelector('.i-ty').value;
+            const cr = r.querySelector('.i-cr').value;
+            const pr = parseFloat(r.querySelector('.i-pr').value);
+            const qt = parseFloat(r.querySelector('.i-qt').value);
+
+            if (!dt || !tk || isNaN(pr) || isNaN(qt)) isValid = false;
+            tradesToSave.push({ user: u, date: dt, ticker: tk, name: nm || tk, type: ty, currency: cr, price: pr, qty: qt });
+        });
+
+        if (!isValid) return alert("입력값을 정확히 확인해주세요.");
+        if (tradesToSave.length === 0) return alert("저장할 매매 내역이 없습니다.");
+
+        toggleLd(true, "일괄 저장 중...");
+        try {
+            const eid = document.getElementById(`eid-${u}`).value;
+            if (eid && tradesToSave.length === 1) {
+                await db.ref(`trades/${eid}`).update(tradesToSave[0]);
+            } else {
+                const updates = {};
+                tradesToSave.forEach(t => {
+                    const newKey = db.ref('trades').push().key;
+                    updates[newKey] = t;
+                });
+                await db.ref('trades').update(updates);
+            }
+            cancelEd(u);
+        } catch(e) { alert("저장 실패"); }
+        toggleLd(false);
+    };
+
+    window.editTr = function(u, id) {
+        if (!hasAuth(u)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
+        const t = state.trades[u].find(x => x.id === id);
+        if (!t) return;
+        
+        document.getElementById(`eid-${u}`).value = t.id;
+        const container = document.getElementById(`trade-rows-container-${u}`);
+        container.innerHTML = ''; 
+        addTradeRow(u, t); 
+        
+        document.getElementById(`btn-${u}`).innerText = "수정 완료";
+        document.getElementById(`cbtn-${u}`).style.display = "block";
+        document.getElementById(`add-row-btn-${u}`).style.display = "none"; 
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    window.cancelEd = function(u) {
+        document.getElementById(`eid-${u}`).value = '';
+        const container = document.getElementById(`trade-rows-container-${u}`);
+        container.innerHTML = '';
+        addTradeRow(u); 
+        
+        document.getElementById(`btn-${u}`).innerText = "일괄 저장";
+        document.getElementById(`cbtn-${u}`).style.display = "none";
+        document.getElementById(`add-row-btn-${u}`).style.display = "inline-block";
+    };
+
+
+    // --- 누적 확정 수익금 상세 모달 로직 ---
+    window.showRealizedDetails = function(u) {
+        const list = state.realizedDetails[u] || [];
+        let html = `<table><thead><tr><th style="text-align:center;">날짜</th><th style="text-align:left;">종목</th><th>확정 수익금 (KRW)</th></tr></thead><tbody>`;
+        
+        if (list.length === 0) {
+            html += `<tr><td colspan="3" style="text-align:center; color:#aaa; padding:20px;">실현된 수익 내역이 없습니다.</td></tr>`;
+        } else {
+            list.slice().reverse().forEach(item => {
+                const cls = item.profit > 0 ? 'profit' : (item.profit < 0 ? 'loss' : '');
+                const sign = item.profit > 0 ? '+' : '';
+                html += `<tr>
+                    <td style="text-align:center;">${item.date}</td>
+                    <td style="text-align:left;">${item.n} <small style="color:#888">(${item.tk})</small></td>
+                    <td class="${cls}">${sign}₩${Math.abs(item.profit).toLocaleString('ko-KR', {maximumFractionDigits:0})}</td>
+                </tr>`;
+            });
+        }
+        html += `</tbody></table>`;
+        
+        document.getElementById('realized-modal-body').innerHTML = html;
+        document.getElementById('realized-modal').classList.add('open');
+    }
+
+
+    window.fillTradeForm = function(u, tk) {
+        // 기존 폼 지우고 새로 생성 (혹은 비어있는 행이 있으면 채움)
+        const container = document.getElementById(`trade-rows-container-${u}`);
+        if(container.innerHTML.trim() === '') addTradeRow(u);
+        
+        // 마지막 행에 티커 채우기
+        const rows = container.querySelectorAll('.trade-row');
+        const lastRow = rows[rows.length - 1];
+        lastRow.querySelector('.i-tk').value = tk;
+        handleTkRow(lastRow.querySelector('.i-tk'), u);
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function initUI() {
+        const con = document.getElementById('pages-container');
+        if (!con) return;
+        con.innerHTML = '';
+        
+        users.forEach(u => {
+            state.realizedDetails[u] = []; // 상세내역 초기화
+            
+            const html = `
+                <div id="u-${u}" class="tab-content">
+                    
+                    <div class="metrics" style="margin-bottom: 20px;">
+                        <div class="m-box" style="border-left-color: #9b59b6;">
+                            <h4>전체 자산 손익 (KRW)</h4>
+                            <p id="tot-val-${u}">0원</p>
+                            <div id="tot-ret-${u}" style="font-size:15px; font-weight:bold; margin-top:5px;">0%</div>
+                        </div>
+                        <div class="m-box" style="border-left-color: #3498db;">
+                            <h4>국내 주식 손익 (KRW)</h4>
+                            <p id="dom-val-${u}">0원</p>
+                            <div id="dom-ret-${u}" style="font-size:15px; font-weight:bold; margin-top:5px;">0%</div>
+                        </div>
+                        <div class="m-box" style="border-left-color: #e67e22; position: relative;">
+                            <h4>해외 주식 손익</h4>
+                            <div style="position: absolute; top: 15px; right: 15px; display: flex; gap: 4px;">
+                                <button class="curr-btn active" id="btn-krw-${u}" onclick="setCurrency('${u}', 'KRW')">₩</button>
+                                <button class="curr-btn" id="btn-usd-${u}" onclick="setCurrency('${u}', 'USD')">＄</button>
+                            </div>
+                            <p id="ovs-val-${u}">0원</p>
+                            <div id="ovs-ret-${u}" style="font-size:15px; font-weight:bold; margin-top:5px;">0%</div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>비중 차트</h3>
+                        <div class="chart"><canvas id="ch-${u}"></canvas></div>
+                    </div>
+
+                    <div class="card">
+                        <h3>현재 포트폴리오 (실시간 연동)</h3>
+                        <div class="tbl-wrap">
+                            <table>
+                                <thead id="thead-${u}"></thead>
+                                <tbody id="port-${u}"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>매매 입력/수정</h3>
+                            <div class="realized-badge" onclick="showRealizedDetails('${u}')" title="클릭하여 상세 내역 보기">누적 확정 수익금: <span id="rp-${u}">0</span>원</div>
+                        </div>
+                        
+                        <input type="hidden" id="eid-${u}">
+                        <div id="trade-rows-container-${u}"></div>
+                        
+                        <div style="margin-top: 10px;">
+                            <button class="a-btn" id="add-row-btn-${u}" onclick="addTradeRow('${u}')" style="background:#2ecc71; padding:8px 12px; font-size:13px;">+ 매매 추가</button>
+                        </div>
+                        
+                        <div class="btn-grp" style="margin-top: 20px; max-width: 250px;">
+                            <button class="p-btn" id="btn-${u}" onclick="saveTr('${u}')">일괄 저장</button>
+                            <button class="c-btn" id="cbtn-${u}" onclick="cancelEd('${u}')" style="display:none;">취소</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>매매 일지</h3>
+                        <div class="filter-bar">
+                            <span class="filter-label">필터:</span>
+                            <input type="date" id="f-dt-s-${u}" onchange="updateAll()">
+                            <span>~</span>
+                            <input type="date" id="f-dt-e-${u}" onchange="updateAll()">
+                            <input type="text" id="f-txt-${u}" placeholder="종목/티커 검색" oninput="updateAll()">
+                            <select id="f-ty-${u}" onchange="updateAll()">
+                                <option value="all">유형 전체</option>
+                                <option value="buy">매수</option>
+                                <option value="sell">매도</option>
+                            </select>
+                        </div>
+                        <div class="tbl-wrap">
+                            <table>
+                                <thead><tr><th>날짜</th><th>종목</th><th>유형</th><th>가격</th><th>수량</th><th>관리</th></tr></thead>
+                                <tbody id="log-${u}"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>`;
+            con.insertAdjacentHTML('beforeend', html);
+            
+            addTradeRow(u); // 최초 빈 행 1개 생성
+        });
+    }
+
+
     window.updateAll = function() {
         try {
             let stats = [], hlds = [];
@@ -1304,6 +1137,7 @@
                 
                 let dailyAmtSum = 0;
                 let yestValSum = 0;
+                let userRealizedList = [];
 
                 state.trades[u].sort((a,b) => new Date(a.date)-new Date(b.date)).forEach(t => {
                     if (!port[t.ticker]) port[t.ticker] = { n: t.name, q: 0, c: 0, cr: t.currency };
@@ -1313,15 +1147,22 @@
                         p.c = totalQty > 0 ? (p.q*p.c + t.qty*t.price) / totalQty : 0;
                         p.q += t.qty;
                     } else {
-                        real += (t.price - p.c) * t.qty * (t.currency==='USD' ? exKRW : 1);
+                        const profitAmt = (t.price - p.c) * t.qty * (t.currency==='USD' ? exKRW : 1);
+                        real += profitAmt;
+                        userRealizedList.push({ date: t.date, tk: t.ticker, n: t.name, profit: profitAmt });
                         p.q  -= t.qty;
                     }
                 });
 
+                state.realizedDetails[u] = userRealizedList;
+
                 const rpSpan = document.getElementById(`rp-${u}`);
                 if(rpSpan) {
                     rpSpan.innerText = real.toLocaleString('ko-KR', {maximumFractionDigits: 0});
-                    rpSpan.className = real > 0 ? 'profit' : (real < 0 ? 'loss' : '');
+                    rpSpan.parentElement.className = `realized-badge ${real > 0 ? 'profit' : (real < 0 ? 'loss' : '')}`;
+                    rpSpan.parentElement.style.color = real > 0 ? '#155724' : (real < 0 ? '#721c24' : '#856404'); // badge 색상 보정
+                    if(real > 0) { rpSpan.parentElement.style.background = '#d4edda'; rpSpan.parentElement.style.borderColor = '#c3e6cb'; }
+                    else if(real < 0) { rpSpan.parentElement.style.background = '#f8d7da'; rpSpan.parentElement.style.borderColor = '#f5c6cb'; }
                 }
 
                 const mode = currMode[u]; 
