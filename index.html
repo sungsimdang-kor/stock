@@ -1200,6 +1200,23 @@
     });
     document.getElementById('del-modal').addEventListener('click', function(e) { if (e.target === this.firstElementChild) return; if (e.target === this) closeDelModal(); });
 
+    // 전체 내역 삭제 기능 추가
+    window.deleteAllTrades = async function(u) {
+        if (!hasAuth(u)) return alert('타인의 데이터는 수정 및 삭제할 수 없습니다.');
+        const userTrades = state.trades[u];
+        if (!userTrades || userTrades.length === 0) return alert('삭제할 내역이 없습니다.');
+        if (!confirm('정말로 모든 거래 내역을 한 번에 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
+        if (!db) return alert('데이터베이스 연결 오류');
+        
+        toggleLd(true, "전체 내역 삭제 중...");
+        try {
+            const updates = {};
+            userTrades.forEach(t => { updates[t.id] = null; });
+            await db.ref('trades').update(updates);
+        } catch(e) { alert("전체 삭제 실패"); }
+        toggleLd(false);
+    };
+
     function getSortArrow(u, key) {
         if (sortStates[u].key !== key) return '↕';
         return sortStates[u].asc ? '▲' : '▼';
@@ -1291,7 +1308,10 @@
                     </div>
 
                     <div class="card">
-                        <h3>매매 일지</h3>
+                        <div class="card-header">
+                            <h3>매매 일지</h3>
+                            <button class="a-btn del-btn" onclick="deleteAllTrades('${u}')" style="padding:6px 12px; font-size:12px; font-weight:bold;">전체 내역 삭제</button>
+                        </div>
                         <div class="filter-bar">
                             <span class="filter-label">필터:</span>
                             <input type="date" id="f-dt-s-${u}" onchange="updateAll()">
